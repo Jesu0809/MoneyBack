@@ -1,0 +1,194 @@
+@page "/"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>MoneyBack</PageTitle>
+
+@if (_cargando)
+{
+    <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+}
+else if (_hogar is null)
+{
+    <div class="stack">
+        <h2>Vincula a tu pareja</h2>
+        <p class="muted">Antes de empezar a ahorrar juntos, conecta tu cuenta con la de tu pareja. Ella (o él) debe haberse registrado primero.</p>
+
+        <div class="card">
+            <EditForm Model="_crearHogarForm" OnValidSubmit="CrearHogar">
+                <div class="stack">
+                    <div class="field">
+                        <label>Correo de tu pareja</label>
+                        <InputText class="input" @bind-Value="_crearHogarForm.EmailPareja" placeholder="pareja@correo.com" />
+                    </div>
+
+                    <div class="switch-row">
+                        <div>
+                            <div style="font-weight:600">¿Buscan en Bogotá, Cali, Medellín, Barranquilla o Bucaramanga?</div>
+                            <div class="muted">Incluye sus aglomeraciones. Cambia el tope VIS aplicable (150 vs 135 SMMLV).</div>
+                        </div>
+                        <button type="button" class="switch @(_crearHogarForm.AplicaTope150 ? "on" : "")"
+                                @onclick="() => _crearHogarForm.AplicaTope150 = !_crearHogarForm.AplicaTope150">
+                            <div class="knob"></div>
+                        </button>
+                    </div>
+
+                    <AlertBox Mensaje="@_error" />
+
+                    <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
+                        @if (_guardando) { <span class="spinner"></span> }
+                        <span>Vincular hogar</span>
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        <div>
+            <h2>Ahorro del hogar</h2>
+            <p class="muted">@_hogar.Usuario1Nombre &amp; @_hogar.Usuario2Nombre</p>
+        </div>
+
+        @if (_metas.Count == 0)
+        {
+            <div class="card">
+                <div class="stack">
+                    <h3>Crea tu primera meta</h3>
+                    <p class="muted">Empiecen por la meta del apartamento — pueden agregar el fondo de emergencia después.</p>
+                    <EditForm Model="_crearMetaForm" OnValidSubmit="CrearMeta">
+                        <div class="stack">
+                            <div class="field">
+                                <label>Tipo</label>
+                                <InputSelect class="input" @bind-Value="_crearMetaForm.Tipo">
+                                    <option value="@TipoMeta.Apartamento">Apartamento</option>
+                                    <option value="@TipoMeta.Emergencia">Fondo de emergencia</option>
+                                </InputSelect>
+                            </div>
+                            <div class="field">
+                                <label>Nombre</label>
+                                <InputText class="input" @bind-Value="_crearMetaForm.Nombre" placeholder="Nuestro apartamento" />
+                            </div>
+                            <div class="field">
+                                <label>Meta en pesos</label>
+                                <InputNumber class="input" @bind-Value="_crearMetaForm.MontoObjetivo" placeholder="180000000" />
+                            </div>
+                            <AlertBox Mensaje="@_error" />
+                            <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
+                                @if (_guardando) { <span class="spinner"></span> }
+                                <span>Crear meta</span>
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        }
+        else
+        {
+            @foreach (var meta in _metas)
+            {
+                <div class="card card-tap" @onclick="() => IrAMeta(meta.Id)">
+                    <div class="stack">
+                        <div class="row-between">
+                            <div>
+                                <div class="label">@(meta.Tipo == TipoMeta.Apartamento ? "Apartamento" : "Emergencia")</div>
+                                <h3>@meta.Nombre</h3>
+                            </div>
+                            <span class="pill">@Formato.Porcentaje(meta.PorcentajeCompletado)</span>
+                        </div>
+
+                        <ProgressBar Porcentaje="meta.PorcentajeCompletado" />
+
+                        <div class="row-between">
+                            <span class="money money-md">@Formato.Pesos(meta.MontoActual)</span>
+                            <span class="muted">de @Formato.Pesos(meta.MontoObjetivo)</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private bool _cargando = true;
+    private bool _guardando;
+    private string? _error;
+    private HogarResponse? _hogar;
+    private List<MetaResponse> _metas = [];
+
+    private readonly CrearHogarFormModel _crearHogarForm = new();
+    private readonly CrearMetaFormModel _crearMetaForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private void IrAMeta(int metaId) => Nav.NavigateTo($"/metas/{metaId}");
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _hogar = await Api.ObtenerMiHogarAsync();
+        if (_hogar is not null)
+        {
+            _metas = await Api.ObtenerMetasAsync(_hogar.Id);
+        }
+        _cargando = false;
+    }
+
+    private async Task CrearHogar()
+    {
+        _error = null;
+        _guardando = true;
+        var resultado = await Api.CrearHogarAsync(new CrearHogarRequest(
+            _crearHogarForm.EmailPareja, _crearHogarForm.AplicaTope150));
+
+        if (resultado.Exito)
+        {
+            _hogar = resultado.Valor;
+        }
+        else
+        {
+            _error = resultado.PrimerError();
+        }
+        _guardando = false;
+    }
+
+    private async Task CrearMeta()
+    {
+        if (_hogar is null) return;
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.CrearMetaAsync(_hogar.Id, new CrearMetaRequest(
+            _crearMetaForm.Tipo, _crearMetaForm.Nombre, _crearMetaForm.MontoObjetivo));
+
+        if (resultado.Exito)
+        {
+            _metas = await Api.ObtenerMetasAsync(_hogar.Id);
+        }
+        else
+        {
+            _error = resultado.PrimerError();
+        }
+        _guardando = false;
+    }
+
+    private class CrearHogarFormModel
+    {
+        public string EmailPareja { get; set; } = "";
+        public bool AplicaTope150 { get; set; }
+    }
+
+    private class CrearMetaFormModel
+    {
+        public TipoMeta Tipo { get; set; } = TipoMeta.Apartamento;
+        public string Nombre { get; set; } = "";
+        public decimal MontoObjetivo { get; set; }
+    }
+}

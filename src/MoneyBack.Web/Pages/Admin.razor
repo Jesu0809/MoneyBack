@@ -1,0 +1,122 @@
+@page "/admin"
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject ApiClient Api
+
+<PageTitle>Admin · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div>
+        <h2>Administración</h2>
+        <p class="muted">Solo gestión de cuentas — nunca vemos las metas ni movimientos de ningún hogar desde aquí.</p>
+    </div>
+
+    <div class="card">
+        <div class="stack">
+            <div class="label">Rotar código de invitación</div>
+            <p class="muted">El código actual deja de servir apenas generes uno nuevo.</p>
+            <EditForm Model="_codigoForm" OnValidSubmit="RotarCodigo">
+                <div class="row">
+                    <InputText class="input" @bind-Value="_codigoForm.NuevoCodigo" placeholder="Nuevo código (mín. 8 caracteres)" />
+                    <button class="btn btn-primary" type="submit" disabled="@_rotando">
+                        @if (_rotando) { <span class="spinner"></span> } else { <span>Rotar</span> }
+                    </button>
+                </div>
+            </EditForm>
+            <AlertBox Mensaje="@_errorCodigo" />
+            @if (_codigoRotado)
+            {
+                <AlertBox Tipo="accent" Mensaje="Código actualizado." />
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="stack">
+            <div class="label">Cuentas registradas</div>
+            @if (_cargando)
+            {
+                <div class="spinner spinner-accent"></div>
+            }
+            else
+            {
+                @foreach (var usuario in _usuarios)
+                {
+                    <div class="list-item">
+                        <div>
+                            <div style="font-weight:600">
+                                @usuario.Nombre
+                                @if (usuario.Roles.Count > 0)
+                                {
+                                    <span class="pill" style="margin-left:6px">@string.Join(", ", usuario.Roles)</span>
+                                }
+                            </div>
+                            <div class="muted">@usuario.Email · desde @Formato.FechaCorta(usuario.FechaCreacion)</div>
+                        </div>
+                        <button class="btn btn-secondary" @onclick="() => RevocarSesiones(usuario.Id)" disabled="@(_revocandoId == usuario.Id)">
+                            @if (_revocandoId == usuario.Id) { <span class="spinner"></span> } else { <span>Cerrar sesiones</span> }
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @if (_mensajeRevocacion is not null)
+    {
+        <AlertBox Tipo="accent" Mensaje="@_mensajeRevocacion" />
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _rotando;
+    private bool _codigoRotado;
+    private string? _errorCodigo;
+    private string? _mensajeRevocacion;
+    private int? _revocandoId;
+    private List<UsuarioAdminResponse> _usuarios = [];
+    private readonly CodigoFormModel _codigoForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _usuarios = await Api.ObtenerUsuariosAdminAsync();
+        _cargando = false;
+    }
+
+    private async Task RotarCodigo()
+    {
+        _errorCodigo = null;
+        _codigoRotado = false;
+        _rotando = true;
+
+        var resultado = await Api.RotarCodigoInvitacionAsync(new RotarCodigoInvitacionRequest(_codigoForm.NuevoCodigo));
+
+        if (resultado.Exito)
+        {
+            _codigoRotado = true;
+            _codigoForm.NuevoCodigo = "";
+        }
+        else
+        {
+            _errorCodigo = resultado.PrimerError();
+        }
+
+        _rotando = false;
+    }
+
+    private async Task RevocarSesiones(int usuarioId)
+    {
+        _revocandoId = usuarioId;
+        _mensajeRevocacion = null;
+        var cantidad = await Api.RevocarSesionesAsync(usuarioId);
+        _mensajeRevocacion = cantidad > 0
+            ? $"Se cerraron {cantidad} sesión(es) activa(s)."
+            : "Esa cuenta no tenía sesiones activas.";
+        _revocandoId = null;
+    }
+
+    private class CodigoFormModel
+    {
+        public string NuevoCodigo { get; set; } = "";
+    }
+}

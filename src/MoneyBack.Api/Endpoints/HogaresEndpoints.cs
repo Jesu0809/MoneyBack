@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
+using MoneyBack.Api.Models;
 using MoneyBack.Api.Models.Metas;
 using MoneyBack.Api.Services;
 
@@ -13,17 +15,13 @@ public static class HogaresEndpoints
     {
         var group = app.MapGroup("/api/hogares").WithTags("Hogares").RequireAuthorization();
 
-        group.MapPost("/", async (CrearHogarRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        group.MapPost("/", async (
+            CrearHogarRequest request,
+            ClaimsPrincipal principal,
+            ApplicationDbContext db,
+            UserManager<Usuario> userManager) =>
         {
             var usuarioId = principal.GetUsuarioId();
-
-            if (usuarioId == request.UsuarioParejaId)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["usuarioParejaId"] = ["Un hogar necesita dos usuarios distintos."]
-                });
-            }
 
             if (request.PorcentajeRedondeoEmergencia + request.PorcentajeRedondeoApartamento != 100)
             {
@@ -33,18 +31,26 @@ public static class HogaresEndpoints
                 });
             }
 
-            var parejaExiste = await db.Users.AnyAsync(u => u.Id == request.UsuarioParejaId);
-            if (!parejaExiste)
+            var pareja = await userManager.FindByEmailAsync(request.EmailPareja);
+            if (pareja is null)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
-                    ["usuarioParejaId"] = ["El usuario indicado no existe."]
+                    ["emailPareja"] = ["No encontramos una cuenta con ese correo. Tu pareja debe registrarse primero."]
+                });
+            }
+
+            if (pareja.Id == usuarioId)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["emailPareja"] = ["Un hogar necesita dos usuarios distintos."]
                 });
             }
 
             var yaTieneHogar = await db.Hogares.AnyAsync(h =>
                 h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId ||
-                h.Usuario1Id == request.UsuarioParejaId || h.Usuario2Id == request.UsuarioParejaId);
+                h.Usuario1Id == pareja.Id || h.Usuario2Id == pareja.Id);
             if (yaTieneHogar)
             {
                 return Results.Conflict("Uno de los dos usuarios ya pertenece a un hogar.");
@@ -53,7 +59,7 @@ public static class HogaresEndpoints
             var hogar = new Hogar
             {
                 Usuario1Id = usuarioId,
-                Usuario2Id = request.UsuarioParejaId,
+                Usuario2Id = pareja.Id,
                 AplicaTope150 = request.AplicaTope150,
                 PorcentajeRedondeoEmergencia = request.PorcentajeRedondeoEmergencia,
                 PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento
@@ -61,20 +67,27 @@ public static class HogaresEndpoints
             db.Hogares.Add(hogar);
             await db.SaveChangesAsync();
 
-            return Results.Created($"/api/hogares/{hogar.Id}", ToResponse(hogar));
+            var yo = await userManager.FindByIdAsync(usuarioId.ToString());
+            return Results.Created($"/api/hogares/{hogar.Id}", ToResponse(hogar, yo!.Nombre, pareja.Nombre));
         });
 
         group.MapGet("/mio", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();
-            var hogar = await db.Hogares.FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
-            return hogar is null ? Results.NotFound() : Results.Ok(ToResponse(hogar));
+            var hogar = await db.Hogares
+                .Include(h => h.Usuario1)
+                .Include(h => h.Usuario2)
+                .FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
+            return hogar is null ? Results.NotFound() : Results.Ok(ToResponse(hogar, hogar.Usuario1.Nombre, hogar.Usuario2.Nombre));
         });
 
         group.MapPut("/mio", async (ActualizarHogarRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();
-            var hogar = await db.Hogares.FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
+            var hogar = await db.Hogares
+                .Include(h => h.Usuario1)
+                .Include(h => h.Usuario2)
+                .FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
             if (hogar is null) return Results.NotFound();
 
             if (request.PorcentajeRedondeoEmergencia + request.PorcentajeRedondeoApartamento != 100)
@@ -90,23 +103,28 @@ public static class HogaresEndpoints
             hogar.PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento;
             await db.SaveChangesAsync();
 
-            return Results.Ok(ToResponse(hogar));
+            return Results.Ok(ToResponse(hogar, hogar.Usuario1.Nombre, hogar.Usuario2.Nombre));
         });
 
         group.MapGet("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            var hogar = await db.Hogares.FindAsync(id);
+            var hogar = await db.Hogares
+                .Include(h => h.Usuario1)
+                .Include(h => h.Usuario2)
+                .FirstOrDefaultAsync(h => h.Id == id);
             if (hogar is null) return Results.NotFound();
             if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
-            return Results.Ok(ToResponse(hogar));
+            return Results.Ok(ToResponse(hogar, hogar.Usuario1.Nombre, hogar.Usuario2.Nombre));
         });
     }
 
-    private static HogarResponse ToResponse(Hogar hogar) => new(
+    private static HogarResponse ToResponse(Hogar hogar, string usuario1Nombre, string usuario2Nombre) => new(
         hogar.Id,
         hogar.Usuario1Id,
+        usuario1Nombre,
         hogar.Usuario2Id,
+        usuario2Nombre,
         hogar.AplicaTope150,
         hogar.PorcentajeRedondeoEmergencia,
         hogar.PorcentajeRedondeoApartamento);

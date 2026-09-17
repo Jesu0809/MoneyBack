@@ -1,0 +1,92 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Nav
+@inject AuthService AuthService
+
+<AuthorizeView>
+    <Authorized>
+        <div class="app-shell">
+            <div class="topbar">
+                <div class="topbar-brand">
+                    <span class="dot"></span>
+                    <span>MoneyBack</span>
+                </div>
+                <div class="topbar-actions">
+                    <button class="avatar-btn" @onclick="ToggleMenu" title="@context.User.Identity?.Name">
+                        @Inicial(context)
+                    </button>
+                </div>
+            </div>
+
+            @if (_menuAbierto)
+            {
+                <div class="card" style="margin-bottom: 14px;">
+                    <div class="stack">
+                        <div class="row-between">
+                            <div>
+                                <div style="font-weight:650">@NombreDe(context)</div>
+                                <div class="muted">@EmailDe(context)</div>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <button class="btn btn-secondary btn-block" @onclick="CerrarSesion">Cerrar sesión</button>
+                    </div>
+                </div>
+            }
+
+            <div class="page-enter">
+                @Body
+            </div>
+        </div>
+
+        <nav class="tabbar">
+            <div class="tabbar-inner">
+                <NavLink class="tab-link" href="/" Match="NavLinkMatch.All">
+                    <span class="tab-icon">🏠</span>
+                    <span>Inicio</span>
+                </NavLink>
+                <NavLink class="tab-link" href="/subsidios">
+                    <span class="tab-icon">🧮</span>
+                    <span>Subsidios</span>
+                </NavLink>
+                <AuthorizeView Roles="SuperAdmin" Context="adminContext">
+                    <Authorized>
+                        <NavLink class="tab-link" href="/admin">
+                            <span class="tab-icon">🛡️</span>
+                            <span>Admin</span>
+                        </NavLink>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </nav>
+    </Authorized>
+    <NotAuthorized>
+        <div class="page-enter">
+            @Body
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool _menuAbierto;
+
+    private void ToggleMenu() => _menuAbierto = !_menuAbierto;
+
+    private static string NombreDe(AuthenticationState context) =>
+        context.User.FindFirst("nombre")?.Value ?? "Tú";
+
+    private static string EmailDe(AuthenticationState context) =>
+        context.User.FindFirst("email")?.Value ?? "";
+
+    private static string Inicial(AuthenticationState context)
+    {
+        var nombre = NombreDe(context);
+        return nombre.Length > 0 ? nombre[..1].ToUpperInvariant() : "?";
+    }
+
+    private async Task CerrarSesion()
+    {
+        _menuAbierto = false;
+        await AuthService.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: false);
+    }
+}

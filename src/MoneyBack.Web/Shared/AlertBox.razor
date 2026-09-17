@@ -1,0 +1,19 @@
+@if (!string.IsNullOrEmpty(Mensaje))
+{
+    <div class="alert alert-@Tipo">
+        <span>@Icono</span>
+        <span>@Mensaje</span>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Mensaje { get; set; }
+    [Parameter] public string Tipo { get; set; } = "danger";
+
+    private string Icono => Tipo switch
+    {
+        "warning" => "⚠️",
+        "accent" => "✅",
+        _ => "⚠️"
+    };
+}

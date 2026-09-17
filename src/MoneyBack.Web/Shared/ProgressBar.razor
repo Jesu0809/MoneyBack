@@ -1,0 +1,23 @@
+<div class="progress-track">
+    <div class="progress-fill" style="width: @(_anchoAnimado)%"></div>
+</div>
+
+@code {
+    [Parameter] public decimal Porcentaje { get; set; }
+
+    private decimal _anchoAnimado;
+    private decimal _ultimoValor = -1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var objetivo = Math.Clamp(Porcentaje, 0, 100);
+        if (objetivo == _ultimoValor) return;
+        _ultimoValor = objetivo;
+
+        _anchoAnimado = 0;
+        StateHasChanged();
+        await Task.Delay(60);
+        _anchoAnimado = objetivo;
+        StateHasChanged();
+    }
+}

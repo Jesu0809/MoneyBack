@@ -72,7 +72,7 @@ builder.Services.AddAuthorization();
 var origenesPermitidos = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Frontend", policy =>
+    options.AddDefaultPolicy(policy =>
     {
         if (origenesPermitidos.Length > 0)
         {
@@ -106,7 +106,7 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseCors("Frontend");
+app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

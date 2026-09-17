@@ -1,0 +1,86 @@
+@page "/login"
+@using Microsoft.AspNetCore.WebUtilities
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Iniciar sesión · MoneyBack</PageTitle>
+
+<div class="center-screen page-enter">
+    <div class="auth-card stack">
+        <div style="text-align:center">
+            <div class="topbar-brand" style="justify-content:center; font-size: 24px;">
+                <span class="dot"></span>
+                <span>MoneyBack</span>
+            </div>
+            <p class="muted">Ahorrando juntos para el apartamento.</p>
+        </div>
+
+        <div class="card">
+            <EditForm Model="_form" OnValidSubmit="Entrar">
+                <div class="stack">
+                    <div class="field">
+                        <label>Correo</label>
+                        <InputText class="input" @bind-Value="_form.Email" placeholder="tucorreo@ejemplo.com" />
+                    </div>
+                    <div class="field">
+                        <label>Contraseña</label>
+                        <InputText class="input" type="password" @bind-Value="_form.Password" placeholder="••••••••" />
+                    </div>
+
+                    <AlertBox Mensaje="@_error" />
+
+                    <button class="btn btn-primary btn-block" type="submit" disabled="@_cargando">
+                        @if (_cargando) { <span class="spinner"></span> }
+                        <span>Entrar</span>
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+
+        <p class="muted" style="text-align:center">
+            ¿Primera vez? <a href="/registro">Crear cuenta</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    private readonly FormModel _form = new();
+    private bool _cargando;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("returnUrl", out var value))
+        {
+            _returnUrl = value.ToString();
+        }
+    }
+
+    private string? _returnUrl;
+
+    private async Task Entrar()
+    {
+        _error = null;
+        _cargando = true;
+
+        var resultado = await AuthService.LoginAsync(new LoginRequest(_form.Email, _form.Password));
+
+        if (resultado.Exito)
+        {
+            Nav.NavigateTo(string.IsNullOrEmpty(_returnUrl) ? "/" : "/" + _returnUrl, forceLoad: false);
+        }
+        else
+        {
+            _error = resultado.PrimerError();
+        }
+
+        _cargando = false;
+    }
+
+    private class FormModel
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

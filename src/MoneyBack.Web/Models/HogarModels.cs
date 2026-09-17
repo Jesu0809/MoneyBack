@@ -1,4 +1,4 @@
-namespace MoneyBack.Api.Dtos;
+namespace MoneyBack.Web.Models;
 
 public record CrearHogarRequest(
     string EmailPareja,

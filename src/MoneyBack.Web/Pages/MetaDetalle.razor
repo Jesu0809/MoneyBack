@@ -1,0 +1,211 @@
+@page "/metas/{MetaId:int}"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>@(_meta?.Nombre ?? "Meta") · MoneyBack</PageTitle>
+
+@if (_cargando)
+{
+    <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+}
+else if (_meta is null)
+{
+    <div class="empty-state">
+        <h3>No encontramos esta meta</h3>
+        <a href="/">Volver al inicio</a>
+    </div>
+}
+else
+{
+    <div class="stack">
+        <div class="row">
+            <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'>← Inicio</button>
+        </div>
+
+        <div class="card">
+            <div class="stack">
+                <div class="row-between">
+                    <div>
+                        <div class="label">@(_meta.Tipo == TipoMeta.Apartamento ? "Apartamento" : "Emergencia")</div>
+                        <h2>@_meta.Nombre</h2>
+                    </div>
+                    @if (!_meta.Activa)
+                    {
+                        <span class="pill pill-warning">Archivada</span>
+                    }
+                </div>
+
+                <div class="money money-lg">@Formato.Pesos(_meta.MontoActual)</div>
+                <ProgressBar Porcentaje="_meta.PorcentajeCompletado" />
+                <div class="row-between">
+                    <span class="muted">@Formato.Porcentaje(_meta.PorcentajeCompletado) completado</span>
+                    <span class="muted">Meta: @Formato.Pesos(_meta.MontoObjetivo)</span>
+                </div>
+            </div>
+        </div>
+
+        @if (_meta.AportesPorUsuario.Count > 0)
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="label">Quién ha aportado</div>
+                    @foreach (var aporte in _meta.AportesPorUsuario)
+                    {
+                        <div class="row-between">
+                            <span>@aporte.UsuarioNombre</span>
+                            <span class="money money-md">@Formato.Pesos(aporte.TotalAportado)</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (_meta.Activa)
+        {
+            <div class="card">
+                @if (!_mostrarFormMovimiento)
+                {
+                    <button class="btn btn-primary btn-block" @onclick="() => _mostrarFormMovimiento = true">
+                        + Registrar aporte o retiro
+                    </button>
+                }
+                else
+                {
+                    <EditForm Model="_movForm" OnValidSubmit="RegistrarMovimiento">
+                        <div class="stack">
+                            <div class="field">
+                                <label>Tipo</label>
+                                <InputSelect class="input" @bind-Value="_movForm.Tipo">
+                                    <option value="@TipoMovimiento.Aporte">Aporte</option>
+                                    <option value="@TipoMovimiento.Retiro">Retiro</option>
+                                </InputSelect>
+                            </div>
+                            <div class="field">
+                                <label>Monto</label>
+                                <InputNumber class="input" @bind-Value="_movForm.Monto" placeholder="500000" />
+                            </div>
+                            <div class="field">
+                                <label>Nota (opcional)</label>
+                                <InputText class="input" @bind-Value="_movForm.Nota" placeholder="Aporte de septiembre" />
+                            </div>
+
+                            <AlertBox Mensaje="@_error" />
+
+                            <div class="row">
+                                <button class="btn btn-secondary" type="button" @onclick="CancelarMovimiento">Cancelar</button>
+                                <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
+                                    @if (_guardando) { <span class="spinner"></span> }
+                                    <span>Guardar</span>
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        }
+
+        <div class="card">
+            <div class="stack">
+                <div class="label">Historial</div>
+                @if (_meta.Movimientos.Count == 0)
+                {
+                    <p class="muted">Todavía no hay movimientos.</p>
+                }
+                else
+                {
+                    @foreach (var mov in _meta.Movimientos)
+                    {
+                        var esAporte = mov.Tipo == TipoMovimiento.Aporte;
+                        <div class="list-item">
+                            <div class="row">
+                                <div class="icon-bubble @(esAporte ? "icon-bubble-accent" : "icon-bubble-danger")">
+                                    @(esAporte ? "↑" : "↓")
+                                </div>
+                                <div>
+                                    <div style="font-weight:600">@mov.UsuarioNombre @(mov.EsAutomatico ? "· automático" : "")</div>
+                                    <div class="muted">@Formato.FechaHora(mov.Fecha)@(string.IsNullOrEmpty(mov.Nota) ? "" : $" · {mov.Nota}")</div>
+                                </div>
+                            </div>
+                            <span class="money money-md" style="color: @(esAporte ? "var(--color-accent-strong)" : "var(--color-danger)")">
+                                @(esAporte ? "+" : "-")@Formato.Pesos(mov.Monto)
+                            </span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        @if (_meta.Activa)
+        {
+            <button class="btn btn-secondary btn-block" @onclick="ArchivarMeta">Archivar meta</button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int MetaId { get; set; }
+
+    private bool _cargando = true;
+    private bool _guardando;
+    private bool _mostrarFormMovimiento;
+    private string? _error;
+    private MetaDetalleResponse? _meta;
+    private readonly MovFormModel _movForm = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _meta = await Api.ObtenerMetaAsync(MetaId);
+        _cargando = false;
+    }
+
+    private void CancelarMovimiento()
+    {
+        _mostrarFormMovimiento = false;
+        _error = null;
+        _movForm.Monto = 0;
+        _movForm.Nota = "";
+    }
+
+    private async Task RegistrarMovimiento()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.RegistrarMovimientoAsync(MetaId,
+            new CrearMovimientoRequest(_movForm.Tipo, _movForm.Monto, _movForm.Nota));
+
+        if (resultado.Exito)
+        {
+            _mostrarFormMovimiento = false;
+            _movForm.Monto = 0;
+            _movForm.Nota = "";
+            await CargarAsync();
+        }
+        else
+        {
+            _error = resultado.PrimerError();
+        }
+
+        _guardando = false;
+    }
+
+    private async Task ArchivarMeta()
+    {
+        await Api.ArchivarMetaAsync(MetaId);
+        await CargarAsync();
+    }
+
+    private class MovFormModel
+    {
+        public TipoMovimiento Tipo { get; set; } = TipoMovimiento.Aporte;
+        public decimal Monto { get; set; }
+        public string? Nota { get; set; }
+    }
+}

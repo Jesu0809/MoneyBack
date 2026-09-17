@@ -1,0 +1,172 @@
+@page "/subsidios"
+@attribute [Authorize]
+@inject ApiClient Api
+
+<PageTitle>Simulador de subsidios · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div>
+        <h2>Simulador de subsidios</h2>
+        <p class="muted">Estimado de Mi Casa Ya según el ingreso combinado y el tope VIS de tu hogar.</p>
+    </div>
+
+    @if (_cargandoHogar)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else if (_hogar is null)
+    {
+        <div class="card">
+            <p class="muted">Primero vincula tu hogar en <a href="/">Inicio</a> para poder simular subsidios (el tope VIS depende de la ubicación de tu hogar).</p>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <EditForm Model="_form" OnValidSubmit="Simular">
+                <div class="stack">
+                    <div class="field">
+                        <label>Ingreso combinado mensual</label>
+                        <InputNumber class="input" @bind-Value="_form.IngresoCombinadoMensual" placeholder="3000000" />
+                    </div>
+                    <div class="field">
+                        <label>Valor de la vivienda que estás evaluando</label>
+                        <InputNumber class="input" @bind-Value="_form.ValorVivienda" placeholder="200000000" />
+                    </div>
+
+                    <div class="switch-row">
+                        <div style="font-weight:600">¿Es vivienda VIP (90 SMMLV)?</div>
+                        <button type="button" class="switch @(_form.EsVip ? "on" : "")" @onclick="() => _form.EsVip = !_form.EsVip">
+                            <div class="knob"></div>
+                        </button>
+                    </div>
+
+                    <div class="switch-row">
+                        <div>
+                            <div style="font-weight:600">¿Confirmas Sisbén IV (A1-D20)?</div>
+                            <div class="muted">Requisito de Mi Casa Ya que no podemos verificar automáticamente.</div>
+                        </div>
+                        <button type="button" class="switch @(_form.CumpleSisbenIvAD20 ? "on" : "")" @onclick="() => _form.CumpleSisbenIvAD20 = !_form.CumpleSisbenIvAD20">
+                            <div class="knob"></div>
+                        </button>
+                    </div>
+
+                    <div class="field">
+                        <label>Subsidio de caja de compensación (opcional)</label>
+                        <InputNumber class="input" @bind-Value="_form.MontoSubsidioCajaCompensacion" placeholder="0" />
+                        <span class="muted">Consulta el monto exacto en el portal transaccional de tu caja — no lo calculamos por ti.</span>
+                    </div>
+
+                    <AlertBox Mensaje="@_error" />
+
+                    <button class="btn btn-primary btn-block" type="submit" disabled="@_simulando">
+                        @if (_simulando) { <span class="spinner"></span> }
+                        <span>Simular</span>
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+
+        @if (_resultado is not null)
+        {
+            <div class="card page-enter">
+                <div class="stack">
+                    <div class="label">Resultado</div>
+
+                    <div class="row-between">
+                        <span class="muted">Tope VIS aplicable</span>
+                        <span style="font-weight:650">@Formato.Pesos(_resultado.TopeVisPesos)</span>
+                    </div>
+                    <div class="row-between">
+                        <span class="muted">¿Es VIS?</span>
+                        <span class="pill @(_resultado.EsVis ? "" : "pill-danger")">@(_resultado.EsVis ? "Sí" : "No")</span>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    @if (_resultado.SoloCoberturaTasaFrech)
+                    {
+                        <AlertBox Mensaje="@_resultado.NotaMiCasaYa" Tipo="warning" />
+                    }
+                    else if (!_resultado.ElegibleMiCasaYa)
+                    {
+                        <AlertBox Mensaje="@_resultado.NotaMiCasaYa" Tipo="danger" />
+                    }
+                    else
+                    {
+                        <div class="row-between">
+                            <span>Subsidio Mi Casa Ya</span>
+                            <span class="money money-md">@Formato.Pesos(_resultado.SubsidioMiCasaYaPesos)</span>
+                        </div>
+                    }
+
+                    @if (_resultado.MontoSubsidioCajaCompensacion > 0)
+                    {
+                        <div class="row-between">
+                            <span>Caja de compensación</span>
+                            <span class="money money-md">@Formato.Pesos(_resultado.MontoSubsidioCajaCompensacion)</span>
+                        </div>
+                    }
+
+                    <div class="divider"></div>
+                    <div class="row-between">
+                        <span style="font-weight:650">Total estimado</span>
+                        <span class="money money-lg">@Formato.Pesos(_resultado.TotalSubsidiosEstimado)</span>
+                    </div>
+
+                    @if (_resultado.MetaApartamento is { SuperaTopeVis: true } meta)
+                    {
+                        <AlertBox Tipo="warning" Mensaje="@($"\"{meta.Nombre}\" tiene una meta de {Formato.Pesos(meta.MontoObjetivo)}, que supera el tope VIS aplicable ({Formato.Pesos(_resultado.TopeVisPesos)}). Mi Casa Ya no aplicaría a esa vivienda.")" />
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool _cargandoHogar = true;
+    private bool _simulando;
+    private string? _error;
+    private HogarResponse? _hogar;
+    private SimulacionSubsidiosResponse? _resultado;
+    private readonly FormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hogar = await Api.ObtenerMiHogarAsync();
+        _cargandoHogar = false;
+    }
+
+    private async Task Simular()
+    {
+        if (_hogar is null) return;
+        _error = null;
+        _simulando = true;
+        _resultado = null;
+
+        var resultado = await Api.SimularSubsidiosAsync(_hogar.Id, new SimularSubsidiosRequest(
+            _form.IngresoCombinadoMensual, _form.ValorVivienda, _form.EsVip,
+            _form.CumpleSisbenIvAD20, _form.MontoSubsidioCajaCompensacion));
+
+        if (resultado.Exito)
+        {
+            _resultado = resultado.Valor;
+        }
+        else
+        {
+            _error = resultado.PrimerError();
+        }
+
+        _simulando = false;
+    }
+
+    private class FormModel
+    {
+        public decimal IngresoCombinadoMensual { get; set; }
+        public decimal ValorVivienda { get; set; }
+        public bool EsVip { get; set; }
+        public bool CumpleSisbenIvAD20 { get; set; }
+        public decimal MontoSubsidioCajaCompensacion { get; set; }
+    }
+}
