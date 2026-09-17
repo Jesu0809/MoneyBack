@@ -3,3 +3,5 @@ obj/
 *.db
 .idea/
 .claude/settings.local.json
+.firebase/
+firebase-debug.log

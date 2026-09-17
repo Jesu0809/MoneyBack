@@ -1,0 +1,31 @@
+app = "moneyback-api"
+primary_region = "iad"
+
+[build]
+
+[env]
+  Jwt__Issuer = "MoneyBack.Api"
+  Jwt__Audience = "MoneyBack.Clientes"
+  Jwt__AccessTokenMinutos = "15"
+  Jwt__RefreshTokenDias = "30"
+  Subsidios__SmmlvVigente = "1750905"
+  Cors__AllowedOrigins__0 = "https://moneyback-app.web.app"
+  Cors__AllowedOrigins__1 = "https://moneyback-app.firebaseapp.com"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "15s"
+  method = "GET"
+  path = "/health"

@@ -1,0 +1,19 @@
+{
+  "hosting": {
+    "public": "bin/Release/net10.0/publish/wwwroot",
+    "ignore": ["firebase.json", "**/.*"],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|wasm|dll|blat|dat)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      },
+      {
+        "source": "**/*.@(json|html)",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
+    ]
+  }
+}
