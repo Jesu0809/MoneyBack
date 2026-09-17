@@ -1,6 +1,8 @@
 @page "/"
 @attribute [Authorize]
 @inject ApiClient Api
+@inject UiOverlayService UiOverlay
+@implements IDisposable
 
 <PageTitle>Día a día · MoneyBack</PageTitle>
 
@@ -139,33 +141,29 @@
     }
 </div>
 
-<button class="fab @(_mostrarOpciones ? "fab-open" : "")" @onclick="ToggleOpciones">
+<button class="fab" @onclick="AbrirPantallaCompleta">
     <Icon Name="plus" Size="26" />
 </button>
 
-@if (_mostrarOpciones)
-{
-    <div class="blur-backdrop" @onclick="() => _mostrarOpciones = false"></div>
-    <div class="fab-menu">
-        <button class="fab-option fab-option-ingreso" @onclick="() => ElegirTipo(TipoCategoria.Ingreso)">
-            <Icon Name="arrow-up" Size="18" /> Ingreso
-        </button>
-        <button class="fab-option fab-option-gasto" @onclick="() => ElegirTipo(TipoCategoria.Gasto)">
-            <Icon Name="arrow-down" Size="18" /> Gasto
-        </button>
-    </div>
-}
-
 @if (_mostrarForm)
 {
-    <div class="sheet-backdrop" @onclick="() => _mostrarForm = false"></div>
-    <div class="sheet">
-        <div class="sheet-handle"></div>
-        <EditForm Model="_form" OnValidSubmit="Registrar">
-            <div class="stack">
-                <div class="segmented">
-                    <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Gasto ? "active" : "")" @onclick="() => CambiarTipo(TipoCategoria.Gasto)">Gasto</button>
-                    <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Ingreso ? "active" : "")" @onclick="() => CambiarTipo(TipoCategoria.Ingreso)">Ingreso</button>
+    <div class="fullscreen-modal">
+        <div class="fullscreen-header">
+            <button class="icon-btn" style="background:transparent;border:none" @onclick="CerrarPantallaCompleta">
+                <Icon Name="x" Size="22" />
+            </button>
+            <div class="segmented" style="width: 200px">
+                <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Gasto ? "active" : "")" @onclick="() => CambiarTipo(TipoCategoria.Gasto)">Gasto</button>
+                <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Ingreso ? "active" : "")" @onclick="() => CambiarTipo(TipoCategoria.Ingreso)">Ingreso</button>
+            </div>
+            <div style="width:40px"></div>
+        </div>
+
+        <EditForm Model="_form" OnValidSubmit="Registrar" style="display:flex; flex-direction:column; flex:1; min-height:0">
+            <div class="fullscreen-body">
+                <div class="amount-entry" style="color: @(_form.Tipo == TipoCategoria.Ingreso ? "var(--color-accent-strong)" : "var(--color-danger)")">
+                    <span class="currency">$</span>
+                    <InputNumber @bind-Value="_form.Monto" placeholder="0" />
                 </div>
 
                 @{ var categoriasDisponibles = _categorias.Where(c => c.Tipo == _form.Tipo && c.Activa).ToList(); }
@@ -181,21 +179,19 @@
                 }
                 else
                 {
-                    <div class="field">
-                        <label>Categoría</label>
-                        <InputSelect class="input" @bind-Value="_form.CategoriaId">
+                    <div class="stack" style="gap:10px">
+                        <span class="label">Categoría</span>
+                        <div class="category-grid">
                             @foreach (var cat in categoriasDisponibles)
                             {
-                                <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                                <div class="category-tile @(_form.CategoriaId == cat.Id ? "active" : "")" @onclick="() => _form.CategoriaId = cat.Id">
+                                    <span class="emoji">@cat.Icono</span>
+                                    <span class="name">@cat.Nombre</span>
+                                </div>
                             }
-                        </InputSelect>
+                        </div>
                     </div>
                 }
-
-                <div class="field">
-                    <label>Monto</label>
-                    <InputNumber class="input" @bind-Value="_form.Monto" placeholder="25000" />
-                </div>
 
                 <div class="field">
                     <label>Nota (opcional)</label>
@@ -203,7 +199,9 @@
                 </div>
 
                 <AlertBox Mensaje="@_error" />
+            </div>
 
+            <div class="fullscreen-footer">
                 <button class="btn btn-primary btn-block" type="submit" disabled="@(_guardando || categoriasDisponibles.Count == 0)">
                     @if (_guardando) { <span class="spinner"></span> }
                     <span>Guardar</span>
@@ -221,7 +219,6 @@
 
     private bool _cargando = true;
     private bool _guardando;
-    private bool _mostrarOpciones;
     private bool _mostrarForm;
     private string? _error;
     private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
@@ -260,14 +257,23 @@
         await CargarMesAsync();
     }
 
-    private void ToggleOpciones() => _mostrarOpciones = !_mostrarOpciones;
-
-    private void ElegirTipo(TipoCategoria tipo)
+    private void AbrirPantallaCompleta()
     {
-        _mostrarOpciones = false;
         _mostrarForm = true;
         _error = null;
-        CambiarTipo(tipo);
+        CambiarTipo(_form.Tipo);
+        UiOverlay.AbrirModal();
+    }
+
+    private void CerrarPantallaCompleta()
+    {
+        _mostrarForm = false;
+        UiOverlay.CerrarModal();
+    }
+
+    public void Dispose()
+    {
+        if (_mostrarForm) UiOverlay.CerrarModal();
     }
 
     private void CambiarTipo(TipoCategoria tipo)
@@ -288,6 +294,7 @@
         if (resultado.Exito)
         {
             _mostrarForm = false;
+            UiOverlay.CerrarModal();
             _form.Monto = 0;
             _form.Nota = "";
             _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();

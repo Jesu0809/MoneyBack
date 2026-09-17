@@ -16,6 +16,7 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.
 // access token nunca llegaría a las requests (bug real, visto en pruebas).
 builder.Services.AddSingleton<TokenStore>();
 builder.Services.AddSingleton<ThemeService>();
+builder.Services.AddSingleton<UiOverlayService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiClient>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();

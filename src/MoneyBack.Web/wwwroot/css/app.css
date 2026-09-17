@@ -103,7 +103,9 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
   margin: 0 -20px;
   padding-left: 20px;
   padding-right: 20px;
+  transition: transform 200ms var(--ease-smooth);
 }
+.topbar-hidden { transform: translateY(-120%); }
 
 .topbar-brand {
   font-size: 19px;
@@ -171,9 +173,29 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
   animation: fadeSlideUp 380ms var(--ease-smooth) both;
 }
 
+/* Sin transform a propósito (ni siquiera terminando en "none"): con
+   animation-fill-mode "both/forwards", el navegador deja fijada una matriz
+   de transformación aunque el último keyframe diga "none" literal — eso
+   basta para convertir a este elemento en containing block de cualquier
+   descendiente position:fixed (el FAB, el modal de pantalla completa),
+   desalineándolos apenas la página tiene scroll. Se pierde el slide-up,
+   se mantiene el fade.
+
+   Aun así, mientras .page-enter tenga esta animación aplicada (incluso
+   solo sobre opacity, e incluso ya terminada gracias a fill-mode:both),
+   el elemento sigue formando SU PROPIO stacking context de forma
+   permanente. Eso atrapa a cualquier descendiente ahí dentro —por más
+   z-index alto que tenga (el fullscreen-modal usa 9999)— por debajo de
+   cualquier hermano fuera de .page-enter con z-index positivo, como
+   .topbar (10) o .tabbar (20): su z-index solo compite dentro del
+   contexto de .page-enter, nunca contra ellos directamente. Por eso el
+   fullscreen-modal se ve tapado por el topbar/tabbar pese a tener mayor
+   z-index. Arreglo aplicado: ocultar topbar/tabbar (clases
+   .topbar-hidden/.tabbar-hidden, ver UiOverlayService) mientras el
+   modal está abierto, en vez de perseguir el stacking context. */
 @keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .card {
@@ -374,7 +396,9 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
   display: flex; justify-content: center;
   padding: 8px max(env(safe-area-inset-bottom), 8px) calc(8px + env(safe-area-inset-bottom));
   z-index: 20;
+  transition: transform 200ms var(--ease-smooth);
 }
+.tabbar-hidden { transform: translateY(120%); }
 .tabbar-inner { display: flex; gap: 4px; max-width: 640px; width: 100%; justify-content: space-around; }
 .tab-link {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -470,77 +494,71 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
 }
 .loading-progress-text::after { content: "Cargando"; }
 
-.fab.fab-open { transform: rotate(45deg); }
-
-.blur-backdrop {
-  position: fixed; inset: 0;
-  background: color-mix(in srgb, var(--color-bg) 45%, transparent);
-  backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  z-index: 30;
-  animation: fadeIn 220ms var(--ease-smooth) both;
-}
-
-.fab-menu {
-  position: fixed;
-  right: max(20px, calc(50% - 300px));
-  bottom: calc(154px + env(safe-area-inset-bottom));
-  z-index: 31;
-  display: flex; flex-direction: column-reverse; gap: 12px; align-items: flex-end;
-}
-
-.fab-option {
-  display: flex; align-items: center; gap: 9px;
-  padding: 13px 22px 13px 18px;
-  border-radius: 999px;
-  border: none; cursor: pointer;
-  font-weight: 650; font-size: 15px;
-  color: white;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.28);
-  transform-origin: bottom right;
-  animation: popIn 340ms var(--ease-spring) both;
-  transition: transform 160ms var(--ease-spring);
-}
-.fab-option:active { transform: scale(0.92); }
-.fab-option-gasto {
-  background: linear-gradient(135deg, var(--color-danger), color-mix(in srgb, var(--color-danger) 70%, black));
-}
-.fab-option-ingreso {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
-  animation-delay: 50ms;
-}
-
-@keyframes popIn {
-  from { opacity: 0; transform: scale(0.4) translateY(14px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.sheet-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
-  z-index: 30;
-  animation: fadeIn 220ms var(--ease-smooth) both;
-}
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.sheet {
-  position: fixed; left: 0; right: 0; bottom: 0;
-  max-width: 640px; margin: 0 auto;
-  background: var(--color-surface);
-  border-radius: 24px 24px 0 0;
-  padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
-  z-index: 31;
-  box-shadow: 0 -8px 32px rgba(0,0,0,0.18);
-  animation: slideUp 320ms var(--ease-spring) both;
-  max-height: 88vh;
-  overflow-y: auto;
+/* Pantalla completa para registrar un movimiento: se "expande" desde donde
+   estaba el FAB (esquina inferior derecha) en vez de aparecer como un panel
+   chico — la idea es que ocupe toda la pantalla y sea más fácil de usar. */
+.fullscreen-modal {
+  position: fixed; inset: 0;
+  background: var(--color-bg);
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  animation: fullscreenIn 380ms var(--ease-spring) both;
 }
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fullscreenIn {
+  from { opacity: 0; transform: scale(0.5); transform-origin: calc(100% - 50px) calc(100% - 130px); }
+  to { opacity: 1; transform: none; }
+}
 
-.sheet-handle {
-  width: 36px; height: 4px; border-radius: 999px;
-  background: var(--color-border);
-  margin: 0 auto 16px;
+.fullscreen-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 8px;
+  flex-shrink: 0;
+}
+
+.fullscreen-body {
+  flex: 1; overflow-y: auto;
+  padding: 0 20px calc(24px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.amount-entry {
+  display: flex; align-items: baseline; justify-content: center;
+  gap: 4px;
+  padding: 28px 0 10px;
+}
+.amount-entry .currency { font-size: 28px; font-weight: 650; color: var(--color-text-muted); }
+.amount-entry input {
+  border: none; background: transparent; outline: none;
+  font-size: 52px; font-weight: 750; letter-spacing: -0.02em;
+  color: var(--color-text);
+  width: auto; max-width: 260px; text-align: center;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.category-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+}
+.category-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 4px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: transform 150ms var(--ease-spring), border-color 150ms var(--ease-smooth), background 150ms var(--ease-smooth);
+}
+.category-tile:active { transform: scale(0.92); }
+.category-tile.active { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.category-tile .emoji { font-size: 24px; }
+.category-tile .name { font-size: 11.5px; font-weight: 600; text-align: center; color: var(--color-text-muted); line-height: 1.2; }
+.category-tile.active .name { color: var(--color-accent-strong); }
+
+.fullscreen-footer {
+  padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+  flex-shrink: 0;
 }
 
 .donut {

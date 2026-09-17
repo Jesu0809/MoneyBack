@@ -3,11 +3,12 @@
 @inject NavigationManager Nav
 @inject AuthService AuthService
 @inject ThemeService ThemeService
+@inject UiOverlayService UiOverlay
 
 <AuthorizeView>
     <Authorized>
         <div class="app-shell">
-            <div class="topbar">
+            <div class="topbar @(UiOverlay.ModalPantallaCompletaAbierto ? "topbar-hidden" : "")">
                 <div class="topbar-brand">
                     <span class="dot"></span>
                     <span>MoneyBack</span>
@@ -53,7 +54,7 @@
             </div>
         </div>
 
-        <nav class="tabbar">
+        <nav class="tabbar @(UiOverlay.ModalPantallaCompletaAbierto ? "tabbar-hidden" : "")">
             <div class="tabbar-inner">
                 <NavLink class="tab-link" href="/" Match="NavLinkMatch.All">
                     <span class="tab-icon"><Icon Name="wallet" Size="21" /></span>
@@ -91,6 +92,7 @@
     protected override void OnInitialized()
     {
         ThemeService.OnChange += StateHasChanged;
+        UiOverlay.OnChange += StateHasChanged;
     }
 
     private void ToggleMenu() => _menuAbierto = !_menuAbierto;
@@ -129,5 +131,6 @@
     public void Dispose()
     {
         ThemeService.OnChange -= StateHasChanged;
+        UiOverlay.OnChange -= StateHasChanged;
     }
 }
