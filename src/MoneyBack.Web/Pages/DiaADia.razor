@@ -1,22 +1,30 @@
-@page "/dia-a-dia"
+@page "/"
 @attribute [Authorize]
 @inject ApiClient Api
 
 <PageTitle>Día a día · MoneyBack</PageTitle>
 
 <div class="stack">
-    <div class="row-between">
-        <h2>Día a día</h2>
-        <div class="row" style="gap:4px">
-            <a class="btn btn-ghost" href="/categorias">Categorías</a>
-            <a class="btn btn-ghost" href="/presupuestos">Presupuestos</a>
+    <div class="hero-balance">
+        <div class="stack" style="gap:10px">
+            <span class="label">Saldo acumulado</span>
+            <span class="money money-lg">@Formato.Pesos(_saldoAcumulado?.Balance ?? 0)</span>
+            <div class="divider"></div>
+            <div class="row-between">
+                <span class="muted">Ingresos totales</span>
+                <span style="font-weight:650">@Formato.Pesos(_saldoAcumulado?.TotalIngresos ?? 0)</span>
+            </div>
+            <div class="row-between">
+                <span class="muted">Gastos totales</span>
+                <span style="font-weight:650">@Formato.Pesos(_saldoAcumulado?.TotalGastos ?? 0)</span>
+            </div>
         </div>
     </div>
 
     <div class="row-between">
-        <button class="btn btn-ghost" @onclick="MesAnterior">← @NombreMes(_mesActual.AddMonths(-1))</button>
+        <button class="icon-btn" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
         <strong>@NombreMes(_mesActual)</strong>
-        <button class="btn btn-ghost" @onclick="MesSiguiente">@NombreMes(_mesActual.AddMonths(1)) →</button>
+        <button class="icon-btn" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
     </div>
 
     @if (_cargando)
@@ -26,19 +34,21 @@
     else
     {
         <div class="card">
-            <div class="stack">
-                <div class="row-between">
-                    <span class="muted">Ingresos</span>
-                    <span class="money money-md" style="color: var(--color-accent-strong)">@Formato.Pesos(_resumen?.TotalIngresos ?? 0)</span>
+            <div class="row" style="justify-content: space-around; text-align:center">
+                <div class="stack" style="gap:4px; align-items:center">
+                    <div class="icon-bubble icon-bubble-accent"><Icon Name="arrow-up" Size="16" /></div>
+                    <span class="muted" style="font-size:12.5px">Ingresos</span>
+                    <span style="font-weight:700; color: var(--color-accent-strong)">@Formato.Pesos(_resumen?.TotalIngresos ?? 0)</span>
                 </div>
-                <div class="row-between">
-                    <span class="muted">Gastos</span>
-                    <span class="money money-md" style="color: var(--color-danger)">@Formato.Pesos(_resumen?.TotalGastos ?? 0)</span>
+                <div class="stack" style="gap:4px; align-items:center">
+                    <div class="icon-bubble icon-bubble-danger"><Icon Name="arrow-down" Size="16" /></div>
+                    <span class="muted" style="font-size:12.5px">Gastos</span>
+                    <span style="font-weight:700; color: var(--color-danger)">@Formato.Pesos(_resumen?.TotalGastos ?? 0)</span>
                 </div>
-                <div class="divider"></div>
-                <div class="row-between">
-                    <span style="font-weight:650">Balance</span>
-                    <span class="money money-lg">@Formato.Pesos(_resumen?.Balance ?? 0)</span>
+                <div class="stack" style="gap:4px; align-items:center">
+                    <div class="icon-bubble" style="background:var(--color-surface-2)"><Icon Name="wallet" Size="16" /></div>
+                    <span class="muted" style="font-size:12.5px">Balance</span>
+                    <span style="font-weight:700">@Formato.Pesos(_resumen?.Balance ?? 0)</span>
                 </div>
             </div>
         </div>
@@ -48,105 +58,140 @@
             <div class="card">
                 <div class="stack">
                     <div class="label">Gastos por categoría</div>
-                    @foreach (var cat in _resumen.GastosPorCategoria)
+                    <div class="donut" style="background: @DonutGradient()">
+                        <div class="donut-center">
+                            <div class="muted" style="font-size:11.5px">Total</div>
+                            <div class="money">@Formato.Pesos(_resumen.TotalGastos)</div>
+                        </div>
+                    </div>
+                    @for (var i = 0; i < _resumen.GastosPorCategoria.Count; i++)
                     {
+                        var cat = _resumen.GastosPorCategoria[i];
+                        var pct = _resumen.TotalGastos > 0 ? cat.Total / _resumen.TotalGastos * 100 : 0;
                         <div class="row-between">
-                            <span>@cat.CategoriaIcono @cat.CategoriaNombre</span>
-                            <span class="money money-md">@Formato.Pesos(cat.Total)</span>
+                            <div class="row" style="gap:8px">
+                                <div class="category-dot" style="background: @Paleta[i % Paleta.Length]"></div>
+                                <span>@cat.CategoriaNombre</span>
+                            </div>
+                            <div class="row" style="gap:8px">
+                                <span class="muted" style="font-size:12.5px">@Formato.Porcentaje(pct)</span>
+                                <span class="money" style="font-size:14.5px">@Formato.Pesos(cat.Total)</span>
+                            </div>
                         </div>
                     }
                 </div>
             </div>
         }
 
-        <div class="card">
-            @if (!_mostrarForm)
+        <div class="stack">
+            @{ var grupos = _movimientos.GroupBy(m => m.Fecha.ToLocalTime().Date).OrderByDescending(g => g.Key).ToList(); }
+            @if (grupos.Count == 0)
             {
-                <button class="btn btn-primary btn-block" @onclick="AbrirForm">+ Registrar ingreso o gasto</button>
+                <div class="empty-state">
+                    <p>Nada registrado este mes todavía.</p>
+                </div>
             }
             else
             {
-                <EditForm Model="_form" OnValidSubmit="Registrar">
-                    <div class="stack">
-                        <div class="switch-row">
-                            <span style="font-weight:600">@(_form.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")</span>
-                            <button type="button" class="switch @(_form.Tipo == TipoCategoria.Ingreso ? "on" : "")" @onclick="AlternarTipo">
-                                <div class="knob"></div>
-                            </button>
-                        </div>
-
-                        <div class="field">
-                            <label>Categoría</label>
-                            <InputSelect class="input" @bind-Value="_form.CategoriaId">
-                                @foreach (var cat in _categorias.Where(c => c.Tipo == _form.Tipo && c.Activa))
+                @foreach (var grupo in grupos)
+                {
+                    <div>
+                        <div class="day-group-header">@NombreDia(grupo.Key)</div>
+                        <div class="card">
+                            <div class="stack" style="gap:0">
+                                @foreach (var mov in grupo)
                                 {
-                                    <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                                    var esIngreso = mov.Tipo == TipoCategoria.Ingreso;
+                                    <div class="list-item">
+                                        <div class="row">
+                                            <div class="icon-bubble @(esIngreso ? "icon-bubble-accent" : "icon-bubble-danger")">
+                                                <Icon Name="@(esIngreso ? "arrow-up" : "arrow-down")" Size="16" />
+                                            </div>
+                                            <div>
+                                                <div style="font-weight:600">@mov.CategoriaNombre</div>
+                                                <div class="muted" style="font-size:12.5px">
+                                                    @(string.IsNullOrEmpty(mov.Nota) ? mov.CategoriaNombre : mov.Nota)
+                                                    @if (mov.RedondeoAplicado)
+                                                    {
+                                                        <span class="row" style="display:inline-flex; gap:2px; vertical-align:middle">
+                                                            · <Icon Name="coin" Size="12" />
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row" style="gap:4px">
+                                            <span class="money" style="font-size:15px; color: @(esIngreso ? "var(--color-accent-strong)" : "var(--color-danger)")">
+                                                @(esIngreso ? "+" : "-")@Formato.Pesos(mov.Monto)
+                                            </span>
+                                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(mov.Id)">
+                                                <Icon Name="x" Size="15" />
+                                            </button>
+                                        </div>
+                                    </div>
                                 }
-                            </InputSelect>
-                        </div>
-
-                        <div class="field">
-                            <label>Monto</label>
-                            <InputNumber class="input" @bind-Value="_form.Monto" placeholder="25000" />
-                        </div>
-
-                        <div class="field">
-                            <label>Nota (opcional)</label>
-                            <InputText class="input" @bind-Value="_form.Nota" placeholder="Almuerzo" />
-                        </div>
-
-                        <AlertBox Mensaje="@_error" />
-
-                        <div class="row">
-                            <button class="btn btn-secondary" type="button" @onclick="() => _mostrarForm = false">Cancelar</button>
-                            <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
-                                @if (_guardando) { <span class="spinner"></span> }
-                                <span>Guardar</span>
-                            </button>
+                            </div>
                         </div>
                     </div>
-                </EditForm>
+                }
             }
-        </div>
-
-        <div class="card">
-            <div class="stack">
-                <div class="label">Movimientos</div>
-                @if (_movimientos.Count == 0)
-                {
-                    <p class="muted">Nada registrado este mes todavía.</p>
-                }
-                else
-                {
-                    @foreach (var mov in _movimientos)
-                    {
-                        var esIngreso = mov.Tipo == TipoCategoria.Ingreso;
-                        <div class="list-item">
-                            <div class="row">
-                                <div class="icon-bubble @(esIngreso ? "icon-bubble-accent" : "icon-bubble-danger")">@mov.CategoriaIcono</div>
-                                <div>
-                                    <div style="font-weight:600">@mov.CategoriaNombre</div>
-                                    <div class="muted">
-                                        @Formato.FechaCorta(mov.Fecha)@(string.IsNullOrEmpty(mov.Nota) ? "" : $" · {mov.Nota}")
-                                        @(mov.RedondeoAplicado ? " · 🪙 redondeo aplicado" : "")
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row" style="gap:8px">
-                                <span class="money money-md" style="color: @(esIngreso ? "var(--color-accent-strong)" : "var(--color-danger)")">
-                                    @(esIngreso ? "+" : "-")@Formato.Pesos(mov.Monto)
-                                </span>
-                                <button class="btn-ghost btn" style="padding:4px 8px" @onclick="() => Eliminar(mov.Id)">✕</button>
-                            </div>
-                        </div>
-                    }
-                }
-            </div>
         </div>
     }
 </div>
 
+<button class="fab" @onclick="AbrirForm">
+    <Icon Name="plus" Size="26" />
+</button>
+
+@if (_mostrarForm)
+{
+    <div class="sheet-backdrop" @onclick="() => _mostrarForm = false"></div>
+    <div class="sheet">
+        <div class="sheet-handle"></div>
+        <EditForm Model="_form" OnValidSubmit="Registrar">
+            <div class="stack">
+                <div class="segmented">
+                    <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Gasto ? "active" : "")" @onclick="() => CambiarTipo(TipoCategoria.Gasto)">Gasto</button>
+                    <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Ingreso ? "active" : "")" @onclick="() => CambiarTipo(TipoCategoria.Ingreso)">Ingreso</button>
+                </div>
+
+                <div class="field">
+                    <label>Categoría</label>
+                    <InputSelect class="input" @bind-Value="_form.CategoriaId">
+                        @foreach (var cat in _categorias.Where(c => c.Tipo == _form.Tipo && c.Activa))
+                        {
+                            <option value="@cat.Id">@cat.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="field">
+                    <label>Monto</label>
+                    <InputNumber class="input" @bind-Value="_form.Monto" placeholder="25000" />
+                </div>
+
+                <div class="field">
+                    <label>Nota (opcional)</label>
+                    <InputText class="input" @bind-Value="_form.Nota" placeholder="Almuerzo" />
+                </div>
+
+                <AlertBox Mensaje="@_error" />
+
+                <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
+                    @if (_guardando) { <span class="spinner"></span> }
+                    <span>Guardar</span>
+                </button>
+            </div>
+        </EditForm>
+    </div>
+}
+
 @code {
+    private static readonly string[] Paleta =
+    [
+        "#4fa78e", "#4f8fc0", "#e0925c", "#c9587a", "#7a63c9", "#8fae4a", "#d9a94e"
+    ];
+
     private bool _cargando = true;
     private bool _guardando;
     private bool _mostrarForm;
@@ -155,11 +200,13 @@
     private List<CategoriaResponse> _categorias = [];
     private List<MovimientoDiaADiaResponse> _movimientos = [];
     private ResumenDiaADiaResponse? _resumen;
+    private ResumenDiaADiaResponse? _saldoAcumulado;
     private readonly FormModel _form = new();
 
     protected override async Task OnInitializedAsync()
     {
         _categorias = await Api.ObtenerCategoriasAsync();
+        _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
         await CargarMesAsync();
     }
 
@@ -193,10 +240,10 @@
         if (primeraCategoria is not null) _form.CategoriaId = primeraCategoria.Id;
     }
 
-    private void AlternarTipo()
+    private void CambiarTipo(TipoCategoria tipo)
     {
-        _form.Tipo = _form.Tipo == TipoCategoria.Gasto ? TipoCategoria.Ingreso : TipoCategoria.Gasto;
-        var primeraCategoria = _categorias.FirstOrDefault(c => c.Tipo == _form.Tipo && c.Activa);
+        _form.Tipo = tipo;
+        var primeraCategoria = _categorias.FirstOrDefault(c => c.Tipo == tipo && c.Activa);
         _form.CategoriaId = primeraCategoria?.Id ?? 0;
     }
 
@@ -213,6 +260,7 @@
             _mostrarForm = false;
             _form.Monto = 0;
             _form.Nota = "";
+            _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
             await CargarMesAsync();
         }
         else
@@ -226,13 +274,42 @@
     private async Task Eliminar(int id)
     {
         await Api.EliminarMovimientoDiaADiaAsync(id);
+        _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
         await CargarMesAsync();
+    }
+
+    private string DonutGradient()
+    {
+        if (_resumen is null || _resumen.TotalGastos <= 0) return "var(--color-surface-2)";
+
+        var partes = new List<string>();
+        decimal acumulado = 0;
+        for (var i = 0; i < _resumen.GastosPorCategoria.Count; i++)
+        {
+            var cat = _resumen.GastosPorCategoria[i];
+            var color = Paleta[i % Paleta.Length];
+            var inicio = acumulado / _resumen.TotalGastos * 360;
+            acumulado += cat.Total;
+            var fin = acumulado / _resumen.TotalGastos * 360;
+            partes.Add($"{color} {inicio:0.##}deg {fin:0.##}deg");
+        }
+        return $"conic-gradient({string.Join(", ", partes)})";
     }
 
     private static string NombreMes(DateTime fecha)
     {
-        string[] meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+        string[] meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
         return $"{meses[fecha.Month - 1]} {fecha.Year}";
+    }
+
+    private static string NombreDia(DateTime fecha)
+    {
+        string[] dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+        string[] meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+        var hoy = DateTime.UtcNow.ToLocalTime().Date;
+        if (fecha == hoy) return "Hoy";
+        if (fecha == hoy.AddDays(-1)) return "Ayer";
+        return $"{dias[(int)fecha.DayOfWeek]} {fecha.Day} {meses[fecha.Month - 1]}";
     }
 
     private class FormModel

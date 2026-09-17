@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject NavigationManager Nav
 @inject AuthService AuthService
+@inject ThemeService ThemeService
 
 <AuthorizeView>
     <Authorized>
@@ -11,6 +13,14 @@
                     <span>MoneyBack</span>
                 </div>
                 <div class="topbar-actions">
+                    <div class="theme-toggle-track">
+                        <button class="theme-toggle-btn @(ThemeService.Actual == Tema.Claro ? "active" : "")" @onclick="() => CambiarTema(Tema.Claro)" title="Modo claro">
+                            <Icon Name="sun" Size="16" />
+                        </button>
+                        <button class="theme-toggle-btn @(ThemeService.Actual == Tema.Oscuro ? "active" : "")" @onclick="() => CambiarTema(Tema.Oscuro)" title="Modo oscuro">
+                            <Icon Name="moon" Size="16" />
+                        </button>
+                    </div>
                     <button class="avatar-btn" @onclick="ToggleMenu" title="@context.User.Identity?.Name">
                         @Inicial(context)
                     </button>
@@ -28,7 +38,9 @@
                             </div>
                         </div>
                         <div class="divider"></div>
-                        <button class="btn btn-secondary btn-block" @onclick="CerrarSesion">Cerrar sesión</button>
+                        <button class="btn btn-secondary btn-block" @onclick="CerrarSesion">
+                            <Icon Name="logout" Size="17" /> Cerrar sesión
+                        </button>
                     </div>
                 </div>
             }
@@ -41,21 +53,21 @@
         <nav class="tabbar">
             <div class="tabbar-inner">
                 <NavLink class="tab-link" href="/" Match="NavLinkMatch.All">
-                    <span class="tab-icon">🏠</span>
-                    <span>Hogar</span>
-                </NavLink>
-                <NavLink class="tab-link" href="/dia-a-dia">
-                    <span class="tab-icon">📒</span>
+                    <span class="tab-icon"><Icon Name="wallet" Size="21" /></span>
                     <span>Día a día</span>
                 </NavLink>
+                <NavLink class="tab-link" href="/hogar">
+                    <span class="tab-icon"><Icon Name="home" Size="21" /></span>
+                    <span>Hogar</span>
+                </NavLink>
                 <NavLink class="tab-link" href="/subsidios">
-                    <span class="tab-icon">🧮</span>
+                    <span class="tab-icon"><Icon Name="calculator" Size="21" /></span>
                     <span>Subsidios</span>
                 </NavLink>
                 <AuthorizeView Roles="SuperAdmin" Context="adminContext">
                     <Authorized>
                         <NavLink class="tab-link" href="/admin">
-                            <span class="tab-icon">🛡️</span>
+                            <span class="tab-icon"><Icon Name="shield" Size="21" /></span>
                             <span>Admin</span>
                         </NavLink>
                     </Authorized>
@@ -73,7 +85,18 @@
 @code {
     private bool _menuAbierto;
 
+    protected override void OnInitialized()
+    {
+        ThemeService.OnChange += StateHasChanged;
+    }
+
     private void ToggleMenu() => _menuAbierto = !_menuAbierto;
+
+    private async Task CambiarTema(Tema tema)
+    {
+        var nuevo = ThemeService.Actual == tema ? Tema.Sistema : tema;
+        await ThemeService.CambiarAsync(nuevo);
+    }
 
     private static string NombreDe(AuthenticationState context) =>
         context.User.FindFirst("nombre")?.Value ?? "Tú";
@@ -92,5 +115,10 @@
         _menuAbierto = false;
         await AuthService.LogoutAsync();
         Nav.NavigateTo("/login", forceLoad: false);
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnChange -= StateHasChanged;
     }
 }

@@ -7,7 +7,7 @@
 
 <div class="stack">
     <div class="row">
-        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/dia-a-dia")'>← Día a día</button>
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'><Icon Name="chevron-left" Size="18" /> Inicio</button>
     </div>
 
     <h2>Categorías</h2>
@@ -21,22 +21,17 @@
         <div class="card">
             @if (!_mostrarForm)
             {
-                <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true">+ Nueva categoría</button>
+                <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true">
+                    <Icon Name="plus" Size="18" /> Nueva categoría
+                </button>
             }
             else
             {
                 <EditForm Model="_form" OnValidSubmit="Crear">
                     <div class="stack">
-                        <div class="switch-row">
-                            <span style="font-weight:600">@(_form.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")</span>
-                            <button type="button" class="switch @(_form.Tipo == TipoCategoria.Ingreso ? "on" : "")"
-                                    @onclick="() => _form.Tipo = _form.Tipo == TipoCategoria.Gasto ? TipoCategoria.Ingreso : TipoCategoria.Gasto">
-                                <div class="knob"></div>
-                            </button>
-                        </div>
-                        <div class="field">
-                            <label>Ícono (un emoji)</label>
-                            <InputText class="input" @bind-Value="_form.Icono" placeholder="🛒" />
+                        <div class="segmented">
+                            <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Gasto ? "active" : "")" @onclick="() => _form.Tipo = TipoCategoria.Gasto">Gasto</button>
+                            <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Ingreso ? "active" : "")" @onclick="() => _form.Tipo = TipoCategoria.Ingreso">Ingreso</button>
                         </div>
                         <div class="field">
                             <label>Nombre</label>
@@ -102,7 +97,7 @@
         _error = null;
         _guardando = true;
 
-        var resultado = await Api.CrearCategoriaAsync(new CrearCategoriaRequest(_form.Nombre, _form.Tipo, _form.Icono));
+        var resultado = await Api.CrearCategoriaAsync(new CrearCategoriaRequest(_form.Nombre, _form.Tipo, ""));
 
         if (resultado.Exito)
         {
@@ -125,16 +120,20 @@
     }
 
     private RenderFragment RenderCategoria(CategoriaResponse cat) => @<div class="list-item">
-        <span style="@(cat.Activa ? "" : "opacity:0.4")">@cat.Icono @cat.Nombre</span>
+        <div class="row">
+            <div class="icon-bubble @(cat.Tipo == TipoCategoria.Ingreso ? "icon-bubble-accent" : "icon-bubble-danger")" style="width:32px;height:32px">
+                <Icon Name="@(cat.Tipo == TipoCategoria.Ingreso ? "arrow-up" : "arrow-down")" Size="14" />
+            </div>
+            <span style="@(cat.Activa ? "" : "opacity:0.4")">@cat.Nombre</span>
+        </div>
         <button class="btn btn-secondary" @onclick="() => AlternarActiva(cat)">
-            @(cat.Activa ? "Archivar" : "Reactivar")
+            <Icon Name="archive" Size="15" /> @(cat.Activa ? "Archivar" : "Reactivar")
         </button>
     </div>;
 
     private class FormModel
     {
         public string Nombre { get; set; } = "";
-        public string Icono { get; set; } = "📦";
         public TipoCategoria Tipo { get; set; } = TipoCategoria.Gasto;
     }
 }

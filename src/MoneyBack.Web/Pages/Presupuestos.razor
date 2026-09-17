@@ -7,13 +7,13 @@
 
 <div class="stack">
     <div class="row">
-        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/dia-a-dia")'>← Día a día</button>
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'><Icon Name="chevron-left" Size="18" /> Inicio</button>
     </div>
 
     <div class="row-between">
-        <button class="btn btn-ghost" @onclick="MesAnterior">← @NombreMes(MesConAnio(-1))</button>
+        <button class="icon-btn" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
         <strong>@NombreMes((_mes, _anio))</strong>
-        <button class="btn btn-ghost" @onclick="MesSiguiente">@NombreMes(MesConAnio(1)) →</button>
+        <button class="icon-btn" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
     </div>
 
     @if (_cargando)
@@ -25,7 +25,7 @@
         <div class="card">
             @if (!_mostrarForm)
             {
-                <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true">+ Definir presupuesto</button>
+                <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true"><Icon Name="plus" Size="18" /> Definir presupuesto</button>
             }
             else
             {
@@ -36,7 +36,7 @@
                             <InputSelect class="input" @bind-Value="_form.CategoriaId">
                                 @foreach (var cat in _categoriasGasto)
                                 {
-                                    <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                                    <option value="@cat.Id">@cat.Nombre</option>
                                 }
                             </InputSelect>
                         </div>
@@ -72,7 +72,7 @@
                 <div class="card">
                     <div class="stack">
                         <div class="row-between">
-                            <span style="font-weight:600">@p.CategoriaIcono @p.CategoriaNombre</span>
+                            <span style="font-weight:600">@p.CategoriaNombre</span>
                             @if (superado)
                             {
                                 <span class="pill pill-danger">Superado</span>

@@ -15,6 +15,7 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.
 // una instancia de TokenStore distinta a la que Login/AuthService actualizan, y el
 // access token nunca llegaría a las requests (bug real, visto en pruebas).
 builder.Services.AddSingleton<TokenStore>();
+builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiClient>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
@@ -31,5 +32,8 @@ var host = builder.Build();
 
 var authService = host.Services.GetRequiredService<AuthService>();
 await authService.InicializarAsync();
+
+var themeService = host.Services.GetRequiredService<ThemeService>();
+await themeService.InicializarAsync();
 
 await host.RunAsync();

@@ -13,14 +13,14 @@ else if (_meta is null)
 {
     <div class="empty-state">
         <h3>No encontramos esta meta</h3>
-        <a href="/">Volver al inicio</a>
+        <a href="/hogar">Volver al hogar</a>
     </div>
 }
 else
 {
     <div class="stack">
         <div class="row">
-            <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'>← Inicio</button>
+            <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/hogar")'><Icon Name="chevron-left" Size="18" /> Hogar</button>
         </div>
 
         <div class="card">
@@ -67,7 +67,7 @@ else
                 @if (!_mostrarFormMovimiento)
                 {
                     <button class="btn btn-primary btn-block" @onclick="() => _mostrarFormMovimiento = true">
-                        + Registrar aporte o retiro
+                        <Icon Name="plus" Size="18" /> Registrar aporte o retiro
                     </button>
                 }
                 else
@@ -120,7 +120,7 @@ else
                         <div class="list-item">
                             <div class="row">
                                 <div class="icon-bubble @(esAporte ? "icon-bubble-accent" : "icon-bubble-danger")">
-                                    @(esAporte ? "↑" : "↓")
+                                    <Icon Name="@(esAporte ? "arrow-up" : "arrow-down")" Size="16" />
                                 </div>
                                 <div>
                                     <div style="font-weight:600">@mov.UsuarioNombre @(mov.EsAutomatico ? "· automático" : "")</div>
