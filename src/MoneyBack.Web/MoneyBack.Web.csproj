@@ -15,4 +15,18 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
   </ItemGroup>
 
+  <!--
+    css/app.css no pasa por el pipeline de fingerprinting de Blazor (ese solo
+    aplica a módulos JS/import maps, no a <link> de hojas de estilo). Sin esto,
+    el nombre del archivo nunca cambia entre despliegues, así que un navegador
+    que lo cacheó de forma agresiva alguna vez puede quedarse con una versión
+    vieja para siempre, sin importar qué headers mande el servidor después.
+    Este target le agrega un hash real al nombre en cada publish, para que un
+    cambio de contenido implique una URL nueva y el caché viejo simplemente
+    deje de usarse.
+  -->
+  <Target Name="FingerprintAppCss" AfterTargets="Publish">
+    <Exec Command="bash &quot;$(MSBuildProjectDirectory)/Scripts/fingerprint-css.sh&quot; &quot;$(PublishDir)wwwroot&quot;" />
+  </Target>
+
 </Project>

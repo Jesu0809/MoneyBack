@@ -504,11 +504,17 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
   background: var(--color-bg);
   z-index: 9999;
   display: flex; flex-direction: column;
-  animation: fullscreenIn 380ms var(--ease-spring) both;
+  /* Curva de desaceleración sin rebote (a diferencia de --ease-spring):
+     un overshoot elástico se nota bien en botones pequeños, pero en algo
+     que cubre toda la pantalla se ve mecánico. La opacidad llega a 1 antes
+     (55%) de que el escalado termine (100%), para que se sienta como una
+     expansión continua en vez de un "pop". */
+  animation: fullscreenIn 440ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 @keyframes fullscreenIn {
-  from { opacity: 0; transform: scale(0.5); transform-origin: calc(100% - 50px) calc(100% - 130px); }
-  to { opacity: 1; transform: none; }
+  0% { opacity: 0; transform: scale(0.42); transform-origin: calc(100% - 50px) calc(100% - 130px); }
+  55% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
 }
 
 .fullscreen-header {
