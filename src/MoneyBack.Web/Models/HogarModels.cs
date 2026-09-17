@@ -8,6 +8,7 @@ public record CrearHogarRequest(
 
 public record ActualizarHogarRequest(
     bool AplicaTope150,
+    bool RedondeoActivo,
     decimal PorcentajeRedondeoEmergencia,
     decimal PorcentajeRedondeoApartamento);
 
@@ -18,5 +19,6 @@ public record HogarResponse(
     int Usuario2Id,
     string Usuario2Nombre,
     bool AplicaTope150,
+    bool RedondeoActivo,
     decimal PorcentajeRedondeoEmergencia,
     decimal PorcentajeRedondeoApartamento);

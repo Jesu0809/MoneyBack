@@ -1,0 +1,173 @@
+@page "/presupuestos"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Presupuestos · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/dia-a-dia")'>← Día a día</button>
+    </div>
+
+    <div class="row-between">
+        <button class="btn btn-ghost" @onclick="MesAnterior">← @NombreMes(MesConAnio(-1))</button>
+        <strong>@NombreMes((_mes, _anio))</strong>
+        <button class="btn btn-ghost" @onclick="MesSiguiente">@NombreMes(MesConAnio(1)) →</button>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            @if (!_mostrarForm)
+            {
+                <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true">+ Definir presupuesto</button>
+            }
+            else
+            {
+                <EditForm Model="_form" OnValidSubmit="Guardar">
+                    <div class="stack">
+                        <div class="field">
+                            <label>Categoría de gasto</label>
+                            <InputSelect class="input" @bind-Value="_form.CategoriaId">
+                                @foreach (var cat in _categoriasGasto)
+                                {
+                                    <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="field">
+                            <label>Límite mensual</label>
+                            <InputNumber class="input" @bind-Value="_form.MontoLimite" placeholder="300000" />
+                        </div>
+                        <AlertBox Mensaje="@_error" />
+                        <div class="row">
+                            <button class="btn btn-secondary" type="button" @onclick="() => _mostrarForm = false">Cancelar</button>
+                            <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
+                                @if (_guardando) { <span class="spinner"></span> }
+                                <span>Guardar</span>
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+        </div>
+
+        @if (_presupuestos.Count == 0)
+        {
+            <div class="empty-state">
+                <p>Todavía no has definido presupuestos para este mes.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var p in _presupuestos)
+            {
+                var porcentaje = p.MontoLimite > 0 ? Math.Min(100, p.MontoGastado / p.MontoLimite * 100) : 0;
+                var superado = p.MontoGastado > p.MontoLimite;
+                <div class="card">
+                    <div class="stack">
+                        <div class="row-between">
+                            <span style="font-weight:600">@p.CategoriaIcono @p.CategoriaNombre</span>
+                            @if (superado)
+                            {
+                                <span class="pill pill-danger">Superado</span>
+                            }
+                            else if (porcentaje >= 80)
+                            {
+                                <span class="pill pill-warning">Cerca del límite</span>
+                            }
+                        </div>
+                        <ProgressBar Porcentaje="porcentaje" />
+                        <div class="row-between">
+                            <span class="muted">@Formato.Pesos(p.MontoGastado) gastado</span>
+                            <span class="muted">de @Formato.Pesos(p.MontoLimite)</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _guardando;
+    private bool _mostrarForm;
+    private string? _error;
+    private int _mes = DateTime.UtcNow.Month;
+    private int _anio = DateTime.UtcNow.Year;
+    private List<CategoriaResponse> _categoriasGasto = [];
+    private List<PresupuestoResponse> _presupuestos = [];
+    private readonly FormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var categorias = await Api.ObtenerCategoriasAsync();
+        _categoriasGasto = categorias.Where(c => c.Tipo == TipoCategoria.Gasto && c.Activa).ToList();
+        if (_categoriasGasto.Count > 0) _form.CategoriaId = _categoriasGasto[0].Id;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _presupuestos = await Api.ObtenerPresupuestosAsync(_mes, _anio);
+        _cargando = false;
+    }
+
+    private (int mes, int anio) MesConAnio(int delta)
+    {
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(delta);
+        return (fecha.Month, fecha.Year);
+    }
+
+    private async Task MesAnterior()
+    {
+        (_mes, _anio) = MesConAnio(-1);
+        await CargarAsync();
+    }
+
+    private async Task MesSiguiente()
+    {
+        (_mes, _anio) = MesConAnio(1);
+        await CargarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.GuardarPresupuestoAsync(new GuardarPresupuestoRequest(_form.CategoriaId, _form.MontoLimite, _mes, _anio));
+
+        if (resultado.Exito)
+        {
+            _mostrarForm = false;
+            _form.MontoLimite = 0;
+            await CargarAsync();
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _guardando = false;
+    }
+
+    private static string NombreMes((int mes, int anio) periodo)
+    {
+        string[] meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+        return $"{meses[periodo.mes - 1]} {periodo.anio}";
+    }
+
+    private class FormModel
+    {
+        public int CategoriaId { get; set; }
+        public decimal MontoLimite { get; set; }
+    }
+}

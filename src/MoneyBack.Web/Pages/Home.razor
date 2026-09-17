@@ -53,6 +53,18 @@ else
             <p class="muted">@_hogar.Usuario1Nombre &amp; @_hogar.Usuario2Nombre</p>
         </div>
 
+        <div class="card">
+            <div class="switch-row">
+                <div>
+                    <div style="font-weight:600">Redondeo automático</div>
+                    <div class="muted">Cada gasto del día a día de cualquiera de los dos aporta su "vuelto" hasta el siguiente $1.000 a estas metas.</div>
+                </div>
+                <button type="button" class="switch @(_hogar.RedondeoActivo ? "on" : "")" @onclick="AlternarRedondeo" disabled="@_actualizandoRedondeo">
+                    <div class="knob"></div>
+                </button>
+            </div>
+        </div>
+
         @if (_metas.Count == 0)
         {
             <div class="card">
@@ -116,6 +128,7 @@ else
 @code {
     private bool _cargando = true;
     private bool _guardando;
+    private bool _actualizandoRedondeo;
     private string? _error;
     private HogarResponse? _hogar;
     private List<MetaResponse> _metas = [];
@@ -129,6 +142,19 @@ else
     }
 
     private void IrAMeta(int metaId) => Nav.NavigateTo($"/metas/{metaId}");
+
+    private async Task AlternarRedondeo()
+    {
+        if (_hogar is null) return;
+        _actualizandoRedondeo = true;
+
+        var resultado = await Api.ActualizarHogarAsync(new ActualizarHogarRequest(
+            _hogar.AplicaTope150, !_hogar.RedondeoActivo,
+            _hogar.PorcentajeRedondeoEmergencia, _hogar.PorcentajeRedondeoApartamento));
+
+        if (resultado.Exito) _hogar = resultado.Valor;
+        _actualizandoRedondeo = false;
+    }
 
     private async Task CargarAsync()
     {

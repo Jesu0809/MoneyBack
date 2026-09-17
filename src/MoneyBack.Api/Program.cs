@@ -128,6 +128,9 @@ app.MapAdminEndpoints();
 app.MapHogaresEndpoints();
 app.MapMetasEndpoints();
 app.MapSubsidiosEndpoints();
+app.MapCategoriasEndpoints();
+app.MapMovimientosDiaADiaEndpoints();
+app.MapPresupuestosEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 

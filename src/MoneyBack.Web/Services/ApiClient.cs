@@ -88,4 +88,83 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         var response = await Api.PostAsJsonAsync("api/admin/codigo-invitacion/rotar", request);
         return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
     }
+
+    public async Task<List<CategoriaResponse>> ObtenerCategoriasAsync()
+    {
+        var response = await Api.GetAsync("api/categorias");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<CategoriaResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<CategoriaResponse>> CrearCategoriaAsync(CrearCategoriaRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/categorias", request);
+        return await ApiResult<CategoriaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<CategoriaResponse>()!);
+    }
+
+    public async Task<ApiResult<CategoriaResponse>> ActualizarCategoriaAsync(int id, ActualizarCategoriaRequest request)
+    {
+        var response = await Api.PutAsJsonAsync($"api/categorias/{id}", request);
+        return await ApiResult<CategoriaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<CategoriaResponse>()!);
+    }
+
+    public async Task<bool> EliminarCategoriaAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/categorias/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<MovimientoDiaADiaResponse>> ObtenerMovimientosDiaADiaAsync(DateTime? desde = null, DateTime? hasta = null)
+    {
+        var query = ConstruirQueryFechas(desde, hasta);
+        var response = await Api.GetAsync($"api/movimientos-diaadia{query}");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<MovimientoDiaADiaResponse>>() ?? [];
+    }
+
+    public async Task<ResumenDiaADiaResponse?> ObtenerResumenDiaADiaAsync(DateTime? desde = null, DateTime? hasta = null)
+    {
+        var query = ConstruirQueryFechas(desde, hasta);
+        var response = await Api.GetAsync($"api/movimientos-diaadia/resumen{query}");
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<ResumenDiaADiaResponse>() : null;
+    }
+
+    public async Task<ApiResult<MovimientoDiaADiaResponse>> RegistrarMovimientoDiaADiaAsync(CrearMovimientoDiaADiaRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/movimientos-diaadia", request);
+        return await ApiResult<MovimientoDiaADiaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<MovimientoDiaADiaResponse>()!);
+    }
+
+    public async Task<bool> EliminarMovimientoDiaADiaAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/movimientos-diaadia/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<PresupuestoResponse>> ObtenerPresupuestosAsync(int mes, int anio)
+    {
+        var response = await Api.GetAsync($"api/presupuestos?mes={mes}&anio={anio}");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<PresupuestoResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<object?>> GuardarPresupuestoAsync(GuardarPresupuestoRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/presupuestos", request);
+        return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
+    }
+
+    public async Task<bool> EliminarPresupuestoAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/presupuestos/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    private static string ConstruirQueryFechas(DateTime? desde, DateTime? hasta)
+    {
+        var partes = new List<string>();
+        if (desde is not null) partes.Add($"desde={Uri.EscapeDataString(desde.Value.ToString("o"))}");
+        if (hasta is not null) partes.Add($"hasta={Uri.EscapeDataString(hasta.Value.ToString("o"))}");
+        return partes.Count > 0 ? "?" + string.Join("&", partes) : "";
+    }
 }

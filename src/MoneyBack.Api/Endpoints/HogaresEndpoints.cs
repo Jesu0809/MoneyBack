@@ -99,6 +99,7 @@ public static class HogaresEndpoints
             }
 
             hogar.AplicaTope150 = request.AplicaTope150;
+            hogar.RedondeoActivo = request.RedondeoActivo;
             hogar.PorcentajeRedondeoEmergencia = request.PorcentajeRedondeoEmergencia;
             hogar.PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento;
             await db.SaveChangesAsync();
@@ -126,6 +127,7 @@ public static class HogaresEndpoints
         hogar.Usuario2Id,
         usuario2Nombre,
         hogar.AplicaTope150,
+        hogar.RedondeoActivo,
         hogar.PorcentajeRedondeoEmergencia,
         hogar.PorcentajeRedondeoApartamento);
 }

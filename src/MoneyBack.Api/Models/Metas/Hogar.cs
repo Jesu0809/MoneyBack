@@ -18,6 +18,12 @@ public class Hogar
     public Usuario Usuario2 { get; set; } = null!;
 
     /// <summary>
+    /// Interruptor general: si está apagado, ningún gasto del día a día de
+    /// ninguno de los dos usuarios genera aporte automático a las metas.
+    /// </summary>
+    public bool RedondeoActivo { get; set; } = false;
+
+    /// <summary>
     /// % del redondeo automático del día a día que va al fondo de emergencia.
     /// Debe sumar 100 junto con PorcentajeRedondeoApartamento.
     /// </summary>

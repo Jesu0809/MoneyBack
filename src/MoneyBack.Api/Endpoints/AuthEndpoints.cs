@@ -6,6 +6,7 @@ using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
 using MoneyBack.Api.Models;
 using MoneyBack.Api.Models.Auth;
+using MoneyBack.Api.Models.DiaADia;
 using MoneyBack.Api.Services;
 
 namespace MoneyBack.Api.Endpoints;
@@ -67,6 +68,9 @@ public static class AuthEndpoints
                 }
                 await userManager.AddToRoleAsync(usuario, Roles.SuperAdmin);
             }
+
+            db.Categorias.AddRange(CategoriasPredefinidas.ParaNuevoUsuario(usuario.Id));
+            await db.SaveChangesAsync();
 
             var roles = await userManager.GetRolesAsync(usuario);
             var respuesta = await EmitirTokensAsync(usuario, roles, db, tokenService);

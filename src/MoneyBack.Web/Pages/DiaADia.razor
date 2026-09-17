@@ -1,0 +1,245 @@
+@page "/dia-a-dia"
+@attribute [Authorize]
+@inject ApiClient Api
+
+<PageTitle>Día a día · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div class="row-between">
+        <h2>Día a día</h2>
+        <div class="row" style="gap:4px">
+            <a class="btn btn-ghost" href="/categorias">Categorías</a>
+            <a class="btn btn-ghost" href="/presupuestos">Presupuestos</a>
+        </div>
+    </div>
+
+    <div class="row-between">
+        <button class="btn btn-ghost" @onclick="MesAnterior">← @NombreMes(_mesActual.AddMonths(-1))</button>
+        <strong>@NombreMes(_mesActual)</strong>
+        <button class="btn btn-ghost" @onclick="MesSiguiente">@NombreMes(_mesActual.AddMonths(1)) →</button>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="stack">
+                <div class="row-between">
+                    <span class="muted">Ingresos</span>
+                    <span class="money money-md" style="color: var(--color-accent-strong)">@Formato.Pesos(_resumen?.TotalIngresos ?? 0)</span>
+                </div>
+                <div class="row-between">
+                    <span class="muted">Gastos</span>
+                    <span class="money money-md" style="color: var(--color-danger)">@Formato.Pesos(_resumen?.TotalGastos ?? 0)</span>
+                </div>
+                <div class="divider"></div>
+                <div class="row-between">
+                    <span style="font-weight:650">Balance</span>
+                    <span class="money money-lg">@Formato.Pesos(_resumen?.Balance ?? 0)</span>
+                </div>
+            </div>
+        </div>
+
+        @if (_resumen is { GastosPorCategoria.Count: > 0 })
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="label">Gastos por categoría</div>
+                    @foreach (var cat in _resumen.GastosPorCategoria)
+                    {
+                        <div class="row-between">
+                            <span>@cat.CategoriaIcono @cat.CategoriaNombre</span>
+                            <span class="money money-md">@Formato.Pesos(cat.Total)</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            @if (!_mostrarForm)
+            {
+                <button class="btn btn-primary btn-block" @onclick="AbrirForm">+ Registrar ingreso o gasto</button>
+            }
+            else
+            {
+                <EditForm Model="_form" OnValidSubmit="Registrar">
+                    <div class="stack">
+                        <div class="switch-row">
+                            <span style="font-weight:600">@(_form.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")</span>
+                            <button type="button" class="switch @(_form.Tipo == TipoCategoria.Ingreso ? "on" : "")" @onclick="AlternarTipo">
+                                <div class="knob"></div>
+                            </button>
+                        </div>
+
+                        <div class="field">
+                            <label>Categoría</label>
+                            <InputSelect class="input" @bind-Value="_form.CategoriaId">
+                                @foreach (var cat in _categorias.Where(c => c.Tipo == _form.Tipo && c.Activa))
+                                {
+                                    <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="field">
+                            <label>Monto</label>
+                            <InputNumber class="input" @bind-Value="_form.Monto" placeholder="25000" />
+                        </div>
+
+                        <div class="field">
+                            <label>Nota (opcional)</label>
+                            <InputText class="input" @bind-Value="_form.Nota" placeholder="Almuerzo" />
+                        </div>
+
+                        <AlertBox Mensaje="@_error" />
+
+                        <div class="row">
+                            <button class="btn btn-secondary" type="button" @onclick="() => _mostrarForm = false">Cancelar</button>
+                            <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
+                                @if (_guardando) { <span class="spinner"></span> }
+                                <span>Guardar</span>
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+        </div>
+
+        <div class="card">
+            <div class="stack">
+                <div class="label">Movimientos</div>
+                @if (_movimientos.Count == 0)
+                {
+                    <p class="muted">Nada registrado este mes todavía.</p>
+                }
+                else
+                {
+                    @foreach (var mov in _movimientos)
+                    {
+                        var esIngreso = mov.Tipo == TipoCategoria.Ingreso;
+                        <div class="list-item">
+                            <div class="row">
+                                <div class="icon-bubble @(esIngreso ? "icon-bubble-accent" : "icon-bubble-danger")">@mov.CategoriaIcono</div>
+                                <div>
+                                    <div style="font-weight:600">@mov.CategoriaNombre</div>
+                                    <div class="muted">
+                                        @Formato.FechaCorta(mov.Fecha)@(string.IsNullOrEmpty(mov.Nota) ? "" : $" · {mov.Nota}")
+                                        @(mov.RedondeoAplicado ? " · 🪙 redondeo aplicado" : "")
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row" style="gap:8px">
+                                <span class="money money-md" style="color: @(esIngreso ? "var(--color-accent-strong)" : "var(--color-danger)")">
+                                    @(esIngreso ? "+" : "-")@Formato.Pesos(mov.Monto)
+                                </span>
+                                <button class="btn-ghost btn" style="padding:4px 8px" @onclick="() => Eliminar(mov.Id)">✕</button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _guardando;
+    private bool _mostrarForm;
+    private string? _error;
+    private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+    private List<CategoriaResponse> _categorias = [];
+    private List<MovimientoDiaADiaResponse> _movimientos = [];
+    private ResumenDiaADiaResponse? _resumen;
+    private readonly FormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categorias = await Api.ObtenerCategoriasAsync();
+        await CargarMesAsync();
+    }
+
+    private async Task CargarMesAsync()
+    {
+        _cargando = true;
+        var desde = _mesActual;
+        var hasta = _mesActual.AddMonths(1).AddTicks(-1);
+        _movimientos = await Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
+        _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
+        _cargando = false;
+    }
+
+    private async Task MesAnterior()
+    {
+        _mesActual = _mesActual.AddMonths(-1);
+        await CargarMesAsync();
+    }
+
+    private async Task MesSiguiente()
+    {
+        _mesActual = _mesActual.AddMonths(1);
+        await CargarMesAsync();
+    }
+
+    private void AbrirForm()
+    {
+        _mostrarForm = true;
+        _error = null;
+        var primeraCategoria = _categorias.FirstOrDefault(c => c.Tipo == _form.Tipo && c.Activa);
+        if (primeraCategoria is not null) _form.CategoriaId = primeraCategoria.Id;
+    }
+
+    private void AlternarTipo()
+    {
+        _form.Tipo = _form.Tipo == TipoCategoria.Gasto ? TipoCategoria.Ingreso : TipoCategoria.Gasto;
+        var primeraCategoria = _categorias.FirstOrDefault(c => c.Tipo == _form.Tipo && c.Activa);
+        _form.CategoriaId = primeraCategoria?.Id ?? 0;
+    }
+
+    private async Task Registrar()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.RegistrarMovimientoDiaADiaAsync(new CrearMovimientoDiaADiaRequest(
+            _form.CategoriaId, _form.Monto, null, _form.Nota));
+
+        if (resultado.Exito)
+        {
+            _mostrarForm = false;
+            _form.Monto = 0;
+            _form.Nota = "";
+            await CargarMesAsync();
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _guardando = false;
+    }
+
+    private async Task Eliminar(int id)
+    {
+        await Api.EliminarMovimientoDiaADiaAsync(id);
+        await CargarMesAsync();
+    }
+
+    private static string NombreMes(DateTime fecha)
+    {
+        string[] meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+        return $"{meses[fecha.Month - 1]} {fecha.Year}";
+    }
+
+    private class FormModel
+    {
+        public TipoCategoria Tipo { get; set; } = TipoCategoria.Gasto;
+        public int CategoriaId { get; set; }
+        public decimal Monto { get; set; }
+        public string? Nota { get; set; }
+    }
+}

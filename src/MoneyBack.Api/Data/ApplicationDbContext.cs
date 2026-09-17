@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Models;
 using MoneyBack.Api.Models.Auth;
+using MoneyBack.Api.Models.DiaADia;
 using MoneyBack.Api.Models.Metas;
 
 namespace MoneyBack.Api.Data;
@@ -19,6 +20,9 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<MovimientoMeta> MovimientosMeta => Set<MovimientoMeta>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<CodigoInvitacion> CodigosInvitacion => Set<CodigoInvitacion>();
+    public DbSet<Categoria> Categorias => Set<Categoria>();
+    public DbSet<MovimientoDiaADia> MovimientosDiaADia => Set<MovimientoDiaADia>();
+    public DbSet<Presupuesto> Presupuestos => Set<Presupuesto>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -33,5 +37,6 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.Entity<IdentityRoleClaim<int>>().ToTable("RoleClaims");
 
         builder.ApplyConfiguration(new HogarConfiguration());
+        builder.ApplyConfiguration(new PresupuestoConfiguration());
     }
 }

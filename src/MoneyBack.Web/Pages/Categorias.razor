@@ -1,0 +1,140 @@
+@page "/categorias"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Categorías · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/dia-a-dia")'>← Día a día</button>
+    </div>
+
+    <h2>Categorías</h2>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            @if (!_mostrarForm)
+            {
+                <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true">+ Nueva categoría</button>
+            }
+            else
+            {
+                <EditForm Model="_form" OnValidSubmit="Crear">
+                    <div class="stack">
+                        <div class="switch-row">
+                            <span style="font-weight:600">@(_form.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")</span>
+                            <button type="button" class="switch @(_form.Tipo == TipoCategoria.Ingreso ? "on" : "")"
+                                    @onclick="() => _form.Tipo = _form.Tipo == TipoCategoria.Gasto ? TipoCategoria.Ingreso : TipoCategoria.Gasto">
+                                <div class="knob"></div>
+                            </button>
+                        </div>
+                        <div class="field">
+                            <label>Ícono (un emoji)</label>
+                            <InputText class="input" @bind-Value="_form.Icono" placeholder="🛒" />
+                        </div>
+                        <div class="field">
+                            <label>Nombre</label>
+                            <InputText class="input" @bind-Value="_form.Nombre" placeholder="Mascotas" />
+                        </div>
+                        <AlertBox Mensaje="@_error" />
+                        <div class="row">
+                            <button class="btn btn-secondary" type="button" @onclick="() => _mostrarForm = false">Cancelar</button>
+                            <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
+                                @if (_guardando) { <span class="spinner"></span> }
+                                <span>Crear</span>
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+        </div>
+
+        <div class="card">
+            <div class="stack">
+                <div class="label">Gastos</div>
+                @foreach (var cat in _categorias.Where(c => c.Tipo == TipoCategoria.Gasto))
+                {
+                    @RenderCategoria(cat)
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stack">
+                <div class="label">Ingresos</div>
+                @foreach (var cat in _categorias.Where(c => c.Tipo == TipoCategoria.Ingreso))
+                {
+                    @RenderCategoria(cat)
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _guardando;
+    private bool _mostrarForm;
+    private string? _error;
+    private List<CategoriaResponse> _categorias = [];
+    private readonly FormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _categorias = await Api.ObtenerCategoriasAsync();
+        _cargando = false;
+    }
+
+    private async Task Crear()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.CrearCategoriaAsync(new CrearCategoriaRequest(_form.Nombre, _form.Tipo, _form.Icono));
+
+        if (resultado.Exito)
+        {
+            _mostrarForm = false;
+            _form.Nombre = "";
+            await CargarAsync();
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _guardando = false;
+    }
+
+    private async Task AlternarActiva(CategoriaResponse categoria)
+    {
+        await Api.ActualizarCategoriaAsync(categoria.Id, new ActualizarCategoriaRequest(categoria.Nombre, categoria.Icono, !categoria.Activa));
+        await CargarAsync();
+    }
+
+    private RenderFragment RenderCategoria(CategoriaResponse cat) => @<div class="list-item">
+        <span style="@(cat.Activa ? "" : "opacity:0.4")">@cat.Icono @cat.Nombre</span>
+        <button class="btn btn-secondary" @onclick="() => AlternarActiva(cat)">
+            @(cat.Activa ? "Archivar" : "Reactivar")
+        </button>
+    </div>;
+
+    private class FormModel
+    {
+        public string Nombre { get; set; } = "";
+        public string Icono { get; set; } = "📦";
+        public TipoCategoria Tipo { get; set; } = TipoCategoria.Gasto;
+    }
+}
