@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
 using MoneyBack.Api.Models.Metas;
+using MoneyBack.Api.Services;
 
 namespace MoneyBack.Api.Endpoints;
 
@@ -9,15 +11,17 @@ public static class HogaresEndpoints
 {
     public static void MapHogaresEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/hogares").WithTags("Hogares");
+        var group = app.MapGroup("/api/hogares").WithTags("Hogares").RequireAuthorization();
 
-        group.MapPost("/", async (CrearHogarRequest request, ApplicationDbContext db) =>
+        group.MapPost("/", async (CrearHogarRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            if (request.Usuario1Id == request.Usuario2Id)
+            var usuarioId = principal.GetUsuarioId();
+
+            if (usuarioId == request.UsuarioParejaId)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
-                    ["usuarios"] = ["Un hogar necesita dos usuarios distintos."]
+                    ["usuarioParejaId"] = ["Un hogar necesita dos usuarios distintos."]
                 });
             }
 
@@ -29,34 +33,73 @@ public static class HogaresEndpoints
                 });
             }
 
-            var usuariosExistentes = await db.Usuarios
-                .CountAsync(u => u.Id == request.Usuario1Id || u.Id == request.Usuario2Id);
-            if (usuariosExistentes != 2)
+            var parejaExiste = await db.Users.AnyAsync(u => u.Id == request.UsuarioParejaId);
+            if (!parejaExiste)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
-                    ["usuarios"] = ["Usuario1Id y Usuario2Id deben existir."]
+                    ["usuarioParejaId"] = ["El usuario indicado no existe."]
                 });
+            }
+
+            var yaTieneHogar = await db.Hogares.AnyAsync(h =>
+                h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId ||
+                h.Usuario1Id == request.UsuarioParejaId || h.Usuario2Id == request.UsuarioParejaId);
+            if (yaTieneHogar)
+            {
+                return Results.Conflict("Uno de los dos usuarios ya pertenece a un hogar.");
             }
 
             var hogar = new Hogar
             {
-                Usuario1Id = request.Usuario1Id,
-                Usuario2Id = request.Usuario2Id,
+                Usuario1Id = usuarioId,
+                Usuario2Id = request.UsuarioParejaId,
+                AplicaTope150 = request.AplicaTope150,
                 PorcentajeRedondeoEmergencia = request.PorcentajeRedondeoEmergencia,
                 PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento
             };
             db.Hogares.Add(hogar);
             await db.SaveChangesAsync();
 
-            var response = ToResponse(hogar);
-            return Results.Created($"/api/hogares/{hogar.Id}", response);
+            return Results.Created($"/api/hogares/{hogar.Id}", ToResponse(hogar));
         });
 
-        group.MapGet("/{id:int}", async (int id, ApplicationDbContext db) =>
+        group.MapGet("/mio", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var usuarioId = principal.GetUsuarioId();
+            var hogar = await db.Hogares.FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
+            return hogar is null ? Results.NotFound() : Results.Ok(ToResponse(hogar));
+        });
+
+        group.MapPut("/mio", async (ActualizarHogarRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var usuarioId = principal.GetUsuarioId();
+            var hogar = await db.Hogares.FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
+            if (hogar is null) return Results.NotFound();
+
+            if (request.PorcentajeRedondeoEmergencia + request.PorcentajeRedondeoApartamento != 100)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["porcentajes"] = ["Los porcentajes de redondeo deben sumar 100."]
+                });
+            }
+
+            hogar.AplicaTope150 = request.AplicaTope150;
+            hogar.PorcentajeRedondeoEmergencia = request.PorcentajeRedondeoEmergencia;
+            hogar.PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento;
+            await db.SaveChangesAsync();
+
+            return Results.Ok(ToResponse(hogar));
+        });
+
+        group.MapGet("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var hogar = await db.Hogares.FindAsync(id);
-            return hogar is null ? Results.NotFound() : Results.Ok(ToResponse(hogar));
+            if (hogar is null) return Results.NotFound();
+            if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
+
+            return Results.Ok(ToResponse(hogar));
         });
     }
 
@@ -64,6 +107,7 @@ public static class HogaresEndpoints
         hogar.Id,
         hogar.Usuario1Id,
         hogar.Usuario2Id,
+        hogar.AplicaTope150,
         hogar.PorcentajeRedondeoEmergencia,
         hogar.PorcentajeRedondeoApartamento);
 }

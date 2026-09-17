@@ -1,8 +1,15 @@
+using Microsoft.AspNetCore.Identity;
+
 namespace MoneyBack.Api.Models;
 
-public class Usuario
+/// <summary>
+/// Extiende IdentityUser para heredar hash de contraseña, lockout,
+/// security stamp, etc. de ASP.NET Core Identity en vez de reinventarlos.
+/// Email/UserName ya vienen de IdentityUser; Nombre es lo único propio.
+/// </summary>
+public class Usuario : IdentityUser<int>
 {
-    public int Id { get; set; }
     public string Nombre { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
+
+    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 }

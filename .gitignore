@@ -2,3 +2,4 @@ bin/
 obj/
 *.db
 .idea/
+.claude/settings.local.json

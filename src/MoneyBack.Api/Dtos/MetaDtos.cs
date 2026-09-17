@@ -17,7 +17,6 @@ public record MetaResponse(
     DateTime FechaCreacion);
 
 public record CrearMovimientoRequest(
-    int UsuarioId,
     TipoMovimiento Tipo,
     decimal Monto,
     string? Nota,

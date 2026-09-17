@@ -1,7 +1,13 @@
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MoneyBack.Api.Config;
+using MoneyBack.Api.Data;
 using MoneyBack.Api.Domain.Subsidios;
 using MoneyBack.Api.Dtos;
+using MoneyBack.Api.Models.Metas;
+using MoneyBack.Api.Models.Subsidios;
+using MoneyBack.Api.Services;
 
 namespace MoneyBack.Api.Endpoints;
 
@@ -9,7 +15,12 @@ public static class SubsidiosEndpoints
 {
     public static void MapSubsidiosEndpoints(this WebApplication app)
     {
-        app.MapPost("/api/subsidios/simular", (SimularSubsidiosRequest request, IOptions<SubsidiosOptions> opciones) =>
+        app.MapPost("/api/hogares/{hogarId:int}/subsidios/simular", async (
+            int hogarId,
+            SimularSubsidiosRequest request,
+            ClaimsPrincipal principal,
+            ApplicationDbContext db,
+            IOptions<SubsidiosOptions> opciones) =>
         {
             var smmlv = opciones.Value.SmmlvVigente;
             if (smmlv <= 0)
@@ -25,7 +36,15 @@ public static class SubsidiosEndpoints
                 });
             }
 
-            var topeVisPesos = TopesVis.TopeEnPesos(request.TipoTopeVis, smmlv);
+            var hogar = await db.Hogares.FindAsync(hogarId);
+            if (hogar is null) return Results.NotFound($"No existe el hogar {hogarId}.");
+            if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
+
+            var tipoTopeVis = request.EsVip
+                ? TipoTopeVis.Vip
+                : (hogar.AplicaTope150 ? TipoTopeVis.Decreto1467 : TipoTopeVis.General);
+
+            var topeVisPesos = TopesVis.TopeEnPesos(tipoTopeVis, smmlv);
             var esVis = request.ValorVivienda <= topeVisPesos;
 
             var miCasaYa = esVis
@@ -36,9 +55,23 @@ public static class SubsidiosEndpoints
             var montoCaja = Math.Max(0, request.MontoSubsidioCajaCompensacion);
             var totalEstimado = miCasaYa.SubsidioEnPesos + montoCaja;
 
+            var metaApartamento = await db.MetasAhorro
+                .Where(m => m.HogarId == hogarId && m.Tipo == TipoMeta.Apartamento && m.Activa)
+                .OrderByDescending(m => m.FechaCreacion)
+                .Select(m => new { m.Id, m.Nombre, m.MontoObjetivo })
+                .FirstOrDefaultAsync();
+
+            var alertaMeta = metaApartamento is null
+                ? null
+                : new AlertaMetaApartamento(
+                    metaApartamento.Id,
+                    metaApartamento.Nombre,
+                    metaApartamento.MontoObjetivo,
+                    metaApartamento.MontoObjetivo > topeVisPesos);
+
             var response = new SimulacionSubsidiosResponse(
                 smmlv,
-                request.TipoTopeVis,
+                tipoTopeVis,
                 topeVisPesos,
                 request.ValorVivienda,
                 esVis,
@@ -49,10 +82,12 @@ public static class SubsidiosEndpoints
                 miCasaYa.SoloCoberturaTasaFrech,
                 miCasaYa.Nota,
                 montoCaja,
-                totalEstimado);
+                totalEstimado,
+                alertaMeta);
 
             return Results.Ok(response);
         })
-        .WithTags("Subsidios");
+        .WithTags("Subsidios")
+        .RequireAuthorization();
     }
 }

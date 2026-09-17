@@ -5,7 +5,11 @@ namespace MoneyBack.Api.Dtos;
 public record SimularSubsidiosRequest(
     decimal IngresoCombinadoMensual,
     decimal ValorVivienda,
-    TipoTopeVis TipoTopeVis,
+    bool EsVip,
+    /// <summary>
+    /// Requisito de Mi Casa Ya que el simulador no puede verificar por su
+    /// cuenta: el usuario confirma manualmente que está en Sisbén IV A1-D20.
+    /// </summary>
     bool CumpleSisbenIvAD20,
     /// <summary>
     /// Monto del subsidio de caja de compensación (Colsubsidio u otra). No se
@@ -13,6 +17,12 @@ public record SimularSubsidiosRequest(
     /// que el usuario lo ingresa manualmente tras consultar su portal transaccional.
     /// </summary>
     decimal MontoSubsidioCajaCompensacion = 0);
+
+public record AlertaMetaApartamento(
+    int MetaId,
+    string Nombre,
+    decimal MontoObjetivo,
+    bool SuperaTopeVis);
 
 public record SimulacionSubsidiosResponse(
     decimal SmmlvVigente,
@@ -27,4 +37,5 @@ public record SimulacionSubsidiosResponse(
     bool SoloCoberturaTasaFrech,
     string? NotaMiCasaYa,
     decimal MontoSubsidioCajaCompensacion,
-    decimal TotalSubsidiosEstimado);
+    decimal TotalSubsidiosEstimado,
+    AlertaMetaApartamento? MetaApartamento);
