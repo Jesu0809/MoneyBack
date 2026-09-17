@@ -10,6 +10,10 @@ public record AuthResponse(string AccessToken, string RefreshToken, DateTime Acc
 
 public record PerfilResponse(int Id, string Nombre, string Email, IReadOnlyList<string> Roles);
 
+public record ActualizarPerfilRequest(string Nombre);
+
+public record CambiarPasswordRequest(string PasswordActual, string PasswordNueva);
+
 public record RotarCodigoInvitacionRequest(string NuevoCodigo);
 
 public record UsuarioAdminResponse(int Id, string Nombre, string Email, DateTime FechaCreacion, IReadOnlyList<string> Roles);

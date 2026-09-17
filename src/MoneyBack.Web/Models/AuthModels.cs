@@ -9,3 +9,7 @@ public record RefrescarTokenRequest(string RefreshToken);
 public record AuthResponse(string AccessToken, string RefreshToken, DateTime AccessTokenExpiraEn);
 
 public record PerfilResponse(int Id, string Nombre, string Email, List<string> Roles);
+
+public record ActualizarPerfilRequest(string Nombre);
+
+public record CambiarPasswordRequest(string PasswordActual, string PasswordNueva);

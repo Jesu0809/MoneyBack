@@ -7,11 +7,11 @@
     ],
     "headers": [
       {
-        "source": "**/*.@(js|css|wasm|dll|blat|dat)",
+        "source": "_framework/**",
         "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
       },
       {
-        "source": "**/*.@(json|html)",
+        "source": "**/*.@(css|js|json|html)",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       }
     ]

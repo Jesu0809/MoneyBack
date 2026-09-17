@@ -13,6 +13,18 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<PerfilResponse>() : null;
     }
 
+    public async Task<ApiResult<PerfilResponse>> ActualizarPerfilAsync(ActualizarPerfilRequest request)
+    {
+        var response = await Api.PutAsJsonAsync("api/auth/me", request);
+        return await ApiResult<PerfilResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<PerfilResponse>()!);
+    }
+
+    public async Task<ApiResult<object?>> CambiarPasswordAsync(CambiarPasswordRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/auth/cambiar-password", request);
+        return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
+    }
+
     public async Task<HogarResponse?> ObtenerMiHogarAsync()
     {
         var response = await Api.GetAsync("api/hogares/mio");

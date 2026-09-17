@@ -61,6 +61,19 @@ public class AuthService(IHttpClientFactory httpClientFactory, TokenStore tokenS
         }
     }
 
+    /// <summary>
+    /// Fuerza un refresh de token para que los claims (ej. nombre) queden al
+    /// día tras editar el perfil, sin esperar a que expire el access token.
+    /// </summary>
+    public async Task RefrescarClaimsAsync()
+    {
+        var refreshToken = await tokenStore.ObtenerRefreshTokenAsync();
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            await IntentarRefrescarAsync(refreshToken);
+        }
+    }
+
     public async Task LogoutAsync()
     {
         var refreshToken = await tokenStore.ObtenerRefreshTokenAsync();

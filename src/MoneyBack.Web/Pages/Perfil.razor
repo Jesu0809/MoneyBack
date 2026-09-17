@@ -1,0 +1,154 @@
+@page "/perfil"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Perfil · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'><Icon Name="chevron-left" Size="18" /> Inicio</button>
+    </div>
+
+    <h2>Tu perfil</h2>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="stack">
+                <div class="label">Nombre</div>
+                <EditForm Model="_nombreForm" OnValidSubmit="GuardarNombre">
+                    <div class="stack">
+                        <InputText class="input" @bind-Value="_nombreForm.Nombre" placeholder="Tu nombre" />
+                        <AlertBox Mensaje="@_errorNombre" />
+                        @if (_nombreGuardado)
+                        {
+                            <AlertBox Tipo="accent" Mensaje="Nombre actualizado." />
+                        }
+                        <button class="btn btn-primary" type="submit" disabled="@_guardandoNombre">
+                            @if (_guardandoNombre) { <span class="spinner"></span> }
+                            <span>Guardar</span>
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stack">
+                <div class="row" style="gap:8px">
+                    <Icon Name="lock" Size="17" />
+                    <span class="label" style="margin:0">Contraseña</span>
+                </div>
+                <EditForm Model="_passwordForm" OnValidSubmit="CambiarPassword">
+                    <div class="stack">
+                        <div class="field">
+                            <label>Contraseña actual</label>
+                            <InputText class="input" type="password" @bind-Value="_passwordForm.PasswordActual" />
+                        </div>
+                        <div class="field">
+                            <label>Contraseña nueva</label>
+                            <InputText class="input" type="password" @bind-Value="_passwordForm.PasswordNueva" placeholder="Mínimo 10 caracteres" />
+                        </div>
+                        <AlertBox Mensaje="@_errorPassword" />
+                        @if (_passwordCambiada)
+                        {
+                            <AlertBox Tipo="accent" Mensaje="Contraseña actualizada." />
+                        }
+                        <button class="btn btn-primary" type="submit" disabled="@_guardandoPassword">
+                            @if (_guardandoPassword) { <span class="spinner"></span> }
+                            <span>Cambiar contraseña</span>
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="row-between">
+                <span class="muted">Correo</span>
+                <span>@_perfil?.Email</span>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _guardandoNombre;
+    private bool _guardandoPassword;
+    private bool _nombreGuardado;
+    private bool _passwordCambiada;
+    private string? _errorNombre;
+    private string? _errorPassword;
+    private PerfilResponse? _perfil;
+    private readonly NombreFormModel _nombreForm = new();
+    private readonly PasswordFormModel _passwordForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _perfil = await Api.ObtenerPerfilAsync();
+        if (_perfil is not null) _nombreForm.Nombre = _perfil.Nombre;
+        _cargando = false;
+    }
+
+    private async Task GuardarNombre()
+    {
+        _errorNombre = null;
+        _nombreGuardado = false;
+        _guardandoNombre = true;
+
+        var resultado = await Api.ActualizarPerfilAsync(new ActualizarPerfilRequest(_nombreForm.Nombre));
+
+        if (resultado.Exito)
+        {
+            _perfil = resultado.Valor;
+            _nombreGuardado = true;
+            await AuthService.RefrescarClaimsAsync();
+        }
+        else
+        {
+            _errorNombre = resultado.TodosLosErrores();
+        }
+
+        _guardandoNombre = false;
+    }
+
+    private async Task CambiarPassword()
+    {
+        _errorPassword = null;
+        _passwordCambiada = false;
+        _guardandoPassword = true;
+
+        var resultado = await Api.CambiarPasswordAsync(new CambiarPasswordRequest(_passwordForm.PasswordActual, _passwordForm.PasswordNueva));
+
+        if (resultado.Exito)
+        {
+            _passwordCambiada = true;
+            _passwordForm.PasswordActual = "";
+            _passwordForm.PasswordNueva = "";
+        }
+        else
+        {
+            _errorPassword = resultado.TodosLosErrores();
+        }
+
+        _guardandoPassword = false;
+    }
+
+    private class NombreFormModel
+    {
+        public string Nombre { get; set; } = "";
+    }
+
+    private class PasswordFormModel
+    {
+        public string PasswordActual { get; set; } = "";
+        public string PasswordNueva { get; set; } = "";
+    }
+}

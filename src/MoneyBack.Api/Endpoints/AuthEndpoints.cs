@@ -171,6 +171,51 @@ public static class AuthEndpoints
             var roles = await userManager.GetRolesAsync(usuario);
             return Results.Ok(new PerfilResponse(usuario.Id, usuario.Nombre, usuario.Email!, roles.ToList()));
         }).RequireAuthorization();
+
+        group.MapPut("/me", async (ActualizarPerfilRequest request, ClaimsPrincipal principal, UserManager<Usuario> userManager) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Nombre))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["nombre"] = ["El nombre es obligatorio."]
+                });
+            }
+
+            var usuario = await userManager.FindByIdAsync(principal.GetUsuarioId().ToString());
+            if (usuario is null) return Results.NotFound();
+
+            usuario.Nombre = request.Nombre.Trim();
+            await userManager.UpdateAsync(usuario);
+
+            var roles = await userManager.GetRolesAsync(usuario);
+            return Results.Ok(new PerfilResponse(usuario.Id, usuario.Nombre, usuario.Email!, roles.ToList()));
+        }).RequireAuthorization();
+
+        group.MapPost("/cambiar-password", async (CambiarPasswordRequest request, ClaimsPrincipal principal, UserManager<Usuario> userManager) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.PasswordActual) || string.IsNullOrWhiteSpace(request.PasswordNueva))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["password"] = ["Debes indicar la contraseña actual y la nueva."]
+                });
+            }
+
+            var usuario = await userManager.FindByIdAsync(principal.GetUsuarioId().ToString());
+            if (usuario is null) return Results.NotFound();
+
+            var resultado = await userManager.ChangePasswordAsync(usuario, request.PasswordActual, request.PasswordNueva);
+            if (!resultado.Succeeded)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["password"] = resultado.Errors.Select(e => e.Description).ToArray()
+                });
+            }
+
+            return Results.NoContent();
+        }).RequireAuthorization().RequireRateLimiting("auth");
     }
 
     private static async Task<AuthResponse> EmitirTokensAsync(
