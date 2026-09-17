@@ -1,0 +1,34 @@
+<span class="@Class">@Formato.Pesos(_valorMostrado)</span>
+
+@code {
+    [Parameter] public decimal Valor { get; set; }
+    [Parameter] public string Class { get; set; } = "money";
+
+    private const int Pasos = 18;
+    private const int DuracionMs = 480;
+
+    private decimal _valorMostrado;
+    private decimal? _valorAnterior;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_valorAnterior == Valor) return;
+
+        var desde = _valorAnterior ?? 0;
+        var hasta = Valor;
+        _valorAnterior = Valor;
+
+        for (var i = 1; i <= Pasos; i++)
+        {
+            // Desaceleración simple (ease-out): pasos más grandes al inicio,
+            // más finos al final, para que se sienta natural y no lineal.
+            var progreso = 1 - Math.Pow(1 - (double)i / Pasos, 2);
+            _valorMostrado = desde + (hasta - desde) * (decimal)progreso;
+            StateHasChanged();
+            await Task.Delay(DuracionMs / Pasos);
+        }
+
+        _valorMostrado = hasta;
+        StateHasChanged();
+    }
+}

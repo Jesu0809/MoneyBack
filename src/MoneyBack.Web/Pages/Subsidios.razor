@@ -5,9 +5,12 @@
 <PageTitle>Simulador de subsidios · MoneyBack</PageTitle>
 
 <div class="stack">
-    <div>
-        <h2>Simulador de subsidios</h2>
-        <p class="muted">Estimado de Mi Casa Ya según el ingreso combinado y el tope VIS de tu hogar.</p>
+    <div class="row" style="gap:12px">
+        <div class="icon-bubble icon-bubble-accent icon-bubble-lg"><Icon Name="calculator" Size="22" /></div>
+        <div>
+            <h2>Simulador de subsidios</h2>
+            <p class="muted">Estimado de Mi Casa Ya según el ingreso combinado y el tope VIS de tu hogar.</p>
+        </div>
     </div>
 
     @if (_cargandoHogar)
@@ -111,7 +114,7 @@
                     <div class="divider"></div>
                     <div class="row-between">
                         <span style="font-weight:650">Total estimado</span>
-                        <span class="money money-lg">@Formato.Pesos(_resultado.TotalSubsidiosEstimado)</span>
+                        <AnimatedMoney Valor="_resultado.TotalSubsidiosEstimado" Class="money money-lg" />
                     </div>
 
                     @if (_resultado.MetaApartamento is { SuperaTopeVis: true } meta)
@@ -146,8 +149,8 @@
         _resultado = null;
 
         var resultado = await Api.SimularSubsidiosAsync(_hogar.Id, new SimularSubsidiosRequest(
-            _form.IngresoCombinadoMensual, _form.ValorVivienda, _form.EsVip,
-            _form.CumpleSisbenIvAD20, _form.MontoSubsidioCajaCompensacion));
+            _form.IngresoCombinadoMensual ?? 0, _form.ValorVivienda ?? 0, _form.EsVip,
+            _form.CumpleSisbenIvAD20, _form.MontoSubsidioCajaCompensacion ?? 0));
 
         if (resultado.Exito)
         {
@@ -163,10 +166,10 @@
 
     private class FormModel
     {
-        public decimal IngresoCombinadoMensual { get; set; }
-        public decimal ValorVivienda { get; set; }
+        public decimal? IngresoCombinadoMensual { get; set; }
+        public decimal? ValorVivienda { get; set; }
         public bool EsVip { get; set; }
         public bool CumpleSisbenIvAD20 { get; set; }
-        public decimal MontoSubsidioCajaCompensacion { get; set; }
+        public decimal? MontoSubsidioCajaCompensacion { get; set; }
     }
 }

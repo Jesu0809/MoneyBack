@@ -82,6 +82,13 @@ a:hover { text-decoration: underline; }
 
 h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
 
+/* App.razor usa <FocusOnNavigate Selector="h1"> para que los lectores de
+   pantalla anuncien el título al navegar — muy útil, pero el foco visual
+   por defecto del navegador (recuadro azul) no tiene sentido en un h1
+   decorativo que nadie navega con teclado. Se mantiene el foco real (el
+   lector de pantalla lo necesita), solo se le quita el anillo visible. */
+h1:focus { outline: none; }
+
 .app-shell {
   max-width: 640px;
   margin: 0 auto;
@@ -212,6 +219,19 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
 .card-tap { cursor: pointer; }
 .card-tap:hover { box-shadow: var(--shadow-card-hover); }
 .card-tap:active { transform: scale(0.985); }
+
+.add-meta-card {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  border: 1.5px dashed var(--color-border);
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+  font-size: 15px; font-weight: 600;
+  text-align: left;
+  appearance: none;
+}
+.add-meta-card:hover { border-color: var(--color-accent); color: var(--color-text); }
 
 .stack { display: flex; flex-direction: column; gap: 14px; }
 .row { display: flex; align-items: center; gap: 10px; }
@@ -430,7 +450,35 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
   width: 100%; max-width: 380px;
 }
 
-.count-up { transition: color 300ms; }
+.auth-screen {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px;
+  position: relative; overflow: hidden;
+}
+.auth-blob {
+  position: absolute; border-radius: 50%; filter: blur(70px);
+  z-index: 0; pointer-events: none;
+}
+.auth-blob-1 {
+  width: 300px; height: 300px; top: -110px; right: -90px;
+  background: var(--color-accent); opacity: 0.28;
+}
+.auth-blob-2 {
+  width: 240px; height: 240px; bottom: -80px; left: -80px;
+  background: var(--color-warning); opacity: 0.14;
+}
+.auth-content {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 380px;
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+}
+.auth-logo {
+  width: 68px; height: 68px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
 
 ::selection { background: var(--color-accent-soft); }
 

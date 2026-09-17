@@ -53,6 +53,21 @@ else
             <p class="muted">@_hogar.Usuario1Nombre &amp; @_hogar.Usuario2Nombre</p>
         </div>
 
+        @if (_metas.Count > 0)
+        {
+            <div class="hero-balance">
+                <div class="stack" style="gap:10px">
+                    <span class="label">Ahorro total</span>
+                    <AnimatedMoney Valor="_metas.Sum(m => m.MontoActual)" Class="money money-lg" />
+                    <div class="divider"></div>
+                    <div class="row-between">
+                        <span class="muted">Meta combinada</span>
+                        <span style="font-weight:650">@Formato.Pesos(_metas.Sum(m => m.MontoObjetivo))</span>
+                    </div>
+                </div>
+            </div>
+        }
+
         <div class="card">
             <div class="switch-row">
                 <div>
@@ -65,61 +80,85 @@ else
             </div>
         </div>
 
-        @if (_metas.Count == 0)
+        @foreach (var meta in _metas)
         {
-            <div class="card">
+            <div class="card card-tap" @onclick="() => IrAMeta(meta.Id)">
                 <div class="stack">
-                    <h3>Crea tu primera meta</h3>
-                    <p class="muted">Empiecen por la meta del apartamento — pueden agregar el fondo de emergencia después.</p>
-                    <EditForm Model="_crearMetaForm" OnValidSubmit="CrearMeta">
-                        <div class="stack">
-                            <div class="field">
-                                <label>Tipo</label>
-                                <InputSelect class="input" @bind-Value="_crearMetaForm.Tipo">
-                                    <option value="@TipoMeta.Apartamento">Apartamento</option>
-                                    <option value="@TipoMeta.Emergencia">Fondo de emergencia</option>
-                                </InputSelect>
+                    <div class="row-between">
+                        <div class="row">
+                            <div class="icon-bubble icon-bubble-accent">
+                                <Icon Name="@(meta.Tipo == TipoMeta.Apartamento ? "home" : "shield")" Size="18" />
                             </div>
-                            <div class="field">
-                                <label>Nombre</label>
-                                <InputText class="input" @bind-Value="_crearMetaForm.Nombre" placeholder="Nuestro apartamento" />
-                            </div>
-                            <div class="field">
-                                <label>Meta en pesos</label>
-                                <InputNumber class="input" @bind-Value="_crearMetaForm.MontoObjetivo" placeholder="180000000" />
-                            </div>
-                            <AlertBox Mensaje="@_error" />
-                            <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
-                                @if (_guardando) { <span class="spinner"></span> }
-                                <span>Crear meta</span>
-                            </button>
-                        </div>
-                    </EditForm>
-                </div>
-            </div>
-        }
-        else
-        {
-            @foreach (var meta in _metas)
-            {
-                <div class="card card-tap" @onclick="() => IrAMeta(meta.Id)">
-                    <div class="stack">
-                        <div class="row-between">
                             <div>
                                 <div class="label">@(meta.Tipo == TipoMeta.Apartamento ? "Apartamento" : "Emergencia")</div>
                                 <h3>@meta.Nombre</h3>
                             </div>
-                            <span class="pill">@Formato.Porcentaje(meta.PorcentajeCompletado)</span>
                         </div>
+                        <span class="pill">@Formato.Porcentaje(meta.PorcentajeCompletado)</span>
+                    </div>
 
-                        <ProgressBar Porcentaje="meta.PorcentajeCompletado" />
+                    <ProgressBar Porcentaje="meta.PorcentajeCompletado" />
 
-                        <div class="row-between">
-                            <span class="money money-md">@Formato.Pesos(meta.MontoActual)</span>
-                            <span class="muted">de @Formato.Pesos(meta.MontoObjetivo)</span>
-                        </div>
+                    <div class="row-between">
+                        <AnimatedMoney Valor="meta.MontoActual" Class="money money-md" />
+                        <span class="muted">de @Formato.Pesos(meta.MontoObjetivo)</span>
                     </div>
                 </div>
+            </div>
+        }
+
+        @if (_tiposDisponibles.Count > 0)
+        {
+            @if (_mostrandoFormNuevaMeta)
+            {
+                <div class="card">
+                    <div class="stack">
+                        <h3>@(_metas.Count == 0 ? "Crea tu primera meta" : "Agregar otra meta")</h3>
+                        @if (_metas.Count == 0)
+                        {
+                            <p class="muted">Empiecen por la meta del apartamento — pueden agregar el fondo de emergencia después.</p>
+                        }
+                        <EditForm Model="_crearMetaForm" OnValidSubmit="CrearMeta">
+                            <div class="stack">
+                                <div class="field">
+                                    <label>Tipo</label>
+                                    <InputSelect class="input" @bind-Value="_crearMetaForm.Tipo">
+                                        @foreach (var tipo in _tiposDisponibles)
+                                        {
+                                            <option value="@tipo">@(tipo == TipoMeta.Apartamento ? "Apartamento" : "Fondo de emergencia")</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                                <div class="field">
+                                    <label>Nombre</label>
+                                    <InputText class="input" @bind-Value="_crearMetaForm.Nombre" placeholder="Nuestro apartamento" />
+                                </div>
+                                <div class="field">
+                                    <label>Meta en pesos</label>
+                                    <InputNumber class="input" @bind-Value="_crearMetaForm.MontoObjetivo" placeholder="180000000" />
+                                </div>
+                                <AlertBox Mensaje="@_error" />
+                                <div class="row" style="gap:10px">
+                                    @if (_metas.Count > 0)
+                                    {
+                                        <button type="button" class="btn btn-secondary" @onclick="() => _mostrandoFormNuevaMeta = false">Cancelar</button>
+                                    }
+                                    <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
+                                        @if (_guardando) { <span class="spinner"></span> }
+                                        <span>Crear meta</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <button type="button" class="card card-tap add-meta-card" @onclick="AbrirFormNuevaMeta">
+                    <div class="icon-bubble icon-bubble-accent"><Icon Name="plus" Size="18" /></div>
+                    <span>Agregar @(_tiposDisponibles[0] == TipoMeta.Apartamento ? "meta de apartamento" : "fondo de emergencia")</span>
+                </button>
             }
         }
     </div>
@@ -129,6 +168,7 @@ else
     private bool _cargando = true;
     private bool _guardando;
     private bool _actualizandoRedondeo;
+    private bool _mostrandoFormNuevaMeta;
     private string? _error;
     private HogarResponse? _hogar;
     private List<MetaResponse> _metas = [];
@@ -136,12 +176,24 @@ else
     private readonly CrearHogarFormModel _crearHogarForm = new();
     private readonly CrearMetaFormModel _crearMetaForm = new();
 
+    private List<TipoMeta> _tiposDisponibles =>
+        Enum.GetValues<TipoMeta>().Except(_metas.Select(m => m.Tipo)).ToList();
+
     protected override async Task OnInitializedAsync()
     {
         await CargarAsync();
     }
 
     private void IrAMeta(int metaId) => Nav.NavigateTo($"/metas/{metaId}");
+
+    private void AbrirFormNuevaMeta()
+    {
+        _error = null;
+        _crearMetaForm.Tipo = _tiposDisponibles[0];
+        _crearMetaForm.Nombre = "";
+        _crearMetaForm.MontoObjetivo = null;
+        _mostrandoFormNuevaMeta = true;
+    }
 
     private async Task AlternarRedondeo()
     {
@@ -164,6 +216,7 @@ else
         {
             _metas = await Api.ObtenerMetasAsync(_hogar.Id);
         }
+        _mostrandoFormNuevaMeta = _metas.Count == 0;
         _cargando = false;
     }
 
@@ -192,11 +245,12 @@ else
         _guardando = true;
 
         var resultado = await Api.CrearMetaAsync(_hogar.Id, new CrearMetaRequest(
-            _crearMetaForm.Tipo, _crearMetaForm.Nombre, _crearMetaForm.MontoObjetivo));
+            _crearMetaForm.Tipo, _crearMetaForm.Nombre, _crearMetaForm.MontoObjetivo ?? 0));
 
         if (resultado.Exito)
         {
             _metas = await Api.ObtenerMetasAsync(_hogar.Id);
+            _mostrandoFormNuevaMeta = false;
         }
         else
         {
@@ -215,6 +269,6 @@ else
     {
         public TipoMeta Tipo { get; set; } = TipoMeta.Apartamento;
         public string Nombre { get; set; } = "";
-        public decimal MontoObjetivo { get; set; }
+        public decimal? MontoObjetivo { get; set; }
     }
 }

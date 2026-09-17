@@ -5,17 +5,20 @@
 
 <PageTitle>Iniciar sesión · MoneyBack</PageTitle>
 
-<div class="center-screen page-enter">
-    <div class="auth-card stack">
+<div class="auth-screen page-enter">
+    <div class="auth-blob auth-blob-1"></div>
+    <div class="auth-blob auth-blob-2"></div>
+
+    <div class="auth-content">
+        <div class="auth-logo">
+            <Icon Name="wallet" Size="32" />
+        </div>
         <div style="text-align:center">
-            <div class="topbar-brand" style="justify-content:center; font-size: 24px;">
-                <span class="dot"></span>
-                <span>MoneyBack</span>
-            </div>
+            <h1 style="font-size:26px">MoneyBack</h1>
             <p class="muted">Ahorrando juntos para el apartamento.</p>
         </div>
 
-        <div class="card">
+        <div class="card" style="width:100%">
             <EditForm Model="_form" OnValidSubmit="Entrar">
                 <div class="stack">
                     <div class="field">

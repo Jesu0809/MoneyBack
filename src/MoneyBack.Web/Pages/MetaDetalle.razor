@@ -36,7 +36,7 @@ else
                     }
                 </div>
 
-                <div class="money money-lg">@Formato.Pesos(_meta.MontoActual)</div>
+                <AnimatedMoney Valor="_meta.MontoActual" Class="money money-lg" />
                 <ProgressBar Porcentaje="_meta.PorcentajeCompletado" />
                 <div class="row-between">
                     <span class="muted">@Formato.Porcentaje(_meta.PorcentajeCompletado) completado</span>
@@ -169,7 +169,7 @@ else
     {
         _mostrarFormMovimiento = false;
         _error = null;
-        _movForm.Monto = 0;
+        _movForm.Monto = null;
         _movForm.Nota = "";
     }
 
@@ -179,12 +179,12 @@ else
         _guardando = true;
 
         var resultado = await Api.RegistrarMovimientoAsync(MetaId,
-            new CrearMovimientoRequest(_movForm.Tipo, _movForm.Monto, _movForm.Nota));
+            new CrearMovimientoRequest(_movForm.Tipo, _movForm.Monto ?? 0, _movForm.Nota));
 
         if (resultado.Exito)
         {
             _mostrarFormMovimiento = false;
-            _movForm.Monto = 0;
+            _movForm.Monto = null;
             _movForm.Nota = "";
             await CargarAsync();
         }
@@ -205,7 +205,7 @@ else
     private class MovFormModel
     {
         public TipoMovimiento Tipo { get; set; } = TipoMovimiento.Aporte;
-        public decimal Monto { get; set; }
+        public decimal? Monto { get; set; }
         public string? Nota { get; set; }
     }
 }

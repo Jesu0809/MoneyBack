@@ -143,12 +143,12 @@
         _error = null;
         _guardando = true;
 
-        var resultado = await Api.GuardarPresupuestoAsync(new GuardarPresupuestoRequest(_form.CategoriaId, _form.MontoLimite, _mes, _anio));
+        var resultado = await Api.GuardarPresupuestoAsync(new GuardarPresupuestoRequest(_form.CategoriaId, _form.MontoLimite ?? 0, _mes, _anio));
 
         if (resultado.Exito)
         {
             _mostrarForm = false;
-            _form.MontoLimite = 0;
+            _form.MontoLimite = null;
             await CargarAsync();
         }
         else
@@ -168,6 +168,6 @@
     private class FormModel
     {
         public int CategoriaId { get; set; }
-        public decimal MontoLimite { get; set; }
+        public decimal? MontoLimite { get; set; }
     }
 }

@@ -10,7 +10,7 @@
     <div class="hero-balance">
         <div class="stack" style="gap:10px">
             <span class="label">Saldo acumulado</span>
-            <span class="money money-lg">@Formato.Pesos(_saldoAcumulado?.Balance ?? 0)</span>
+            <AnimatedMoney Valor="_saldoAcumulado?.Balance ?? 0" Class="money money-lg" />
             <div class="divider"></div>
             <div class="row-between">
                 <span class="muted">Ingresos totales</span>
