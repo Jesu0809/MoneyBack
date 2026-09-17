@@ -59,7 +59,8 @@ public static class AdminEndpoints
 
         group.MapPost("/codigo-invitacion/rotar", async (RotarCodigoInvitacionRequest request, ApplicationDbContext db, ClaimsPrincipal principal) =>
         {
-            if (string.IsNullOrWhiteSpace(request.NuevoCodigo) || request.NuevoCodigo.Length < 8)
+            var nuevoCodigo = request.NuevoCodigo.Trim();
+            if (nuevoCodigo.Length < 8)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
@@ -72,7 +73,7 @@ public static class AdminEndpoints
 
             db.CodigosInvitacion.Add(new CodigoInvitacion
             {
-                CodigoHash = TokenService.HashearToken(request.NuevoCodigo),
+                CodigoHash = TokenService.HashearToken(nuevoCodigo),
                 CreadoPorUsuarioId = principal.GetUsuarioId()
             });
 

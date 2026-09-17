@@ -57,4 +57,18 @@ public class ApiResult<T>
         }
         return MensajeError ?? "Error desconocido.";
     }
+
+    /// <summary>
+    /// A diferencia de PrimerError(), junta TODOS los mensajes de campo — así, si
+    /// faltan varios datos a la vez, el usuario los ve todos en vez de corregir
+    /// uno y volver a chocar con el siguiente en el próximo intento.
+    /// </summary>
+    public string TodosLosErrores()
+    {
+        if (ErroresPorCampo is { Count: > 0 })
+        {
+            return string.Join(" ", ErroresPorCampo.Values.SelectMany(v => v));
+        }
+        return MensajeError ?? "Error desconocido.";
+    }
 }

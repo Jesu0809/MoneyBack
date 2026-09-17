@@ -25,7 +25,7 @@
             <AlertBox Mensaje="@_errorCodigo" />
             @if (_codigoRotado)
             {
-                <AlertBox Tipo="accent" Mensaje="Código actualizado." />
+                <AlertBox Tipo="accent" Mensaje="@($"Código activo ahora: \"{_ultimoCodigoActivo}\" — compártelo tal cual, sin espacios ni mayúsculas de más.")" />
             }
         </div>
     </div>
@@ -71,6 +71,7 @@
     private bool _cargando = true;
     private bool _rotando;
     private bool _codigoRotado;
+    private string? _ultimoCodigoActivo;
     private string? _errorCodigo;
     private string? _mensajeRevocacion;
     private int? _revocandoId;
@@ -89,16 +90,18 @@
         _codigoRotado = false;
         _rotando = true;
 
-        var resultado = await Api.RotarCodigoInvitacionAsync(new RotarCodigoInvitacionRequest(_codigoForm.NuevoCodigo));
+        var codigoIngresado = _codigoForm.NuevoCodigo.Trim();
+        var resultado = await Api.RotarCodigoInvitacionAsync(new RotarCodigoInvitacionRequest(codigoIngresado));
 
         if (resultado.Exito)
         {
             _codigoRotado = true;
+            _ultimoCodigoActivo = codigoIngresado;
             _codigoForm.NuevoCodigo = "";
         }
         else
         {
-            _errorCodigo = resultado.PrimerError();
+            _errorCodigo = resultado.TodosLosErrores();
         }
 
         _rotando = false;

@@ -23,20 +23,20 @@ public static class AuthEndpoints
             ApplicationDbContext db,
             TokenService tokenService) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Nombre) ||
-                string.IsNullOrWhiteSpace(request.Email) ||
-                string.IsNullOrWhiteSpace(request.Password) ||
-                string.IsNullOrWhiteSpace(request.CodigoInvitacion))
+            var errores = new Dictionary<string, string[]>();
+            if (string.IsNullOrWhiteSpace(request.Nombre)) errores["nombre"] = ["El nombre es obligatorio."];
+            if (string.IsNullOrWhiteSpace(request.Email)) errores["email"] = ["El correo es obligatorio."];
+            if (string.IsNullOrWhiteSpace(request.Password)) errores["password"] = ["La contraseña es obligatoria."];
+            if (string.IsNullOrWhiteSpace(request.CodigoInvitacion)) errores["codigoInvitacion"] = ["El código de invitación es obligatorio."];
+
+            if (errores.Count > 0)
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["request"] = ["Nombre, Email, Password y CodigoInvitacion son obligatorios."]
-                });
+                return Results.ValidationProblem(errores);
             }
 
             var codigoValido = await db.CodigosInvitacion
                 .Where(c => c.Activo)
-                .AnyAsync(c => c.CodigoHash == TokenService.HashearToken(request.CodigoInvitacion));
+                .AnyAsync(c => c.CodigoHash == TokenService.HashearToken(request.CodigoInvitacion.Trim()));
 
             if (!codigoValido)
             {
