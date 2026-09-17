@@ -2,15 +2,29 @@ namespace MoneyBack.Api.Models.DiaADia;
 
 public static class CategoriasPredefinidas
 {
-    public static List<Categoria> ParaNuevoUsuario(int usuarioId) =>
+    /// <summary>
+    /// (Nombre, Tipo, Icono) de cada categoría básica. Se usa tanto para
+    /// sembrar cuentas nuevas al registrarse como para que cuentas ya
+    /// existentes puedan agregar las que les falten desde /categorias.
+    /// </summary>
+    public static readonly (string Nombre, TipoCategoria Tipo, string Icono)[] Definiciones =
     [
-        new() { UsuarioId = usuarioId, Nombre = "Comida", Tipo = TipoCategoria.Gasto, Icono = "🍔" },
-        new() { UsuarioId = usuarioId, Nombre = "Transporte", Tipo = TipoCategoria.Gasto, Icono = "🚗" },
-        new() { UsuarioId = usuarioId, Nombre = "Vivienda", Tipo = TipoCategoria.Gasto, Icono = "🏠" },
-        new() { UsuarioId = usuarioId, Nombre = "Entretenimiento", Tipo = TipoCategoria.Gasto, Icono = "🎬" },
-        new() { UsuarioId = usuarioId, Nombre = "Salud", Tipo = TipoCategoria.Gasto, Icono = "🏥" },
-        new() { UsuarioId = usuarioId, Nombre = "Otros gastos", Tipo = TipoCategoria.Gasto, Icono = "📦" },
-        new() { UsuarioId = usuarioId, Nombre = "Salario", Tipo = TipoCategoria.Ingreso, Icono = "💼" },
-        new() { UsuarioId = usuarioId, Nombre = "Otros ingresos", Tipo = TipoCategoria.Ingreso, Icono = "💰" },
+        ("Mercado", TipoCategoria.Gasto, "🛒"),
+        ("Comida", TipoCategoria.Gasto, "🍔"),
+        ("Transporte", TipoCategoria.Gasto, "🚗"),
+        ("Vivienda", TipoCategoria.Gasto, "🏠"),
+        ("Servicios", TipoCategoria.Gasto, "💡"),
+        ("Entretenimiento", TipoCategoria.Gasto, "🎬"),
+        ("Salud", TipoCategoria.Gasto, "🏥"),
+        ("Ropa", TipoCategoria.Gasto, "👕"),
+        ("Otros gastos", TipoCategoria.Gasto, "📦"),
+        ("Salario", TipoCategoria.Ingreso, "💼"),
+        ("Bonos", TipoCategoria.Ingreso, "🎁"),
+        ("Otros ingresos", TipoCategoria.Ingreso, "💰"),
     ];
+
+    public static List<Categoria> ParaNuevoUsuario(int usuarioId) =>
+        Definiciones
+            .Select(d => new Categoria { UsuarioId = usuarioId, Nombre = d.Nombre, Tipo = d.Tipo, Icono = d.Icono })
+            .ToList();
 }

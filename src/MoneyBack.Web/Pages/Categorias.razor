@@ -21,9 +21,19 @@
         <div class="card">
             @if (!_mostrarForm)
             {
-                <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true">
-                    <Icon Name="plus" Size="18" /> Nueva categoría
-                </button>
+                <div class="stack">
+                    <button class="btn btn-primary btn-block" @onclick="() => _mostrarForm = true">
+                        <Icon Name="plus" Size="18" /> Nueva categoría
+                    </button>
+                    <button class="btn btn-secondary btn-block" @onclick="SembrarBasicas" disabled="@_sembrando">
+                        @if (_sembrando) { <span class="spinner"></span> } else { <Icon Name="archive" Size="17" /> }
+                        <span>Agregar categorías básicas</span>
+                    </button>
+                    @if (_mensajeSiembra is not null)
+                    {
+                        <AlertBox Tipo="accent" Mensaje="@_mensajeSiembra" />
+                    }
+                </div>
             }
             else
             {
@@ -33,6 +43,18 @@
                             <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Gasto ? "active" : "")" @onclick="() => _form.Tipo = TipoCategoria.Gasto">Gasto</button>
                             <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Ingreso ? "active" : "")" @onclick="() => _form.Tipo = TipoCategoria.Ingreso">Ingreso</button>
                         </div>
+
+                        <div class="field">
+                            <label>Ícono</label>
+                            <div class="row" style="flex-wrap: wrap; gap: 6px">
+                                @foreach (var emoji in EmojiSugeridos)
+                                {
+                                    <button type="button" class="emoji-chip @(_form.Icono == emoji ? "active" : "")" @onclick="() => _form.Icono = emoji">@emoji</button>
+                                }
+                            </div>
+                            <InputText class="input" @bind-Value="_form.Icono" placeholder="O escribe/pega tu propio emoji" style="margin-top:6px" />
+                        </div>
+
                         <div class="field">
                             <label>Nombre</label>
                             <InputText class="input" @bind-Value="_form.Nombre" placeholder="Mascotas" />
@@ -73,10 +95,18 @@
 </div>
 
 @code {
+    private static readonly string[] EmojiSugeridos =
+    [
+        "🛒", "🍔", "🚗", "🏠", "💡", "🎬", "🏥", "👕", "📦",
+        "💼", "🎁", "💰", "✈️", "🐾", "📚", "🎮", "☕", "💳"
+    ];
+
     private bool _cargando = true;
     private bool _guardando;
+    private bool _sembrando;
     private bool _mostrarForm;
     private string? _error;
+    private string? _mensajeSiembra;
     private List<CategoriaResponse> _categorias = [];
     private readonly FormModel _form = new();
 
@@ -97,12 +127,13 @@
         _error = null;
         _guardando = true;
 
-        var resultado = await Api.CrearCategoriaAsync(new CrearCategoriaRequest(_form.Nombre, _form.Tipo, ""));
+        var resultado = await Api.CrearCategoriaAsync(new CrearCategoriaRequest(_form.Nombre, _form.Tipo, _form.Icono));
 
         if (resultado.Exito)
         {
             _mostrarForm = false;
             _form.Nombre = "";
+            _form.Icono = "📦";
             await CargarAsync();
         }
         else
@@ -113,6 +144,18 @@
         _guardando = false;
     }
 
+    private async Task SembrarBasicas()
+    {
+        _sembrando = true;
+        _mensajeSiembra = null;
+        var agregadas = await Api.SembrarCategoriasBasicasAsync();
+        _mensajeSiembra = agregadas > 0
+            ? $"Se agregaron {agregadas} categoría(s) nueva(s)."
+            : "Ya tenías todas las categorías básicas.";
+        await CargarAsync();
+        _sembrando = false;
+    }
+
     private async Task AlternarActiva(CategoriaResponse categoria)
     {
         await Api.ActualizarCategoriaAsync(categoria.Id, new ActualizarCategoriaRequest(categoria.Nombre, categoria.Icono, !categoria.Activa));
@@ -121,9 +164,7 @@
 
     private RenderFragment RenderCategoria(CategoriaResponse cat) => @<div class="list-item">
         <div class="row">
-            <div class="icon-bubble @(cat.Tipo == TipoCategoria.Ingreso ? "icon-bubble-accent" : "icon-bubble-danger")" style="width:32px;height:32px">
-                <Icon Name="@(cat.Tipo == TipoCategoria.Ingreso ? "arrow-up" : "arrow-down")" Size="14" />
-            </div>
+            <div class="icon-bubble" style="background:var(--color-surface-2); font-size:18px">@cat.Icono</div>
             <span style="@(cat.Activa ? "" : "opacity:0.4")">@cat.Nombre</span>
         </div>
         <button class="btn btn-secondary" @onclick="() => AlternarActiva(cat)">
@@ -134,6 +175,7 @@
     private class FormModel
     {
         public string Nombre { get; set; } = "";
+        public string Icono { get; set; } = "📦";
         public TipoCategoria Tipo { get; set; } = TipoCategoria.Gasto;
     }
 }

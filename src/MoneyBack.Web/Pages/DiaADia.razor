@@ -22,9 +22,9 @@
     </div>
 
     <div class="row-between">
-        <button class="icon-btn" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
+        <button class="icon-btn glass" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
         <strong>@NombreMes(_mesActual)</strong>
-        <button class="icon-btn" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
+        <button class="icon-btn glass" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
     </div>
 
     @if (_cargando)
@@ -71,7 +71,7 @@
                         <div class="row-between">
                             <div class="row" style="gap:8px">
                                 <div class="category-dot" style="background: @Paleta[i % Paleta.Length]"></div>
-                                <span>@cat.CategoriaNombre</span>
+                                <span>@cat.CategoriaIcono @cat.CategoriaNombre</span>
                             </div>
                             <div class="row" style="gap:8px">
                                 <span class="muted" style="font-size:12.5px">@Formato.Porcentaje(pct)</span>
@@ -104,8 +104,8 @@
                                     var esIngreso = mov.Tipo == TipoCategoria.Ingreso;
                                     <div class="list-item">
                                         <div class="row">
-                                            <div class="icon-bubble @(esIngreso ? "icon-bubble-accent" : "icon-bubble-danger")">
-                                                <Icon Name="@(esIngreso ? "arrow-up" : "arrow-down")" Size="16" />
+                                            <div class="icon-bubble @(esIngreso ? "icon-bubble-accent" : "icon-bubble-danger")" style="font-size:18px">
+                                                @mov.CategoriaIcono
                                             </div>
                                             <div>
                                                 <div style="font-weight:600">@mov.CategoriaNombre</div>

@@ -11,9 +11,9 @@
     </div>
 
     <div class="row-between">
-        <button class="icon-btn" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
+        <button class="icon-btn glass" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
         <strong>@NombreMes((_mes, _anio))</strong>
-        <button class="icon-btn" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
+        <button class="icon-btn glass" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
     </div>
 
     @if (_cargando)
@@ -36,7 +36,7 @@
                             <InputSelect class="input" @bind-Value="_form.CategoriaId">
                                 @foreach (var cat in _categoriasGasto)
                                 {
-                                    <option value="@cat.Id">@cat.Nombre</option>
+                                    <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
                                 }
                             </InputSelect>
                         </div>
@@ -72,7 +72,7 @@
                 <div class="card">
                     <div class="stack">
                         <div class="row-between">
-                            <span style="font-weight:600">@p.CategoriaNombre</span>
+                            <span style="font-weight:600">@p.CategoriaIcono @p.CategoriaNombre</span>
                             @if (superado)
                             {
                                 <span class="pill pill-danger">Superado</span>

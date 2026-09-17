@@ -71,6 +71,25 @@ public static class CategoriasEndpoints
             return Results.Ok(new CategoriaResponse(categoria.Id, categoria.Nombre, categoria.Tipo, categoria.Icono, categoria.Activa));
         });
 
+        group.MapPost("/sembrar-basicas", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var usuarioId = principal.GetUsuarioId();
+            var existentes = await db.Categorias
+                .Where(c => c.UsuarioId == usuarioId)
+                .Select(c => new { c.Nombre, c.Tipo })
+                .ToListAsync();
+
+            var faltantes = CategoriasPredefinidas.Definiciones
+                .Where(d => !existentes.Any(e => e.Nombre == d.Nombre && e.Tipo == d.Tipo))
+                .Select(d => new Categoria { UsuarioId = usuarioId, Nombre = d.Nombre, Tipo = d.Tipo, Icono = d.Icono })
+                .ToList();
+
+            db.Categorias.AddRange(faltantes);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { agregadas = faltantes.Count });
+        });
+
         group.MapDelete("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();

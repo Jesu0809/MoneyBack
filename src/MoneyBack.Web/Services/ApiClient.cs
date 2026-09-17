@@ -126,6 +126,14 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<int> SembrarCategoriasBasicasAsync()
+    {
+        var response = await Api.PostAsync("api/categorias/sembrar-basicas", null);
+        if (!response.IsSuccessStatusCode) return 0;
+        var result = await response.Content.ReadFromJsonAsync<Dictionary<string, int>>();
+        return result?.GetValueOrDefault("agregadas") ?? 0;
+    }
+
     public async Task<List<MovimientoDiaADiaResponse>> ObtenerMovimientosDiaADiaAsync(DateTime? desde = null, DateTime? hasta = null)
     {
         var query = ConstruirQueryFechas(desde, hasta);
