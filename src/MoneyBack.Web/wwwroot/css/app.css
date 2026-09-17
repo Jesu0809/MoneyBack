@@ -470,6 +470,51 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; margin: 0; }
 }
 .loading-progress-text::after { content: "Cargando"; }
 
+.fab.fab-open { transform: rotate(45deg); }
+
+.blur-backdrop {
+  position: fixed; inset: 0;
+  background: color-mix(in srgb, var(--color-bg) 45%, transparent);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  z-index: 30;
+  animation: fadeIn 220ms var(--ease-smooth) both;
+}
+
+.fab-menu {
+  position: fixed;
+  right: max(20px, calc(50% - 300px));
+  bottom: calc(154px + env(safe-area-inset-bottom));
+  z-index: 31;
+  display: flex; flex-direction: column-reverse; gap: 12px; align-items: flex-end;
+}
+
+.fab-option {
+  display: flex; align-items: center; gap: 9px;
+  padding: 13px 22px 13px 18px;
+  border-radius: 999px;
+  border: none; cursor: pointer;
+  font-weight: 650; font-size: 15px;
+  color: white;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.28);
+  transform-origin: bottom right;
+  animation: popIn 340ms var(--ease-spring) both;
+  transition: transform 160ms var(--ease-spring);
+}
+.fab-option:active { transform: scale(0.92); }
+.fab-option-gasto {
+  background: linear-gradient(135deg, var(--color-danger), color-mix(in srgb, var(--color-danger) 70%, black));
+}
+.fab-option-ingreso {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
+  animation-delay: 50ms;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.4) translateY(14px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 .sheet-backdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.4);

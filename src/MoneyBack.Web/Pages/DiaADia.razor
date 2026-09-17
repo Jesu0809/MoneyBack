@@ -139,9 +139,22 @@
     }
 </div>
 
-<button class="fab" @onclick="AbrirForm">
+<button class="fab @(_mostrarOpciones ? "fab-open" : "")" @onclick="ToggleOpciones">
     <Icon Name="plus" Size="26" />
 </button>
+
+@if (_mostrarOpciones)
+{
+    <div class="blur-backdrop" @onclick="() => _mostrarOpciones = false"></div>
+    <div class="fab-menu">
+        <button class="fab-option fab-option-ingreso" @onclick="() => ElegirTipo(TipoCategoria.Ingreso)">
+            <Icon Name="arrow-up" Size="18" /> Ingreso
+        </button>
+        <button class="fab-option fab-option-gasto" @onclick="() => ElegirTipo(TipoCategoria.Gasto)">
+            <Icon Name="arrow-down" Size="18" /> Gasto
+        </button>
+    </div>
+}
 
 @if (_mostrarForm)
 {
@@ -155,15 +168,29 @@
                     <button type="button" class="segmented-btn @(_form.Tipo == TipoCategoria.Ingreso ? "active" : "")" @onclick="() => CambiarTipo(TipoCategoria.Ingreso)">Ingreso</button>
                 </div>
 
-                <div class="field">
-                    <label>Categoría</label>
-                    <InputSelect class="input" @bind-Value="_form.CategoriaId">
-                        @foreach (var cat in _categorias.Where(c => c.Tipo == _form.Tipo && c.Activa))
-                        {
-                            <option value="@cat.Id">@cat.Nombre</option>
-                        }
-                    </InputSelect>
-                </div>
+                @{ var categoriasDisponibles = _categorias.Where(c => c.Tipo == _form.Tipo && c.Activa).ToList(); }
+                @if (categoriasDisponibles.Count == 0)
+                {
+                    <div class="alert alert-warning">
+                        <Icon Name="alert-triangle" Size="18" />
+                        <span>
+                            Todavía no tienes categorías de @(_form.Tipo == TipoCategoria.Gasto ? "gasto" : "ingreso").
+                            <a href="/categorias">Créalas aquí</a> antes de registrar este movimiento.
+                        </span>
+                    </div>
+                }
+                else
+                {
+                    <div class="field">
+                        <label>Categoría</label>
+                        <InputSelect class="input" @bind-Value="_form.CategoriaId">
+                            @foreach (var cat in categoriasDisponibles)
+                            {
+                                <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                            }
+                        </InputSelect>
+                    </div>
+                }
 
                 <div class="field">
                     <label>Monto</label>
@@ -177,7 +204,7 @@
 
                 <AlertBox Mensaje="@_error" />
 
-                <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
+                <button class="btn btn-primary btn-block" type="submit" disabled="@(_guardando || categoriasDisponibles.Count == 0)">
                     @if (_guardando) { <span class="spinner"></span> }
                     <span>Guardar</span>
                 </button>
@@ -194,6 +221,7 @@
 
     private bool _cargando = true;
     private bool _guardando;
+    private bool _mostrarOpciones;
     private bool _mostrarForm;
     private string? _error;
     private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
@@ -232,12 +260,14 @@
         await CargarMesAsync();
     }
 
-    private void AbrirForm()
+    private void ToggleOpciones() => _mostrarOpciones = !_mostrarOpciones;
+
+    private void ElegirTipo(TipoCategoria tipo)
     {
+        _mostrarOpciones = false;
         _mostrarForm = true;
         _error = null;
-        var primeraCategoria = _categorias.FirstOrDefault(c => c.Tipo == _form.Tipo && c.Activa);
-        if (primeraCategoria is not null) _form.CategoriaId = primeraCategoria.Id;
+        CambiarTipo(tipo);
     }
 
     private void CambiarTipo(TipoCategoria tipo)
