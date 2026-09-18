@@ -5,6 +5,7 @@
 @inject NavigationManager Nav
 @inject PushNotificationService Push
 @inject IJSRuntime JS
+@inject IConfiguration Configuration
 
 <PageTitle>Perfil · MoneyBack</PageTitle>
 
@@ -135,6 +136,15 @@
                                 <input class="input" readonly value="@_tokenNuevo" style="font-family:monospace; font-size:12.5px" />
                                 <button class="btn btn-secondary" type="button" @onclick="CopiarToken">Copiar</button>
                             </div>
+                            <button class="btn btn-primary btn-block" type="button" @onclick="DescargarAtajo">
+                                <Icon Name="archive" Size="17" /> Descargar Atajo
+                            </button>
+                            <p class="muted" style="font-size:12px; margin:0">
+                                Abre el archivo descargado en tu iPhone — Atajos te va a
+                                ofrecer agregarlo directo. Luego en Ajustes → Botón de
+                                Acción → Atajo, elige el que se llama "MoneyBack -
+                                Agregar movimiento".
+                            </p>
                         </div>
                     </div>
                 }
@@ -244,6 +254,14 @@
         if (_tokenNuevo is null) return;
         var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interop.js");
         await modulo.InvokeVoidAsync("copiarAlPortapapeles", _tokenNuevo);
+    }
+
+    private async Task DescargarAtajo()
+    {
+        if (_tokenNuevo is null) return;
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "";
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interop.js");
+        await modulo.InvokeVoidAsync("generarArchivoAtajo", apiBaseUrl, _tokenNuevo);
     }
 
     private async Task ActivarPush()

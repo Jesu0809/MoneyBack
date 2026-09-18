@@ -65,6 +65,49 @@ public static class AtajosEndpoints
 
             return Results.Created($"/api/movimientos-diaadia/{movimiento.Id}", new { movimiento.Id });
         });
+
+        // Variante por nombre de categoría (en vez de Id) con todo en query
+        // string: existe específicamente para que el .shortcut generado en
+        // Perfil pueda armar la URL con una sola acción "Texto" concatenando
+        // las respuestas de "Preguntar", sin tener que construir un cuerpo
+        // JSON dentro del archivo del Atajo (mucho más simple y menos
+        // propenso a errores en el formato del plist que genera el botón
+        // "Descargar Atajo").
+        group.MapPost("/movimientos-por-nombre", async (HttpRequest request, string categoriaNombre, decimal monto, ApplicationDbContext db) =>
+        {
+            var usuarioId = await ValidarTokenAsync(request, db);
+            if (usuarioId is null) return Results.Unauthorized();
+
+            if (monto <= 0) return Results.BadRequest(new { error = "El monto debe ser mayor a cero." });
+
+            var categoria = await db.Categorias
+                .Where(c => c.UsuarioId == usuarioId.Value && c.Activa)
+                .Where(c => c.Nombre.ToLower() == categoriaNombre.ToLower())
+                .OrderBy(c => c.Id)
+                .FirstOrDefaultAsync();
+
+            if (categoria is null)
+            {
+                return Results.BadRequest(new { error = $"No se encontró la categoría \"{categoriaNombre}\"." });
+            }
+
+            var movimiento = new MovimientoDiaADia
+            {
+                UsuarioId = usuarioId.Value,
+                CategoriaId = categoria.Id,
+                Monto = monto
+            };
+            db.MovimientosDiaADia.Add(movimiento);
+
+            if (categoria.Tipo == TipoCategoria.Gasto)
+            {
+                await RedondeoService.AplicarSiCorrespondeAsync(movimiento, db);
+            }
+
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { mensaje = $"{(categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")} de {monto:N0} en {categoria.Nombre} registrado." });
+        });
     }
 
     private static async Task<int?> ValidarTokenAsync(HttpRequest request, ApplicationDbContext db)
