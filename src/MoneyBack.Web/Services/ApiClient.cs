@@ -295,6 +295,25 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<List<TokenAtajoResponse>> ObtenerTokensAtajoAsync()
+    {
+        var response = await Api.GetAsync("api/tokens-atajo");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<TokenAtajoResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<TokenAtajoCreadoResponse>> CrearTokenAtajoAsync(CrearTokenAtajoRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/tokens-atajo", request);
+        return await ApiResult<TokenAtajoCreadoResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<TokenAtajoCreadoResponse>()!);
+    }
+
+    public async Task<bool> EliminarTokenAtajoAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/tokens-atajo/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
     private static string ConstruirQueryFechas(DateTime? desde, DateTime? hasta)
     {
         var partes = new List<string>();

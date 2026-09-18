@@ -140,6 +140,8 @@ app.MapSuscripcionesEndpoints();
 app.MapDeudasEndpoints();
 app.MapReportesEndpoints();
 app.MapPushEndpoints();
+app.MapTokensAtajoEndpoints();
+app.MapAtajosEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 

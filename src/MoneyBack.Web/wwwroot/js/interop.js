@@ -23,6 +23,15 @@ export function downloadFile(bytes, nombreArchivo, tipoMime) {
     URL.revokeObjectURL(url);
 }
 
+export async function copiarAlPortapapeles(texto) {
+    try {
+        await navigator.clipboard.writeText(texto);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // --- Notificaciones push ---
 // pushManager.subscribe() exige la llave VAPID como Uint8Array, pero el
 // backend la entrega en base64url (formato estándar de VAPID) — este es el

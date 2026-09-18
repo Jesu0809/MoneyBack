@@ -31,6 +31,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<Deuda> Deudas => Set<Deuda>();
     public DbSet<PagoDeuda> PagosDeuda => Set<PagoDeuda>();
     public DbSet<SuscripcionPush> SuscripcionesPush => Set<SuscripcionPush>();
+    public DbSet<TokenAtajo> TokensAtajo => Set<TokenAtajo>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -49,5 +50,6 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());
         builder.ApplyConfiguration(new DeudaConfiguration());
         builder.ApplyConfiguration(new SuscripcionPushConfiguration());
+        builder.ApplyConfiguration(new TokenAtajoConfiguration());
     }
 }

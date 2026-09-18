@@ -19,7 +19,7 @@ public static class PushEndpoints
         group.MapGet("/vapid-public-key", (IOptions<PushOptions> opciones) =>
             Results.Ok(new VapidPublicKeyResponse(opciones.Value.VapidPublicKey)));
 
-        group.MapPost("/suscribirse", async (SuscribirsePushRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        group.MapPost("/suscribirse", async (SuscribirsePushRequest request, ClaimsPrincipal principal, ApplicationDbContext db, PushNotificationSender sender) =>
         {
             var usuarioId = principal.GetUsuarioId();
             var existente = await db.SuscripcionesPush.FirstOrDefaultAsync(s => s.Endpoint == request.Endpoint);
@@ -42,6 +42,13 @@ public static class PushEndpoints
             }
 
             await db.SaveChangesAsync();
+
+            // Push de prueba inmediato: para que el usuario pueda confirmar
+            // en el momento que sí le llegan, en vez de esperar a que se
+            // acerque un cobro programado de verdad.
+            await sender.EnviarATodosLosDispositivosAsync(
+                usuarioId, "MoneyBack", "¡Notificaciones activadas! Así se van a ver los avisos de tus cobros programados.");
+
             return Results.NoContent();
         });
 

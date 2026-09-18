@@ -4,6 +4,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Nav
 @inject PushNotificationService Push
+@inject IJSRuntime JS
 
 <PageTitle>Perfil · MoneyBack</PageTitle>
 
@@ -112,6 +113,59 @@
         </div>
 
         <div class="card">
+            <div class="stack">
+                <div class="row" style="gap:8px">
+                    <Icon Name="archive" Size="17" />
+                    <span class="label" style="margin:0">Atajo rápido (iOS)</span>
+                </div>
+                <p class="muted" style="font-size:13px">
+                    Genera un token para conectar un Atajo del Botón de Acción
+                    del iPhone directo con MoneyBack, sin pasar por la app.
+                    Este token solo puede leer tus categorías y crear un
+                    ingreso o gasto — no puede tocar metas, deudas ni nada
+                    más de tu cuenta.
+                </p>
+
+                @if (_tokenNuevo is not null)
+                {
+                    <div class="alert alert-accent">
+                        <div class="stack" style="gap:6px; width:100%">
+                            <strong>Cópialo ahora — no se vuelve a mostrar:</strong>
+                            <div class="row" style="gap:6px">
+                                <input class="input" readonly value="@_tokenNuevo" style="font-family:monospace; font-size:12.5px" />
+                                <button class="btn btn-secondary" type="button" @onclick="CopiarToken">Copiar</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <AlertBox Mensaje="@_errorToken" />
+
+                @foreach (var t in _tokens)
+                {
+                    <div class="row-between">
+                        <div>
+                            <div style="font-weight:600">@(t.Nombre ?? "Token para Atajos")</div>
+                            <div class="muted" style="font-size:12px">
+                                Creado @Formato.FechaCorta(t.FechaCreacion)
+                                @(t.UltimoUso is not null ? $"· usado por última vez {Formato.FechaCorta(t.UltimoUso.Value)}" : "· nunca usado")
+                            </div>
+                        </div>
+                        <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => EliminarToken(t.Id)">
+                            <Icon Name="trash" Size="15" />
+                        </button>
+                    </div>
+                    <div class="divider"></div>
+                }
+
+                <button class="btn btn-primary btn-block" disabled="@_generandoToken" @onclick="GenerarToken">
+                    @if (_generandoToken) { <span class="spinner"></span> }
+                    <span>Generar token nuevo</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="row-between">
                 <span class="muted">Correo</span>
                 <span>@_perfil?.Email</span>
@@ -138,6 +192,11 @@
     private bool _procesandoPush;
     private string? _errorPush;
 
+    private List<TokenAtajoResponse> _tokens = [];
+    private string? _tokenNuevo;
+    private bool _generandoToken;
+    private string? _errorToken;
+
     protected override async Task OnInitializedAsync()
     {
         _perfil = await Api.ObtenerPerfilAsync();
@@ -150,6 +209,41 @@
             _pushActivo = await Push.EstaSuscritoAsync();
             _permisoDenegado = await Push.ObtenerEstadoPermisoAsync() == "denied";
         }
+
+        _tokens = await Api.ObtenerTokensAtajoAsync();
+    }
+
+    private async Task GenerarToken()
+    {
+        _errorToken = null;
+        _tokenNuevo = null;
+        _generandoToken = true;
+
+        var resultado = await Api.CrearTokenAtajoAsync(new CrearTokenAtajoRequest(null));
+        if (resultado.Exito)
+        {
+            _tokenNuevo = resultado.Valor!.Token;
+            _tokens = await Api.ObtenerTokensAtajoAsync();
+        }
+        else
+        {
+            _errorToken = resultado.TodosLosErrores();
+        }
+
+        _generandoToken = false;
+    }
+
+    private async Task EliminarToken(int id)
+    {
+        await Api.EliminarTokenAtajoAsync(id);
+        _tokens = await Api.ObtenerTokensAtajoAsync();
+    }
+
+    private async Task CopiarToken()
+    {
+        if (_tokenNuevo is null) return;
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interop.js");
+        await modulo.InvokeVoidAsync("copiarAlPortapapeles", _tokenNuevo);
     }
 
     private async Task ActivarPush()
