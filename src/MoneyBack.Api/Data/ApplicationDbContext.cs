@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Models;
 using MoneyBack.Api.Models.Auth;
 using MoneyBack.Api.Models.DiaADia;
+using MoneyBack.Api.Models.Deudas;
 using MoneyBack.Api.Models.Metas;
 using MoneyBack.Api.Models.Suscripciones;
 
@@ -26,6 +27,8 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<Presupuesto> Presupuestos => Set<Presupuesto>();
     public DbSet<Suscripcion> Suscripciones => Set<Suscripcion>();
     public DbSet<ConfirmacionCobro> ConfirmacionesCobro => Set<ConfirmacionCobro>();
+    public DbSet<Deuda> Deudas => Set<Deuda>();
+    public DbSet<PagoDeuda> PagosDeuda => Set<PagoDeuda>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -42,5 +45,6 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new HogarConfiguration());
         builder.ApplyConfiguration(new PresupuestoConfiguration());
         builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());
+        builder.ApplyConfiguration(new DeudaConfiguration());
     }
 }

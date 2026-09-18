@@ -1,0 +1,246 @@
+@page "/deudas"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Deudas · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'><Icon Name="chevron-left" Size="18" /> Inicio</button>
+    </div>
+
+    <div>
+        <h2>Deudas</h2>
+        <p class="muted">Créditos y préstamos con cuotas, privados o compartidos con tu pareja. Pagar una cuota registra el gasto en tu día a día.</p>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            @if (!_mostrarForm)
+            {
+                <button class="btn btn-primary btn-block" @onclick="AbrirFormNueva"><Icon Name="plus" Size="18" /> Nueva deuda</button>
+            }
+            else
+            {
+                <EditForm Model="_form" OnValidSubmit="Guardar">
+                    <div class="stack">
+                        @if (_hogar is not null)
+                        {
+                            <div class="segmented">
+                                <button type="button" class="segmented-btn @(_form.Tipo == TipoPropiedadDeuda.Privada ? "active" : "")" @onclick="() => _form.Tipo = TipoPropiedadDeuda.Privada">Privada</button>
+                                <button type="button" class="segmented-btn @(_form.Tipo == TipoPropiedadDeuda.Compartida ? "active" : "")" @onclick="() => _form.Tipo = TipoPropiedadDeuda.Compartida">Compartida</button>
+                            </div>
+                        }
+                        <div class="field">
+                            <label>Nombre</label>
+                            <InputText class="input" @bind-Value="_form.Nombre" placeholder="Tarjeta de crédito" />
+                        </div>
+                        <div class="field">
+                            <label>Monto total (lo que falta por pagar hoy)</label>
+                            <InputNumber class="input" @bind-Value="_form.MontoTotal" placeholder="5000000" />
+                        </div>
+                        <div class="field">
+                            <label>Valor de cada cuota</label>
+                            <InputNumber class="input" @bind-Value="_form.MontoCuota" placeholder="250000" />
+                        </div>
+                        <div class="field">
+                            <label>Número de cuotas</label>
+                            <InputNumber class="input" @bind-Value="_form.TotalCuotas" placeholder="20" />
+                        </div>
+                        <AlertBox Mensaje="@_error" />
+                        <div class="row">
+                            <button class="btn btn-secondary" type="button" @onclick="() => _mostrarForm = false">Cancelar</button>
+                            <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
+                                @if (_guardando) { <span class="spinner"></span> }
+                                <span>Guardar</span>
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+        </div>
+
+        @if (_deudas.Count == 0)
+        {
+            <div class="empty-state">
+                <p>No tienes deudas registradas.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var d in _deudas)
+            {
+                <div class="card">
+                    <div class="stack">
+                        <div class="row-between">
+                            <div>
+                                <div class="label">@(d.TipoPropiedad == TipoPropiedadDeuda.Privada ? "Privada" : "Compartida")</div>
+                                <h3>@d.Nombre</h3>
+                            </div>
+                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(d.Id)">
+                                <Icon Name="trash" Size="15" />
+                            </button>
+                        </div>
+
+                        <ProgressBar Porcentaje="d.PorcentajePagado" />
+
+                        <div class="row-between">
+                            <span class="muted" style="font-size:13px">@d.CuotasPagadas de @d.TotalCuotas cuotas</span>
+                            <span class="money money-md">@Formato.Pesos(d.MontoRestante)</span>
+                        </div>
+
+                        @if (d.CuotasPagadas >= d.TotalCuotas)
+                        {
+                            <span class="pill">Pagada por completo</span>
+                        }
+                        else if (_deudaPagando == d.Id)
+                        {
+                            <div class="divider"></div>
+                            <div class="stack" style="gap:10px">
+                                <div class="field" style="margin:0">
+                                    <label>¿A qué categoría va esta cuota?</label>
+                                    <InputSelect class="input" @bind-Value="_pagoForm.CategoriaId">
+                                        @foreach (var cat in _categoriasGasto)
+                                        {
+                                            <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                                <AlertBox Mensaje="@_errorPago" />
+                                <div class="row" style="gap:8px">
+                                    <button class="btn btn-secondary" style="flex:1" @onclick="() => _deudaPagando = null">Cancelar</button>
+                                    <button class="btn btn-primary" style="flex:1" disabled="@_pagando" @onclick="() => PagarCuota(d.Id)">
+                                        @if (_pagando) { <span class="spinner"></span> }
+                                        <span>Confirmar pago de @Formato.Pesos(d.MontoCuota)</span>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="btn btn-secondary btn-block" @onclick="() => AbrirFormPago(d.Id)">Pagar cuota</button>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _guardando;
+    private bool _pagando;
+    private bool _mostrarForm;
+    private int? _deudaPagando;
+    private string? _error;
+    private string? _errorPago;
+    private HogarResponse? _hogar;
+    private List<CategoriaResponse> _categoriasGasto = [];
+    private List<DeudaResponse> _deudas = [];
+    private readonly FormModel _form = new();
+    private readonly PagoFormModel _pagoForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hogar = await Api.ObtenerMiHogarAsync();
+        var categorias = await Api.ObtenerCategoriasAsync();
+        _categoriasGasto = categorias.Where(c => c.Tipo == TipoCategoria.Gasto && c.Activa).ToList();
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _deudas = await Api.ObtenerDeudasAsync();
+        _cargando = false;
+    }
+
+    private void AbrirFormNueva()
+    {
+        _error = null;
+        _form.Tipo = TipoPropiedadDeuda.Privada;
+        _form.Nombre = "";
+        _form.MontoTotal = null;
+        _form.MontoCuota = null;
+        _form.TotalCuotas = null;
+        _mostrarForm = true;
+    }
+
+    private void AbrirFormPago(int deudaId)
+    {
+        _errorPago = null;
+        _pagoForm.CategoriaId = _categoriasGasto.Count > 0 ? _categoriasGasto[0].Id : 0;
+        _deudaPagando = deudaId;
+    }
+
+    private async Task Guardar()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = _form.Tipo == TipoPropiedadDeuda.Privada
+            ? await Api.CrearDeudaPrivadaAsync(new CrearDeudaPrivadaRequest(
+                _form.Nombre, _form.MontoTotal ?? 0, _form.MontoCuota ?? 0, _form.TotalCuotas ?? 0))
+            : await Api.CrearDeudaCompartidaAsync(_hogar!.Id, new CrearDeudaCompartidaRequest(
+                _form.Nombre, _form.MontoTotal ?? 0, _form.MontoCuota ?? 0, _form.TotalCuotas ?? 0));
+
+        if (resultado.Exito)
+        {
+            _mostrarForm = false;
+            await CargarAsync();
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _guardando = false;
+    }
+
+    private async Task PagarCuota(int deudaId)
+    {
+        _errorPago = null;
+        _pagando = true;
+
+        var resultado = await Api.PagarCuotaAsync(deudaId, new PagarCuotaRequest(_pagoForm.CategoriaId, null));
+
+        if (resultado.Exito)
+        {
+            _deudaPagando = null;
+            await CargarAsync();
+        }
+        else
+        {
+            _errorPago = resultado.TodosLosErrores();
+        }
+
+        _pagando = false;
+    }
+
+    private async Task Eliminar(int id)
+    {
+        await Api.EliminarDeudaAsync(id);
+        await CargarAsync();
+    }
+
+    private class FormModel
+    {
+        public TipoPropiedadDeuda Tipo { get; set; } = TipoPropiedadDeuda.Privada;
+        public string Nombre { get; set; } = "";
+        public decimal? MontoTotal { get; set; }
+        public decimal? MontoCuota { get; set; }
+        public int? TotalCuotas { get; set; }
+    }
+
+    private class PagoFormModel
+    {
+        public int CategoriaId { get; set; }
+    }
+}

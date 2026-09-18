@@ -133,6 +133,7 @@ app.MapCategoriasEndpoints();
 app.MapMovimientosDiaADiaEndpoints();
 app.MapPresupuestosEndpoints();
 app.MapSuscripcionesEndpoints();
+app.MapDeudasEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 

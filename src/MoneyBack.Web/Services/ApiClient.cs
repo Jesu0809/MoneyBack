@@ -220,6 +220,37 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<List<DeudaResponse>> ObtenerDeudasAsync()
+    {
+        var response = await Api.GetAsync("api/deudas");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<DeudaResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<DeudaResponse>> CrearDeudaPrivadaAsync(CrearDeudaPrivadaRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/deudas/privada", request);
+        return await ApiResult<DeudaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<DeudaResponse>()!);
+    }
+
+    public async Task<ApiResult<DeudaResponse>> CrearDeudaCompartidaAsync(int hogarId, CrearDeudaCompartidaRequest request)
+    {
+        var response = await Api.PostAsJsonAsync($"api/hogares/{hogarId}/deudas", request);
+        return await ApiResult<DeudaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<DeudaResponse>()!);
+    }
+
+    public async Task<ApiResult<DeudaResponse>> PagarCuotaAsync(int deudaId, PagarCuotaRequest request)
+    {
+        var response = await Api.PostAsJsonAsync($"api/deudas/{deudaId}/pagar-cuota", request);
+        return await ApiResult<DeudaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<DeudaResponse>()!);
+    }
+
+    public async Task<bool> EliminarDeudaAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/deudas/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
     private static string ConstruirQueryFechas(DateTime? desde, DateTime? hasta)
     {
         var partes = new List<string>();
