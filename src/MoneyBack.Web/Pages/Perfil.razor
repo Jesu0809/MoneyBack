@@ -5,7 +5,6 @@
 @inject NavigationManager Nav
 @inject PushNotificationService Push
 @inject IJSRuntime JS
-@inject IConfiguration Configuration
 
 <PageTitle>Perfil · MoneyBack</PageTitle>
 
@@ -130,20 +129,35 @@
                 @if (_tokenNuevo is not null)
                 {
                     <div class="alert alert-accent">
-                        <div class="stack" style="gap:6px; width:100%">
+                        <div class="stack" style="gap:10px; width:100%">
                             <strong>Cópialo ahora — no se vuelve a mostrar:</strong>
                             <div class="row" style="gap:6px">
                                 <input class="input" readonly value="@_tokenNuevo" style="font-family:monospace; font-size:12.5px" />
                                 <button class="btn btn-secondary" type="button" @onclick="CopiarToken">Copiar</button>
                             </div>
-                            <button class="btn btn-primary btn-block" type="button" @onclick="DescargarAtajo">
-                                <Icon Name="archive" Size="17" /> Descargar Atajo
-                            </button>
+                            <div class="divider"></div>
+                            <p style="margin:0; font-size:13px">
+                                En la app <strong>Atajos</strong> de tu iPhone, crea un
+                                atajo nuevo con estas 4 acciones, en este orden:
+                            </p>
+                            <ol style="margin:0; padding-left:20px; font-size:13px">
+                                <li><strong>Preguntar</strong> — tipo Texto, pregunta "¿Categoría?"</li>
+                                <li><strong>Preguntar</strong> — tipo Número, pregunta "¿Monto?"</li>
+                                <li>
+                                    <strong>Obtener contenido de URL</strong> — Método: POST.
+                                    URL: escribe
+                                    <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/movimientos-por-nombre?categoriaNombre=</code>
+                                    y ahí inserta la variable de la pregunta 1 (toca el
+                                    campo, elige "Variable"), luego sigue escribiendo
+                                    <code style="font-size:12px">&amp;monto=</code>
+                                    e inserta la variable de la pregunta 2.
+                                    En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
+                                    con este valor: pega el token de arriba.
+                                </li>
+                                <li><strong>Mostrar resultado</strong> — para confirmar sin abrir nada más.</li>
+                            </ol>
                             <p class="muted" style="font-size:12px; margin:0">
-                                Abre el archivo descargado en tu iPhone — Atajos te va a
-                                ofrecer agregarlo directo. Luego en Ajustes → Botón de
-                                Acción → Atajo, elige el que se llama "MoneyBack -
-                                Agregar movimiento".
+                                Luego: Ajustes → Botón de Acción → Atajo → elige el que acabas de crear.
                             </p>
                         </div>
                     </div>
@@ -254,14 +268,6 @@
         if (_tokenNuevo is null) return;
         var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interop.js");
         await modulo.InvokeVoidAsync("copiarAlPortapapeles", _tokenNuevo);
-    }
-
-    private async Task DescargarAtajo()
-    {
-        if (_tokenNuevo is null) return;
-        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "";
-        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interop.js");
-        await modulo.InvokeVoidAsync("generarArchivoAtajo", apiBaseUrl, _tokenNuevo);
     }
 
     private async Task ActivarPush()
