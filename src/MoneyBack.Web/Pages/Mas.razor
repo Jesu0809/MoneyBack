@@ -1,0 +1,43 @@
+@page "/mas"
+@attribute [Authorize]
+@inject NavigationManager Nav
+
+<PageTitle>Más · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div>
+        <h2>Más</h2>
+        <p class="muted">Categorías, presupuestos, cobros programados, deudas y reportes.</p>
+    </div>
+
+    <div class="stack" style="gap:10px">
+        @foreach (var item in Items)
+        {
+            <div class="card card-tap" @onclick="() => Nav.NavigateTo(item.Ruta)">
+                <div class="row-between">
+                    <div class="row">
+                        <div class="icon-bubble icon-bubble-accent"><Icon Name="@item.Icono" Size="18" /></div>
+                        <div>
+                            <div style="font-weight:600">@item.Nombre</div>
+                            <div class="muted" style="font-size:12.5px">@item.Descripcion</div>
+                        </div>
+                    </div>
+                    <Icon Name="chevron-right" Size="18" />
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private record MenuItem(string Ruta, string Icono, string Nombre, string Descripcion);
+
+    private static readonly MenuItem[] Items =
+    [
+        new("/suscripciones", "bell", "Suscripciones", "Cobros programados y recordatorios"),
+        new("/deudas", "coin", "Deudas", "Créditos y préstamos con cuotas"),
+        new("/reportes", "pie-chart", "Reportes", "Vista mensual/anual y descargas"),
+        new("/presupuestos", "wallet", "Presupuestos", "Límites de gasto por categoría"),
+        new("/categorias", "tag", "Categorías", "Administra tus categorías de ingreso y gasto")
+    ];
+}
