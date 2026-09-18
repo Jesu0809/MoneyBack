@@ -3,6 +3,7 @@
 @inject ApiClient Api
 @inject AuthService AuthService
 @inject NavigationManager Nav
+@inject PushNotificationService Push
 
 <PageTitle>Perfil · MoneyBack</PageTitle>
 
@@ -70,6 +71,47 @@
         </div>
 
         <div class="card">
+            <div class="stack">
+                <div class="row" style="gap:8px">
+                    <Icon Name="bell" Size="17" />
+                    <span class="label" style="margin:0">Notificaciones push</span>
+                </div>
+                @if (!_pushSoportado)
+                {
+                    <p class="muted" style="font-size:13px">Tu navegador no soporta notificaciones push.</p>
+                }
+                else
+                {
+                    <p class="muted" style="font-size:13px">
+                        Te avisamos aquí cuando se acerque un cobro programado.
+                        En iPhone, agrega MoneyBack a tu pantalla de inicio
+                        (botón compartir → "Agregar a pantalla de inicio") para
+                        poder recibirlas — Safari no las entrega a una pestaña normal.
+                    </p>
+                    <AlertBox Mensaje="@_errorPush" />
+                    @if (_permisoDenegado)
+                    {
+                        <AlertBox Tipo="warning" Mensaje="Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes del navegador." />
+                    }
+                    else if (_pushActivo)
+                    {
+                        <button class="btn btn-secondary btn-block" disabled="@_procesandoPush" @onclick="DesactivarPush">
+                            @if (_procesandoPush) { <span class="spinner"></span> }
+                            <span>Desactivar notificaciones</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-block" disabled="@_procesandoPush" @onclick="ActivarPush">
+                            @if (_procesandoPush) { <span class="spinner"></span> }
+                            <span>Activar notificaciones</span>
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="card">
             <div class="row-between">
                 <span class="muted">Correo</span>
                 <span>@_perfil?.Email</span>
@@ -90,11 +132,45 @@
     private readonly NombreFormModel _nombreForm = new();
     private readonly PasswordFormModel _passwordForm = new();
 
+    private bool _pushSoportado;
+    private bool _pushActivo;
+    private bool _permisoDenegado;
+    private bool _procesandoPush;
+    private string? _errorPush;
+
     protected override async Task OnInitializedAsync()
     {
         _perfil = await Api.ObtenerPerfilAsync();
         if (_perfil is not null) _nombreForm.Nombre = _perfil.Nombre;
         _cargando = false;
+
+        _pushSoportado = await Push.SonSoportadasAsync();
+        if (_pushSoportado)
+        {
+            _pushActivo = await Push.EstaSuscritoAsync();
+            _permisoDenegado = await Push.ObtenerEstadoPermisoAsync() == "denied";
+        }
+    }
+
+    private async Task ActivarPush()
+    {
+        _errorPush = null;
+        _procesandoPush = true;
+
+        var ok = await Push.ActivarAsync();
+        _pushActivo = ok && await Push.EstaSuscritoAsync();
+        _permisoDenegado = await Push.ObtenerEstadoPermisoAsync() == "denied";
+        if (!ok) _errorPush = "No se pudo activar. Verifica los permisos de notificaciones del navegador.";
+
+        _procesandoPush = false;
+    }
+
+    private async Task DesactivarPush()
+    {
+        _procesandoPush = true;
+        await Push.DesactivarAsync();
+        _pushActivo = await Push.EstaSuscritoAsync();
+        _procesandoPush = false;
     }
 
     private async Task GuardarNombre()

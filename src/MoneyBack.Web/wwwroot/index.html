@@ -7,6 +7,15 @@
     <title>MoneyBack</title>
     <base href="/" />
     <link rel="icon" type="image/png" href="icon-192.png" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="theme-color" content="#2f6f5e" />
+    <!-- Necesarios para que iOS trate la PWA como app instalada (display:
+         standalone) al agregarla a la pantalla de inicio — sin esto, Safari
+         la sigue tratando como una pestaña normal y no entrega push. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MoneyBack" />
     <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="css/app.css" />
     <!-- If you add any scoped CSS files, uncomment the following to load them

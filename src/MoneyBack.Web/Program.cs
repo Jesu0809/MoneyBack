@@ -20,6 +20,7 @@ builder.Services.AddSingleton<UiOverlayService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiClient>();
 builder.Services.AddScoped<DescargaArchivoService>();
+builder.Services.AddScoped<PushNotificationService>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 builder.Services.AddAuthorizationCore();
 

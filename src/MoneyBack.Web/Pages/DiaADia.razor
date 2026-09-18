@@ -1,7 +1,9 @@
 @page "/"
 @attribute [Authorize]
+@using Microsoft.AspNetCore.WebUtilities
 @inject ApiClient Api
 @inject UiOverlayService UiOverlay
+@inject NavigationManager Nav
 @implements IDisposable
 
 <PageTitle>Día a día · MoneyBack</PageTitle>
@@ -262,6 +264,28 @@
         _categorias = await Api.ObtenerCategoriasAsync();
         _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
         await CargarMesAsync();
+
+        AbrirDesdeAtajoSiCorresponde();
+    }
+
+    /// <summary>
+    /// Soporte para el Botón de Acción del iPhone: un Atajo de iOS que abre
+    /// "https://.../?accion=nuevo&amp;tipo=gasto" (o tipo=ingreso) llega aquí
+    /// como una URL normal — no hay integración nativa con Siri/App Intents
+    /// posible sin una app nativa, así que esto es "abrir directo en la
+    /// pantalla de agregar" en vez de un atajo del sistema operativo real.
+    /// Se limpia el query string después para que un refresh no lo reabra.
+    /// </summary>
+    private void AbrirDesdeAtajoSiCorresponde()
+    {
+        var query = QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+        if (!query.TryGetValue("accion", out var accion) || accion != "nuevo") return;
+
+        var tipo = query.TryGetValue("tipo", out var t) && t == "ingreso" ? TipoCategoria.Ingreso : TipoCategoria.Gasto;
+        AbrirPantallaCompleta();
+        CambiarTipo(tipo);
+
+        Nav.NavigateTo("/", replace: true);
     }
 
     private async Task CambiarVista(VistaResumen vista)

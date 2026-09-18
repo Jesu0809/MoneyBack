@@ -33,7 +33,8 @@ public class RevisionSuscripcionesService(IServiceScopeFactory scopeFactory, ILo
             {
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                await RevisarAsync(db, stoppingToken);
+                var sender = scope.ServiceProvider.GetRequiredService<PushNotificationSender>();
+                await RevisarAsync(db, sender, stoppingToken);
             }
             catch (Exception ex)
             {
@@ -50,7 +51,7 @@ public class RevisionSuscripcionesService(IServiceScopeFactory scopeFactory, ILo
     /// falle. Si todo fuera un solo SaveChangesAsync, ese conflicto tumbaría
     /// también las confirmaciones nuevas y legítimas del mismo lote.
     /// </summary>
-    private static async Task RevisarAsync(ApplicationDbContext db, CancellationToken ct)
+    private static async Task RevisarAsync(ApplicationDbContext db, PushNotificationSender sender, CancellationToken ct)
     {
         var hoy = DateTime.UtcNow.Date;
 
@@ -80,7 +81,16 @@ public class RevisionSuscripcionesService(IServiceScopeFactory scopeFactory, ILo
                 // La otra máquina ya la creó entre el chequeo y este guardado.
                 // Se descarta el intento y se sigue con la siguiente suscripción.
                 db.ChangeTracker.Clear();
+                continue;
             }
+
+            // Solo se envía si el guardado de arriba realmente creó la fila
+            // (no en el caso del conflicto de la otra máquina) — evita un
+            // push duplicado por el mismo cobro.
+            await sender.EnviarATodosLosDispositivosAsync(
+                suscripcion.UsuarioId,
+                "Cobro próximo",
+                $"{suscripcion.Nombre} se cobra el {suscripcion.ProximoCobro:d MMM} — confirma en MoneyBack si pasó.");
         }
     }
 }

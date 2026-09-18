@@ -30,7 +30,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.Configure<SubsidiosOptions>(builder.Configuration.GetSection(SubsidiosOptions.SectionName));
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOptions.SectionName));
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<PushNotificationSender>();
 builder.Services.AddHostedService<RevisionSuscripcionesService>();
 
 builder.Services
@@ -137,6 +139,7 @@ app.MapPresupuestosEndpoints();
 app.MapSuscripcionesEndpoints();
 app.MapDeudasEndpoints();
 app.MapReportesEndpoints();
+app.MapPushEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 

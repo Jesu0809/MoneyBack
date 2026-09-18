@@ -271,6 +271,30 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync() : null;
     }
 
+    public async Task<string?> ObtenerVapidPublicKeyAsync()
+    {
+        var response = await Api.GetAsync("api/push/vapid-public-key");
+        if (!response.IsSuccessStatusCode) return null;
+        var resultado = await response.Content.ReadFromJsonAsync<VapidPublicKeyResponse>();
+        return resultado?.PublicKey;
+    }
+
+    public async Task<bool> SuscribirsePushAsync(SuscribirsePushRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/push/suscribirse", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DesuscribirsePushAsync(SuscribirsePushRequest request)
+    {
+        var mensaje = new HttpRequestMessage(HttpMethod.Delete, "api/push/suscribirse")
+        {
+            Content = JsonContent.Create(request)
+        };
+        var response = await Api.SendAsync(mensaje);
+        return response.IsSuccessStatusCode;
+    }
+
     private static string ConstruirQueryFechas(DateTime? desde, DateTime? hasta)
     {
         var partes = new List<string>();
