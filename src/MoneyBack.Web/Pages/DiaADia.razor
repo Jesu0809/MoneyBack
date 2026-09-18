@@ -23,11 +23,27 @@
         </div>
     </div>
 
-    <div class="row-between">
-        <button class="icon-btn glass" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
-        <strong>@NombreMes(_mesActual)</strong>
-        <button class="icon-btn glass" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
+    <div class="segmented" style="width:200px; margin: 0 auto">
+        <button type="button" class="segmented-btn @(_vista == VistaResumen.Mes ? "active" : "")" @onclick="() => CambiarVista(VistaResumen.Mes)">Mes</button>
+        <button type="button" class="segmented-btn @(_vista == VistaResumen.Anio ? "active" : "")" @onclick="() => CambiarVista(VistaResumen.Anio)">Año</button>
     </div>
+
+    @if (_vista == VistaResumen.Mes)
+    {
+        <div class="row-between">
+            <button class="icon-btn glass" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
+            <strong>@NombreMes(_mesActual)</strong>
+            <button class="icon-btn glass" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
+        </div>
+    }
+    else
+    {
+        <div class="row-between">
+            <button class="icon-btn glass" @onclick="() => CambiarAnio(-1)"><Icon Name="chevron-left" /></button>
+            <strong>@_anioActual</strong>
+            <button class="icon-btn glass" @onclick="() => CambiarAnio(1)"><Icon Name="chevron-right" /></button>
+        </div>
+    }
 
     @if (_cargando)
     {
@@ -85,6 +101,14 @@
             </div>
         }
 
+        @if (_vista == VistaResumen.Anio)
+        {
+            <div class="empty-state">
+                <p>Este es el resumen del año completo. Para ver el detalle día por día, cambia a "Mes", o entra a <a href="/reportes">Reportes</a> para más detalle y descargas.</p>
+            </div>
+        }
+        else
+        {
         <div class="stack">
             @{ var grupos = _movimientos.GroupBy(m => m.Fecha.ToLocalTime().Date).OrderByDescending(g => g.Key).ToList(); }
             @if (grupos.Count == 0)
@@ -138,6 +162,7 @@
                 }
             }
         </div>
+        }
     }
 </div>
 
@@ -217,11 +242,15 @@
         "#4fa78e", "#4f8fc0", "#e0925c", "#c9587a", "#7a63c9", "#8fae4a", "#d9a94e"
     ];
 
+    private enum VistaResumen { Mes, Anio }
+
     private bool _cargando = true;
     private bool _guardando;
     private bool _mostrarForm;
     private string? _error;
+    private VistaResumen _vista = VistaResumen.Mes;
     private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+    private int _anioActual = DateTime.UtcNow.Year;
     private List<CategoriaResponse> _categorias = [];
     private List<MovimientoDiaADiaResponse> _movimientos = [];
     private ResumenDiaADiaResponse? _resumen;
@@ -235,12 +264,28 @@
         await CargarMesAsync();
     }
 
+    private async Task CambiarVista(VistaResumen vista)
+    {
+        _vista = vista;
+        if (vista == VistaResumen.Mes) await CargarMesAsync();
+        else await CargarAnioAsync();
+    }
+
     private async Task CargarMesAsync()
     {
         _cargando = true;
         var desde = _mesActual;
         var hasta = _mesActual.AddMonths(1).AddTicks(-1);
         _movimientos = await Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
+        _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
+        _cargando = false;
+    }
+
+    private async Task CargarAnioAsync()
+    {
+        _cargando = true;
+        var desde = new DateTime(_anioActual, 1, 1);
+        var hasta = new DateTime(_anioActual, 12, 31, 23, 59, 59);
         _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
         _cargando = false;
     }
@@ -255,6 +300,12 @@
     {
         _mesActual = _mesActual.AddMonths(1);
         await CargarMesAsync();
+    }
+
+    private async Task CambiarAnio(int delta)
+    {
+        _anioActual += delta;
+        await CargarAnioAsync();
     }
 
     private void AbrirPantallaCompleta()

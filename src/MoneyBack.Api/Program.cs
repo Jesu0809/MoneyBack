@@ -12,6 +12,8 @@ using MoneyBack.Api.Endpoints;
 using MoneyBack.Api.Models;
 using MoneyBack.Api.Services;
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -134,6 +136,7 @@ app.MapMovimientosDiaADiaEndpoints();
 app.MapPresupuestosEndpoints();
 app.MapSuscripcionesEndpoints();
 app.MapDeudasEndpoints();
+app.MapReportesEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 

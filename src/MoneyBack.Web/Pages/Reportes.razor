@@ -1,0 +1,266 @@
+@page "/reportes"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+@inject DescargaArchivoService Descarga
+
+<PageTitle>Reportes · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'><Icon Name="chevron-left" Size="18" /> Inicio</button>
+    </div>
+
+    <div>
+        <h2>Reportes</h2>
+        <p class="muted">Vista detallada de tus ingresos y gastos, con descarga en Excel o PDF.</p>
+    </div>
+
+    <div class="segmented">
+        <button type="button" class="segmented-btn @(_vista == Vista.Mensual ? "active" : "")" @onclick='() => CambiarVista(Vista.Mensual)'>Mensual</button>
+        <button type="button" class="segmented-btn @(_vista == Vista.Anual ? "active" : "")" @onclick='() => CambiarVista(Vista.Anual)'>Anual</button>
+        <button type="button" class="segmented-btn @(_vista == Vista.Personalizado ? "active" : "")" @onclick='() => CambiarVista(Vista.Personalizado)'>Personalizado</button>
+    </div>
+
+    @if (_vista == Vista.Mensual)
+    {
+        <div class="row-between">
+            <button class="icon-btn glass" @onclick="MesAnterior"><Icon Name="chevron-left" /></button>
+            <strong>@NombreMes(_mesActual)</strong>
+            <button class="icon-btn glass" @onclick="MesSiguiente"><Icon Name="chevron-right" /></button>
+        </div>
+    }
+    else if (_vista == Vista.Anual)
+    {
+        <div class="row-between">
+            <button class="icon-btn glass" @onclick="() => CambiarAnio(-1)"><Icon Name="chevron-left" /></button>
+            <strong>@_anioActual</strong>
+            <button class="icon-btn glass" @onclick="() => CambiarAnio(1)"><Icon Name="chevron-right" /></button>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="row" style="gap:10px">
+                <div class="field" style="margin:0; flex:1">
+                    <label>Desde</label>
+                    <InputDate class="input" @bind-Value="_desdePersonalizado" />
+                </div>
+                <div class="field" style="margin:0; flex:1">
+                    <label>Hasta</label>
+                    <InputDate class="input" @bind-Value="_hastaPersonalizado" />
+                </div>
+            </div>
+            <button class="btn btn-primary btn-block" style="margin-top:12px" @onclick="CargarPersonalizadoAsync">Aplicar</button>
+        </div>
+    }
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="row" style="justify-content: space-around; text-align:center">
+                <div class="stack" style="gap:4px; align-items:center">
+                    <div class="icon-bubble icon-bubble-accent"><Icon Name="arrow-up" Size="16" /></div>
+                    <span class="muted" style="font-size:12.5px">Ingresos</span>
+                    <span style="font-weight:700; color: var(--color-accent-strong)">@Formato.Pesos(_totalIngresos)</span>
+                </div>
+                <div class="stack" style="gap:4px; align-items:center">
+                    <div class="icon-bubble icon-bubble-danger"><Icon Name="arrow-down" Size="16" /></div>
+                    <span class="muted" style="font-size:12.5px">Gastos</span>
+                    <span style="font-weight:700; color: var(--color-danger)">@Formato.Pesos(_totalGastos)</span>
+                </div>
+                <div class="stack" style="gap:4px; align-items:center">
+                    <div class="icon-bubble" style="background:var(--color-surface-2)"><Icon Name="wallet" Size="16" /></div>
+                    <span class="muted" style="font-size:12.5px">Balance</span>
+                    <span style="font-weight:700">@Formato.Pesos(_totalIngresos - _totalGastos)</span>
+                </div>
+            </div>
+        </div>
+
+        @if (_vista == Vista.Anual && _resumenAnual is not null)
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="label">Gastos por mes</div>
+                    <div class="bar-chart">
+                        @{ var maxGasto = _resumenAnual.PorMes.Count > 0 ? Math.Max(1, _resumenAnual.PorMes.Max(m => m.TotalGastos)) : 1; }
+                        @foreach (var mes in _resumenAnual.PorMes)
+                        {
+                            var alturaPct = mes.TotalGastos / maxGasto * 100;
+                            <div class="bar-chart-col" title="@NombreMesCorto(mes.Mes): @Formato.Pesos(mes.TotalGastos)">
+                                <div class="bar-chart-bar" style="height: @(Math.Max(2, alturaPct))%"></div>
+                                <span class="bar-chart-label">@NombreMesCorto(mes.Mes)</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (_gastosPorCategoria.Count > 0)
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="label">Gastos por categoría</div>
+                    @foreach (var cat in _gastosPorCategoria)
+                    {
+                        var pct = _totalGastos > 0 ? cat.Total / _totalGastos * 100 : 0;
+                        <div class="row-between">
+                            <span>@cat.CategoriaIcono @cat.CategoriaNombre</span>
+                            <div class="row" style="gap:8px">
+                                <span class="muted" style="font-size:12.5px">@Formato.Porcentaje(pct)</span>
+                                <span class="money" style="font-size:14.5px">@Formato.Pesos(cat.Total)</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="stack">
+                <div class="label">Descargar</div>
+                <AlertBox Mensaje="@_errorDescarga" />
+                <div class="row" style="gap:10px">
+                    <button class="btn btn-secondary" style="flex:1" disabled="@_descargando" @onclick="() => DescargarAsync(false)">
+                        @if (_descargando) { <span class="spinner"></span> }
+                        <span>Excel</span>
+                    </button>
+                    <button class="btn btn-secondary" style="flex:1" disabled="@_descargando" @onclick="() => DescargarAsync(true)">
+                        @if (_descargando) { <span class="spinner"></span> }
+                        <span>PDF</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private enum Vista { Mensual, Anual, Personalizado }
+
+    private Vista _vista = Vista.Mensual;
+    private bool _cargando = true;
+    private bool _descargando;
+    private string? _errorDescarga;
+
+    private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+    private int _anioActual = DateTime.UtcNow.Year;
+    private DateTime _desdePersonalizado = DateTime.UtcNow.Date.AddMonths(-1);
+    private DateTime _hastaPersonalizado = DateTime.UtcNow.Date;
+
+    private decimal _totalIngresos;
+    private decimal _totalGastos;
+    private List<TotalPorCategoria> _gastosPorCategoria = [];
+    private ResumenAnualResponse? _resumenAnual;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarMensualAsync();
+    }
+
+    private async Task CambiarVista(Vista vista)
+    {
+        _vista = vista;
+        if (vista == Vista.Mensual) await CargarMensualAsync();
+        else if (vista == Vista.Anual) await CargarAnualAsync();
+        else await CargarPersonalizadoAsync();
+    }
+
+    private async Task CargarMensualAsync()
+    {
+        _cargando = true;
+        var desde = _mesActual;
+        var hasta = _mesActual.AddMonths(1).AddTicks(-1);
+        var resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
+        _totalIngresos = resumen?.TotalIngresos ?? 0;
+        _totalGastos = resumen?.TotalGastos ?? 0;
+        _gastosPorCategoria = resumen?.GastosPorCategoria ?? [];
+        _resumenAnual = null;
+        _cargando = false;
+    }
+
+    private async Task CargarAnualAsync()
+    {
+        _cargando = true;
+        _resumenAnual = await Api.ObtenerResumenAnualAsync(_anioActual);
+        _totalIngresos = _resumenAnual?.TotalIngresos ?? 0;
+        _totalGastos = _resumenAnual?.TotalGastos ?? 0;
+        _gastosPorCategoria = _resumenAnual?.GastosPorCategoria ?? [];
+        _cargando = false;
+    }
+
+    private async Task CargarPersonalizadoAsync()
+    {
+        _cargando = true;
+        var resumen = await Api.ObtenerResumenDiaADiaAsync(_desdePersonalizado, _hastaPersonalizado.AddDays(1).AddTicks(-1));
+        _totalIngresos = resumen?.TotalIngresos ?? 0;
+        _totalGastos = resumen?.TotalGastos ?? 0;
+        _gastosPorCategoria = resumen?.GastosPorCategoria ?? [];
+        _resumenAnual = null;
+        _cargando = false;
+    }
+
+    private async Task MesAnterior()
+    {
+        _mesActual = _mesActual.AddMonths(-1);
+        await CargarMensualAsync();
+    }
+
+    private async Task MesSiguiente()
+    {
+        _mesActual = _mesActual.AddMonths(1);
+        await CargarMensualAsync();
+    }
+
+    private async Task CambiarAnio(int delta)
+    {
+        _anioActual += delta;
+        await CargarAnualAsync();
+    }
+
+    private (DateTime? desde, DateTime? hasta) RangoActual() => _vista switch
+    {
+        Vista.Mensual => (_mesActual, _mesActual.AddMonths(1).AddTicks(-1)),
+        Vista.Anual => (new DateTime(_anioActual, 1, 1), new DateTime(_anioActual, 12, 31, 23, 59, 59)),
+        _ => (_desdePersonalizado, _hastaPersonalizado.AddDays(1).AddTicks(-1))
+    };
+
+    private async Task DescargarAsync(bool esPdf)
+    {
+        _errorDescarga = null;
+        _descargando = true;
+
+        var (desde, hasta) = RangoActual();
+        var bytes = esPdf ? await Api.DescargarReportePdfAsync(desde, hasta) : await Api.DescargarReporteExcelAsync(desde, hasta);
+
+        if (bytes is not null)
+        {
+            var nombre = $"moneyback-reporte.{(esPdf ? "pdf" : "xlsx")}";
+            var mime = esPdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            await Descarga.DescargarAsync(bytes, nombre, mime);
+        }
+        else
+        {
+            _errorDescarga = "No se pudo generar el archivo. Intenta de nuevo.";
+        }
+
+        _descargando = false;
+    }
+
+    private static string NombreMes(DateTime fecha)
+    {
+        string[] meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+        return $"{meses[fecha.Month - 1]} {fecha.Year}";
+    }
+
+    private static string NombreMesCorto(int mes)
+    {
+        string[] meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+        return meses[mes - 1];
+    }
+}

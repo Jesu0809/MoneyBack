@@ -251,6 +251,26 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<ResumenAnualResponse?> ObtenerResumenAnualAsync(int anio)
+    {
+        var response = await Api.GetAsync($"api/reportes/anual?anio={anio}");
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<ResumenAnualResponse>() : null;
+    }
+
+    public async Task<byte[]?> DescargarReporteExcelAsync(DateTime? desde = null, DateTime? hasta = null)
+    {
+        var query = ConstruirQueryFechas(desde, hasta);
+        var response = await Api.GetAsync($"api/reportes/exportar/excel{query}");
+        return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync() : null;
+    }
+
+    public async Task<byte[]?> DescargarReportePdfAsync(DateTime? desde = null, DateTime? hasta = null)
+    {
+        var query = ConstruirQueryFechas(desde, hasta);
+        var response = await Api.GetAsync($"api/reportes/exportar/pdf{query}");
+        return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync() : null;
+    }
+
     private static string ConstruirQueryFechas(DateTime? desde, DateTime? hasta)
     {
         var partes = new List<string>();
