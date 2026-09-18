@@ -180,6 +180,46 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<List<SuscripcionResponse>> ObtenerSuscripcionesAsync()
+    {
+        var response = await Api.GetAsync("api/suscripciones");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<SuscripcionResponse>>() ?? [];
+    }
+
+    public async Task<List<ConfirmacionPendienteResponse>> ObtenerConfirmacionesPendientesAsync()
+    {
+        var response = await Api.GetAsync("api/suscripciones/confirmaciones-pendientes");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<ConfirmacionPendienteResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<SuscripcionResponse>> CrearSuscripcionAsync(CrearSuscripcionRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/suscripciones", request);
+        return await ApiResult<SuscripcionResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<SuscripcionResponse>()!);
+    }
+
+    public async Task<ApiResult<SuscripcionResponse>> ActualizarSuscripcionAsync(int id, ActualizarSuscripcionRequest request)
+    {
+        var response = await Api.PutAsJsonAsync($"api/suscripciones/{id}", request);
+        return await ApiResult<SuscripcionResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<SuscripcionResponse>()!);
+    }
+
+    public async Task<bool> EliminarSuscripcionAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/suscripciones/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> ResolverConfirmacionAsync(int suscripcionId, int confirmacionId, bool ocurrio)
+    {
+        var response = await Api.PostAsJsonAsync(
+            $"api/suscripciones/{suscripcionId}/confirmaciones/{confirmacionId}/resolver",
+            new ResolverConfirmacionRequest(ocurrio));
+        return response.IsSuccessStatusCode;
+    }
+
     private static string ConstruirQueryFechas(DateTime? desde, DateTime? hasta)
     {
         var partes = new List<string>();

@@ -29,6 +29,7 @@ builder.Services.Configure<SubsidiosOptions>(builder.Configuration.GetSection(Su
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddHostedService<RevisionSuscripcionesService>();
 
 builder.Services
     .AddIdentityCore<Usuario>(options =>
@@ -131,6 +132,7 @@ app.MapSubsidiosEndpoints();
 app.MapCategoriasEndpoints();
 app.MapMovimientosDiaADiaEndpoints();
 app.MapPresupuestosEndpoints();
+app.MapSuscripcionesEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 

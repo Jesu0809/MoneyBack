@@ -4,6 +4,8 @@
 @inject AuthService AuthService
 @inject ThemeService ThemeService
 @inject UiOverlayService UiOverlay
+@inject ApiClient Api
+@inject AuthenticationStateProvider AuthProvider
 
 <AuthorizeView>
     <Authorized>
@@ -22,11 +24,57 @@
                             <Icon Name="moon" Size="16" />
                         </button>
                     </div>
+                    <button class="icon-btn notif-bell" @onclick="ToggleNotificaciones" title="Notificaciones">
+                        <Icon Name="bell" Size="20" />
+                        @if (_pendientes.Count > 0)
+                        {
+                            <span class="notif-badge">@_pendientes.Count</span>
+                        }
+                    </button>
                     <button class="avatar-btn" @onclick="ToggleMenu" title="@context.User.Identity?.Name">
                         @Inicial(context)
                     </button>
                 </div>
             </div>
+
+            @if (_panelNotifAbierto)
+            {
+                <div class="card" style="margin-bottom: 14px;">
+                    <div class="stack">
+                        <div class="row-between">
+                            <strong>Cobros por confirmar</strong>
+                            <button class="icon-btn" style="width:28px;height:28px;background:transparent;border:none" @onclick="() => _panelNotifAbierto = false">
+                                <Icon Name="x" Size="16" />
+                            </button>
+                        </div>
+                        @if (_pendientes.Count == 0)
+                        {
+                            <p class="muted">No hay cobros pendientes de confirmar.</p>
+                        }
+                        else
+                        {
+                            @foreach (var p in _pendientes)
+                            {
+                                <div class="divider"></div>
+                                <div class="stack" style="gap:8px">
+                                    <div class="row">
+                                        <span style="font-size:18px">@p.CategoriaIcono</span>
+                                        <div>
+                                            <div style="font-weight:600">@p.SuscripcionNombre</div>
+                                            <div class="muted" style="font-size:12.5px">@Formato.Pesos(p.Monto) · @Formato.FechaCorta(p.PeriodoCobro)</div>
+                                        </div>
+                                    </div>
+                                    <p class="muted" style="font-size:13px; margin:0">¿Se cobró?</p>
+                                    <div class="row" style="gap:8px">
+                                        <button class="btn btn-secondary" style="flex:1" @onclick="() => Resolver(p, false)">No</button>
+                                        <button class="btn btn-primary" style="flex:1" @onclick="() => Resolver(p, true)">Sí</button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
 
             @if (_menuAbierto)
             {
@@ -88,14 +136,41 @@
 
 @code {
     private bool _menuAbierto;
+    private bool _panelNotifAbierto;
+    private List<ConfirmacionPendienteResponse> _pendientes = [];
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         ThemeService.OnChange += StateHasChanged;
         UiOverlay.OnChange += StateHasChanged;
+        AuthProvider.AuthenticationStateChanged += OnAuthenticationChanged;
+        await CargarPendientesAsync();
+    }
+
+    private async void OnAuthenticationChanged(Task<AuthenticationState> _)
+    {
+        await CargarPendientesAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CargarPendientesAsync()
+    {
+        _pendientes = await Api.ObtenerConfirmacionesPendientesAsync();
     }
 
     private void ToggleMenu() => _menuAbierto = !_menuAbierto;
+
+    private async Task ToggleNotificaciones()
+    {
+        _panelNotifAbierto = !_panelNotifAbierto;
+        if (_panelNotifAbierto) await CargarPendientesAsync();
+    }
+
+    private async Task Resolver(ConfirmacionPendienteResponse pendiente, bool ocurrio)
+    {
+        await Api.ResolverConfirmacionAsync(pendiente.SuscripcionId, pendiente.Id, ocurrio);
+        await CargarPendientesAsync();
+    }
 
     private void IrAPerfil()
     {
@@ -132,5 +207,6 @@
     {
         ThemeService.OnChange -= StateHasChanged;
         UiOverlay.OnChange -= StateHasChanged;
+        AuthProvider.AuthenticationStateChanged -= OnAuthenticationChanged;
     }
 }

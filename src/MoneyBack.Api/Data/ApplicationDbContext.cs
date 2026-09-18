@@ -5,6 +5,7 @@ using MoneyBack.Api.Models;
 using MoneyBack.Api.Models.Auth;
 using MoneyBack.Api.Models.DiaADia;
 using MoneyBack.Api.Models.Metas;
+using MoneyBack.Api.Models.Suscripciones;
 
 namespace MoneyBack.Api.Data;
 
@@ -23,6 +24,8 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<Categoria> Categorias => Set<Categoria>();
     public DbSet<MovimientoDiaADia> MovimientosDiaADia => Set<MovimientoDiaADia>();
     public DbSet<Presupuesto> Presupuestos => Set<Presupuesto>();
+    public DbSet<Suscripcion> Suscripciones => Set<Suscripcion>();
+    public DbSet<ConfirmacionCobro> ConfirmacionesCobro => Set<ConfirmacionCobro>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -38,5 +41,6 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
 
         builder.ApplyConfiguration(new HogarConfiguration());
         builder.ApplyConfiguration(new PresupuestoConfiguration());
+        builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());
     }
 }

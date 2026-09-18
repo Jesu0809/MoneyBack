@@ -1,0 +1,204 @@
+@page "/suscripciones"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Suscripciones · MoneyBack</PageTitle>
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/")'><Icon Name="chevron-left" Size="18" /> Inicio</button>
+    </div>
+
+    <div>
+        <h2>Cobros programados</h2>
+        <p class="muted">Suscripciones y cobros recurrentes. Te avisamos antes de cada cobro para que confirmes si pasó o no.</p>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            @if (!_mostrarForm)
+            {
+                <button class="btn btn-primary btn-block" @onclick="AbrirFormNueva"><Icon Name="plus" Size="18" /> Nueva suscripción</button>
+            }
+            else
+            {
+                <EditForm Model="_form" OnValidSubmit="Guardar">
+                    <div class="stack">
+                        <div class="field">
+                            <label>Nombre</label>
+                            <InputText class="input" @bind-Value="_form.Nombre" placeholder="Netflix" />
+                        </div>
+                        <div class="field">
+                            <label>Monto</label>
+                            <InputNumber class="input" @bind-Value="_form.Monto" placeholder="45900" />
+                        </div>
+                        <div class="field">
+                            <label>Categoría</label>
+                            <InputSelect class="input" @bind-Value="_form.CategoriaId">
+                                @foreach (var cat in _categoriasGasto)
+                                {
+                                    <option value="@cat.Id">@cat.Icono @cat.Nombre</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="field">
+                            <label>Frecuencia</label>
+                            <InputSelect class="input" @bind-Value="_form.Frecuencia">
+                                <option value="@FrecuenciaSuscripcion.Semanal">Semanal</option>
+                                <option value="@FrecuenciaSuscripcion.Mensual">Mensual</option>
+                                <option value="@FrecuenciaSuscripcion.Anual">Anual</option>
+                            </InputSelect>
+                        </div>
+                        <div class="field">
+                            <label>Próximo cobro</label>
+                            <InputDate class="input" @bind-Value="_form.ProximoCobro" />
+                        </div>
+                        <div class="field">
+                            <label>Avisar con cuántos días de anticipación</label>
+                            <InputNumber class="input" @bind-Value="_form.DiasAvisoPrevio" />
+                        </div>
+                        <AlertBox Mensaje="@_error" />
+                        <div class="row">
+                            <button class="btn btn-secondary" type="button" @onclick="() => _mostrarForm = false">Cancelar</button>
+                            <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
+                                @if (_guardando) { <span class="spinner"></span> }
+                                <span>Guardar</span>
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+        </div>
+
+        @if (_suscripciones.Count == 0)
+        {
+            <div class="empty-state">
+                <p>Todavía no tienes cobros programados.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var s in _suscripciones)
+            {
+                var diasRestantes = (s.ProximoCobro.Date - DateTime.UtcNow.Date).Days;
+                <div class="card">
+                    <div class="row-between">
+                        <div class="row">
+                            <div class="icon-bubble icon-bubble-accent" style="font-size:18px">@s.CategoriaIcono</div>
+                            <div>
+                                <div style="font-weight:600">@s.Nombre</div>
+                                <div class="muted" style="font-size:12.5px">@NombreFrecuencia(s.Frecuencia) · @Formato.Pesos(s.Monto)</div>
+                            </div>
+                        </div>
+                        <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(s.Id)">
+                            <Icon Name="trash" Size="15" />
+                        </button>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="row-between">
+                        <span class="muted" style="font-size:13px">Próximo cobro</span>
+                        <span class="pill @(diasRestantes <= s.DiasAvisoPrevio ? "pill-warning" : "")">
+                            @Formato.FechaCorta(s.ProximoCobro) · @DescripcionDias(diasRestantes)
+                        </span>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _guardando;
+    private bool _mostrarForm;
+    private string? _error;
+    private List<CategoriaResponse> _categoriasGasto = [];
+    private List<SuscripcionResponse> _suscripciones = [];
+    private readonly FormModel _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var categorias = await Api.ObtenerCategoriasAsync();
+        _categoriasGasto = categorias.Where(c => c.Tipo == TipoCategoria.Gasto && c.Activa).ToList();
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _suscripciones = await Api.ObtenerSuscripcionesAsync();
+        _cargando = false;
+    }
+
+    private void AbrirFormNueva()
+    {
+        _error = null;
+        _form.Nombre = "";
+        _form.Monto = null;
+        _form.CategoriaId = _categoriasGasto.Count > 0 ? _categoriasGasto[0].Id : 0;
+        _form.Frecuencia = FrecuenciaSuscripcion.Mensual;
+        _form.ProximoCobro = DateTime.UtcNow.Date.AddDays(30);
+        _form.DiasAvisoPrevio = 3;
+        _mostrarForm = true;
+    }
+
+    private async Task Guardar()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.CrearSuscripcionAsync(new CrearSuscripcionRequest(
+            _form.Nombre, _form.Monto ?? 0, _form.CategoriaId, _form.Frecuencia,
+            _form.ProximoCobro, _form.DiasAvisoPrevio));
+
+        if (resultado.Exito)
+        {
+            _mostrarForm = false;
+            await CargarAsync();
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _guardando = false;
+    }
+
+    private async Task Eliminar(int id)
+    {
+        await Api.EliminarSuscripcionAsync(id);
+        await CargarAsync();
+    }
+
+    private static string NombreFrecuencia(FrecuenciaSuscripcion frecuencia) => frecuencia switch
+    {
+        FrecuenciaSuscripcion.Semanal => "Semanal",
+        FrecuenciaSuscripcion.Mensual => "Mensual",
+        FrecuenciaSuscripcion.Anual => "Anual",
+        _ => frecuencia.ToString()
+    };
+
+    private static string DescripcionDias(int dias) => dias switch
+    {
+        < 0 => "atrasado",
+        0 => "hoy",
+        1 => "mañana",
+        _ => $"en {dias} días"
+    };
+
+    private class FormModel
+    {
+        public string Nombre { get; set; } = "";
+        public decimal? Monto { get; set; }
+        public int CategoriaId { get; set; }
+        public FrecuenciaSuscripcion Frecuencia { get; set; } = FrecuenciaSuscripcion.Mensual;
+        public DateTime ProximoCobro { get; set; } = DateTime.UtcNow.Date.AddDays(30);
+        public int DiasAvisoPrevio { get; set; } = 3;
+    }
+}

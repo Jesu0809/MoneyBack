@@ -140,6 +140,18 @@ h1:focus { outline: none; }
 }
 .avatar-btn:active { transform: scale(0.92); }
 
+.notif-bell { position: relative; }
+.notif-badge {
+  position: absolute; top: 2px; right: 2px;
+  min-width: 16px; height: 16px; padding: 0 3px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  color: white;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+
 .icon { display: block; flex-shrink: 0; }
 
 /* "Liquid glass": vidrio esmerilado con blur real, no un color plano.
