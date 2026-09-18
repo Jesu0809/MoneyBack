@@ -138,21 +138,47 @@
                             <div class="divider"></div>
                             <p style="margin:0; font-size:13px">
                                 En la app <strong>Atajos</strong> de tu iPhone, crea un
-                                atajo nuevo con estas 4 acciones, en este orden:
+                                atajo nuevo con estas acciones, en este orden. Así el
+                                menú de categorías sale directo de las tuyas de verdad
+                                (no hay que escribir el nombre a mano, ni riesgo de que
+                                no exista):
                             </p>
                             <ol style="margin:0; padding-left:20px; font-size:13px">
-                                <li><strong>Preguntar</strong> — tipo Texto, pregunta "¿Categoría?"</li>
+                                <li>
+                                    <strong>Obtener contenido de URL</strong> — Método: GET.
+                                    URL: <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/categorias</code>.
+                                    En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
+                                    con el valor: pega el token de arriba.
+                                </li>
+                                <li>
+                                    <strong>Repetir con cada elemento</strong> — Entrada: el
+                                    resultado del paso 1 (si Atajos no lo reconoce como lista
+                                    automáticamente, agrega antes un "Obtener diccionario de
+                                    entrada").
+                                    <br />Dentro del Repetir: <strong>Obtener valor de diccionario</strong>
+                                    — Clave: <code style="font-size:12px">nombre</code>,
+                                    Diccionario: Elemento del repetir.
+                                </li>
+                                <li>
+                                    <strong>Fin de repetir</strong> — esto crea automáticamente
+                                    la variable "Resultados de Repetir" (la lista de nombres).
+                                </li>
+                                <li>
+                                    <strong>Elegir de la lista</strong> — Lista: "Resultados de
+                                    Repetir", mensaje "¿Categoría?". Esto muestra un menú nativo
+                                    con tus categorías reales para tocar una.
+                                </li>
                                 <li><strong>Preguntar</strong> — tipo Número, pregunta "¿Monto?"</li>
                                 <li>
                                     <strong>Obtener contenido de URL</strong> — Método: POST.
                                     URL: escribe
                                     <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/movimientos-por-nombre?categoriaNombre=</code>
-                                    y ahí inserta la variable de la pregunta 1 (toca el
-                                    campo, elige "Variable"), luego sigue escribiendo
+                                    y ahí inserta la variable "Elemento elegido" del paso 4
+                                    (toca el campo, elige "Variable"), luego sigue escribiendo
                                     <code style="font-size:12px">&amp;monto=</code>
-                                    e inserta la variable de la pregunta 2.
+                                    e inserta la variable del paso 5.
                                     En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
-                                    con este valor: pega el token de arriba.
+                                    con el mismo valor de arriba.
                                 </li>
                                 <li><strong>Mostrar resultado</strong> — para confirmar sin abrir nada más.</li>
                             </ol>
