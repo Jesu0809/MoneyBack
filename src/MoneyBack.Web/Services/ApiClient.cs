@@ -37,10 +37,30 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<HogarResponse>() : null;
     }
 
-    public async Task<ApiResult<HogarResponse>> CrearHogarAsync(CrearHogarRequest request)
+    public async Task<MisInvitacionesHogarResponse> ObtenerMisInvitacionesHogarAsync()
     {
-        var response = await Api.PostAsJsonAsync("api/hogares", request);
+        var response = await Api.GetAsync("api/invitaciones-hogar/mia");
+        return response.IsSuccessStatusCode
+            ? (await response.Content.ReadFromJsonAsync<MisInvitacionesHogarResponse>())!
+            : new MisInvitacionesHogarResponse(null, null);
+    }
+
+    public async Task<ApiResult<InvitacionHogarResponse>> CrearInvitacionHogarAsync(CrearInvitacionHogarRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/invitaciones-hogar", request);
+        return await ApiResult<InvitacionHogarResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<InvitacionHogarResponse>()!);
+    }
+
+    public async Task<ApiResult<HogarResponse>> AceptarInvitacionHogarAsync(int invitacionId)
+    {
+        var response = await Api.PostAsync($"api/invitaciones-hogar/{invitacionId}/aceptar", null);
         return await ApiResult<HogarResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<HogarResponse>()!);
+    }
+
+    public async Task<bool> RechazarInvitacionHogarAsync(int invitacionId)
+    {
+        var response = await Api.PostAsync($"api/invitaciones-hogar/{invitacionId}/rechazar", null);
+        return response.IsSuccessStatusCode;
     }
 
     public async Task<ApiResult<HogarResponse>> ActualizarHogarAsync(ActualizarHogarRequest request)
@@ -193,10 +213,16 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await response.Content.ReadFromJsonAsync<List<SuscripcionResponse>>() ?? [];
     }
 
-    public async Task<List<ConfirmacionPendienteResponse>> ObtenerConfirmacionesPendientesAsync()
+    /// <summary>
+    /// null = no se pudo consultar (error de red/servidor) — distinto de una
+    /// lista vacía, que sí significa "no tienes nada pendiente". Antes esto
+    /// devolvía [] en ambos casos, así que un 401/500 pasajero se veía
+    /// idéntico a "todo al día" y la campanita parecía fallar sin explicación.
+    /// </summary>
+    public async Task<List<ConfirmacionPendienteResponse>?> ObtenerConfirmacionesPendientesAsync()
     {
         var response = await Api.GetAsync("api/suscripciones/confirmaciones-pendientes");
-        if (!response.IsSuccessStatusCode) return [];
+        if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<List<ConfirmacionPendienteResponse>>() ?? [];
     }
 

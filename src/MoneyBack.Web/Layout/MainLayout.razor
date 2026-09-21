@@ -47,7 +47,11 @@
                                 <Icon Name="x" Size="16" />
                             </button>
                         </div>
-                        @if (_pendientes.Count == 0)
+                        @if (_errorCargando)
+                        {
+                            <p class="muted">No pudimos cargar tus notificaciones. <button style="background:none;border:none;padding:0;color:var(--color-accent-strong);text-decoration:underline;font:inherit;cursor:pointer" @onclick="CargarPendientesAsync">Reintentar</button></p>
+                        }
+                        else if (_pendientes.Count == 0)
                         {
                             <p class="muted">No hay cobros pendientes de confirmar.</p>
                         }
@@ -141,7 +145,11 @@
 @code {
     private bool _menuAbierto;
     private bool _panelNotifAbierto;
+    private bool _errorCargando;
     private List<ConfirmacionPendienteResponse> _pendientes = [];
+    private readonly CancellationTokenSource _cts = new();
+
+    private static readonly TimeSpan IntervaloRefresco = TimeSpan.FromMinutes(2);
 
     protected override async Task OnInitializedAsync()
     {
@@ -149,6 +157,30 @@
         UiOverlay.OnChange += StateHasChanged;
         AuthProvider.AuthenticationStateChanged += OnAuthenticationChanged;
         await CargarPendientesAsync();
+        _ = SondearPendientesPeriodicamenteAsync();
+    }
+
+    /// <summary>
+    /// La campanita antes solo cargaba al iniciar sesión o al abrir el
+    /// panel — si llegaba un push de "cobro próximo" con la app abierta, el
+    /// número no cambiaba hasta recargar. Este sondeo la mantiene al día
+    /// sin necesidad de que el usuario haga nada.
+    /// </summary>
+    private async Task SondearPendientesPeriodicamenteAsync()
+    {
+        using var timer = new PeriodicTimer(IntervaloRefresco);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_cts.Token))
+            {
+                await CargarPendientesAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // El layout se destruyó (Dispose) — dejar de sondear, nada que limpiar.
+        }
     }
 
     private async void OnAuthenticationChanged(Task<AuthenticationState> _)
@@ -159,7 +191,18 @@
 
     private async Task CargarPendientesAsync()
     {
-        _pendientes = await Api.ObtenerConfirmacionesPendientesAsync();
+        var resultado = await Api.ObtenerConfirmacionesPendientesAsync();
+        if (resultado is null)
+        {
+            // Se deja _pendientes como estaba (el badge no desaparece de
+            // golpe por un error pasajero) — solo se marca el error para
+            // que el panel, si está abierto, ofrezca reintentar.
+            _errorCargando = true;
+            return;
+        }
+
+        _errorCargando = false;
+        _pendientes = resultado;
     }
 
     private void ToggleMenu() => _menuAbierto = !_menuAbierto;
@@ -212,5 +255,7 @@
         ThemeService.OnChange -= StateHasChanged;
         UiOverlay.OnChange -= StateHasChanged;
         AuthProvider.AuthenticationStateChanged -= OnAuthenticationChanged;
+        _cts.Cancel();
+        _cts.Dispose();
     }
 }
