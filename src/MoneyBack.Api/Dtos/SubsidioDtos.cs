@@ -7,11 +7,6 @@ public record SimularSubsidiosRequest(
     decimal ValorVivienda,
     bool EsVip,
     /// <summary>
-    /// Requisito de Mi Casa Ya que el simulador no puede verificar por su
-    /// cuenta: el usuario confirma manualmente que está en Sisbén IV A1-D20.
-    /// </summary>
-    bool CumpleSisbenIvAD20,
-    /// <summary>
     /// Monto del subsidio de caja de compensación (Colsubsidio u otra). No se
     /// calcula: cada caja publica su propia tabla y cambia con frecuencia, así
     /// que el usuario lo ingresa manualmente tras consultar su portal transaccional.
@@ -32,10 +27,12 @@ public record SimulacionSubsidiosResponse(
     bool EsVis,
     decimal IngresoCombinadoMensual,
     decimal IngresoCombinadoEnSmmlv,
-    bool ElegibleMiCasaYa,
-    decimal SubsidioMiCasaYaPesos,
-    bool SoloCoberturaTasaFrech,
-    string? NotaMiCasaYa,
+    /// <summary>
+    /// Mi Casa Ya se descontinuó (sin presupuesto para 2026); su reemplazo,
+    /// Mi Casa Milagro, todavía no publica reglas ni montos oficiales — así
+    /// que en vez de inventar una cifra, esto es solo un mensaje de estado.
+    /// </summary>
+    string NotaProgramaGobierno,
     decimal MontoSubsidioCajaCompensacion,
     decimal TotalSubsidiosEstimado,
     AlertaMetaApartamento? MetaApartamento);

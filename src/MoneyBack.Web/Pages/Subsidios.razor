@@ -9,7 +9,7 @@
         <div class="icon-bubble icon-bubble-accent icon-bubble-lg"><Icon Name="calculator" Size="22" /></div>
         <div>
             <h2>Simulador de subsidios</h2>
-            <p class="muted">Estimado de Mi Casa Ya según el ingreso combinado y el tope VIS de tu hogar.</p>
+            <p class="muted">Calcula si tu vivienda es VIS/VIP y súmale lo que ya sepas de tu caja de compensación.</p>
         </div>
     </div>
 
@@ -40,16 +40,6 @@
                     <div class="switch-row">
                         <div style="font-weight:600">¿Es vivienda VIP (90 SMMLV)?</div>
                         <button type="button" class="switch @(_form.EsVip ? "on" : "")" @onclick="() => _form.EsVip = !_form.EsVip">
-                            <div class="knob"></div>
-                        </button>
-                    </div>
-
-                    <div class="switch-row">
-                        <div>
-                            <div style="font-weight:600">¿Confirmas Sisbén IV (A1-D20)?</div>
-                            <div class="muted">Requisito de Mi Casa Ya que no podemos verificar automáticamente.</div>
-                        </div>
-                        <button type="button" class="switch @(_form.CumpleSisbenIvAD20 ? "on" : "")" @onclick="() => _form.CumpleSisbenIvAD20 = !_form.CumpleSisbenIvAD20">
                             <div class="knob"></div>
                         </button>
                     </div>
@@ -87,21 +77,7 @@
 
                     <div class="divider"></div>
 
-                    @if (_resultado.SoloCoberturaTasaFrech)
-                    {
-                        <AlertBox Mensaje="@_resultado.NotaMiCasaYa" Tipo="warning" />
-                    }
-                    else if (!_resultado.ElegibleMiCasaYa)
-                    {
-                        <AlertBox Mensaje="@_resultado.NotaMiCasaYa" Tipo="danger" />
-                    }
-                    else
-                    {
-                        <div class="row-between">
-                            <span>Subsidio Mi Casa Ya</span>
-                            <span class="money money-md">@Formato.Pesos(_resultado.SubsidioMiCasaYaPesos)</span>
-                        </div>
-                    }
+                    <AlertBox Mensaje="@_resultado.NotaProgramaGobierno" Tipo="@(_resultado.EsVis ? "warning" : "danger")" />
 
                     @if (_resultado.MontoSubsidioCajaCompensacion > 0)
                     {
@@ -150,7 +126,7 @@
 
         var resultado = await Api.SimularSubsidiosAsync(_hogar.Id, new SimularSubsidiosRequest(
             _form.IngresoCombinadoMensual ?? 0, _form.ValorVivienda ?? 0, _form.EsVip,
-            _form.CumpleSisbenIvAD20, _form.MontoSubsidioCajaCompensacion ?? 0));
+            _form.MontoSubsidioCajaCompensacion ?? 0));
 
         if (resultado.Exito)
         {
@@ -169,7 +145,6 @@
         public decimal? IngresoCombinadoMensual { get; set; }
         public decimal? ValorVivienda { get; set; }
         public bool EsVip { get; set; }
-        public bool CumpleSisbenIvAD20 { get; set; }
         public decimal? MontoSubsidioCajaCompensacion { get; set; }
     }
 }

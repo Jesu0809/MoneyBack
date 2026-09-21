@@ -47,13 +47,14 @@ public static class SubsidiosEndpoints
             var topeVisPesos = TopesVis.TopeEnPesos(tipoTopeVis, smmlv);
             var esVis = request.ValorVivienda <= topeVisPesos;
 
-            var miCasaYa = esVis
-                ? MiCasaYaCalculator.Calcular(request.IngresoCombinadoMensual, smmlv, request.CumpleSisbenIvAD20)
-                : new ResultadoMiCasaYa(false, 0, 0, false,
-                    "La vivienda supera el tope VIS para esta ubicación: Mi Casa Ya solo aplica a vivienda VIS.");
+            var notaProgramaGobierno = esVis
+                ? "Mi Casa Ya no tiene presupuesto para 2026 y no está recibiendo postulaciones nuevas. " +
+                  "Su reemplazo, Mi Casa Milagro, se está estructurando desde agosto de 2026 pero el Gobierno " +
+                  "todavía no publica montos ni requisitos oficiales — por eso no calculamos una cifra de este subsidio."
+                : "La vivienda supera el tope VIS para esta ubicación, así que no aplicaría a ningún subsidio de vivienda de interés social.";
 
             var montoCaja = Math.Max(0, request.MontoSubsidioCajaCompensacion);
-            var totalEstimado = miCasaYa.SubsidioEnPesos + montoCaja;
+            var totalEstimado = montoCaja;
 
             var metaApartamento = await db.MetasAhorro
                 .Where(m => m.HogarId == hogarId && m.Tipo == TipoMeta.Apartamento && m.Activa)
@@ -77,10 +78,7 @@ public static class SubsidiosEndpoints
                 esVis,
                 request.IngresoCombinadoMensual,
                 Math.Round(request.IngresoCombinadoMensual / smmlv, 2),
-                miCasaYa.Elegible,
-                miCasaYa.SubsidioEnPesos,
-                miCasaYa.SoloCoberturaTasaFrech,
-                miCasaYa.Nota,
+                notaProgramaGobierno,
                 montoCaja,
                 totalEstimado,
                 alertaMeta);

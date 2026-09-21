@@ -9,7 +9,6 @@ public record SimularSubsidiosRequest(
     decimal IngresoCombinadoMensual,
     decimal ValorVivienda,
     bool EsVip,
-    bool CumpleSisbenIvAD20,
     decimal MontoSubsidioCajaCompensacion = 0);
 
 public record AlertaMetaApartamento(int MetaId, string Nombre, decimal MontoObjetivo, bool SuperaTopeVis);
@@ -22,10 +21,7 @@ public record SimulacionSubsidiosResponse(
     bool EsVis,
     decimal IngresoCombinadoMensual,
     decimal IngresoCombinadoEnSmmlv,
-    bool ElegibleMiCasaYa,
-    decimal SubsidioMiCasaYaPesos,
-    bool SoloCoberturaTasaFrech,
-    string? NotaMiCasaYa,
+    string NotaProgramaGobierno,
     decimal MontoSubsidioCajaCompensacion,
     decimal TotalSubsidiosEstimado,
     AlertaMetaApartamento? MetaApartamento);
