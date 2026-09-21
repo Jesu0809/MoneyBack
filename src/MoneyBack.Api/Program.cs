@@ -148,3 +148,6 @@ app.MapTarjetasCreditoEndpoints();
 await app.SembrarCodigoInvitacionAsync();
 
 app.Run();
+
+/// <summary>Marcador requerido por WebApplicationFactory&lt;Program&gt; en MoneyBack.Api.Tests — Program.cs usa top-level statements, sin esto el tipo no es accesible desde otro ensamblado.</summary>
+public partial class Program;
