@@ -26,10 +26,13 @@ public class DiaEnLaVidaTests : IClassFixture<ApiFactory>
     public async Task UnMesNormalDeGastosEIngresos_CuadraEnTodasLasVistasALaVez()
     {
         var (clienteA, usuarioA) = await _factory.CrearClienteAutenticadoAsync();
-        var (_, usuarioB) = await _factory.CrearClienteAutenticadoAsync();
+        var (clienteB, usuarioB) = await _factory.CrearClienteAutenticadoAsync();
 
-        // Hogar con redondeo 20% Emergencia / 80% Apartamento.
-        await clienteA.PostAsJsonAsync("/api/hogares", new CrearHogarRequest(usuarioB.Email!, false, 20, 80));
+        // Hogar con redondeo 20% Emergencia / 80% Apartamento — la pareja
+        // debe aceptar la invitación, ya no se vincula solo con el correo.
+        var invitacion = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar", new CrearInvitacionHogarRequest(usuarioB.Email!, false, 20, 80));
+        var invitacionCreada = (await invitacion.Content.ReadFromJsonAsync<InvitacionHogarResponse>())!;
+        await clienteB.PostAsync($"/api/invitaciones-hogar/{invitacionCreada.Id}/aceptar", null);
         await clienteA.PutAsJsonAsync("/api/hogares/mio", new ActualizarHogarRequest(false, true, 20, 80));
         var hogar = await clienteA.GetFromJsonAsync<HogarResponse>("/api/hogares/mio");
 

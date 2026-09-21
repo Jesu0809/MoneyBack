@@ -21,3 +21,14 @@ public enum TipoMovimiento
     Aporte,
     Retiro
 }
+
+/// <summary>
+/// Vincular un hogar ya no es inmediato: el invitado debe aceptar. Mientras
+/// tanto la invitación existe sola, sin crear ningún Hogar todavía.
+/// </summary>
+public enum EstadoInvitacionHogar
+{
+    Pendiente,
+    Aceptada,
+    Rechazada
+}

@@ -1,10 +1,25 @@
+using MoneyBack.Api.Models.Metas;
+
 namespace MoneyBack.Api.Dtos;
 
-public record CrearHogarRequest(
+public record CrearInvitacionHogarRequest(
     string EmailPareja,
     bool AplicaTope150 = false,
     decimal PorcentajeRedondeoEmergencia = 20,
     decimal PorcentajeRedondeoApartamento = 80);
+
+public record InvitacionHogarResponse(
+    int Id,
+    int InvitadorId,
+    string InvitadorNombre,
+    int InvitadoId,
+    string InvitadoNombre,
+    EstadoInvitacionHogar Estado,
+    DateTime FechaCreacion);
+
+public record MisInvitacionesHogarResponse(
+    InvitacionHogarResponse? Recibida,
+    InvitacionHogarResponse? Enviada);
 
 public record ActualizarHogarRequest(
     bool AplicaTope150,

@@ -20,12 +20,16 @@ public class RedondeoServiceTests : IClassFixture<ApiFactory>
         decimal porcentajeEmergencia, decimal porcentajeApartamento)
     {
         var (clienteA, _) = await _factory.CrearClienteAutenticadoAsync();
-        var (_, usuarioB) = await _factory.CrearClienteAutenticadoAsync();
+        var (clienteB, usuarioB) = await _factory.CrearClienteAutenticadoAsync();
 
-        var crearHogar = await clienteA.PostAsJsonAsync("/api/hogares",
-            new CrearHogarRequest(usuarioB.Email!, false, porcentajeEmergencia, porcentajeApartamento));
-        crearHogar.EnsureSuccessStatusCode();
-        var hogar = (await crearHogar.Content.ReadFromJsonAsync<HogarResponse>())!;
+        var invitar = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar",
+            new CrearInvitacionHogarRequest(usuarioB.Email!, false, porcentajeEmergencia, porcentajeApartamento));
+        invitar.EnsureSuccessStatusCode();
+        var invitacion = (await invitar.Content.ReadFromJsonAsync<InvitacionHogarResponse>())!;
+
+        var aceptar = await clienteB.PostAsync($"/api/invitaciones-hogar/{invitacion.Id}/aceptar", null);
+        aceptar.EnsureSuccessStatusCode();
+        var hogar = (await aceptar.Content.ReadFromJsonAsync<HogarResponse>())!;
 
         var activar = await clienteA.PutAsJsonAsync("/api/hogares/mio",
             new ActualizarHogarRequest(false, true, porcentajeEmergencia, porcentajeApartamento));

@@ -9,43 +9,7 @@
 {
     <div class="center-screen"><div class="spinner spinner-accent"></div></div>
 }
-else if (_hogar is null)
-{
-    <div class="stack">
-        <h2>Vincula a tu pareja</h2>
-        <p class="muted">Antes de empezar a ahorrar juntos, conecta tu cuenta con la de tu pareja. Ella (o él) debe haberse registrado primero.</p>
-
-        <div class="card">
-            <EditForm Model="_crearHogarForm" OnValidSubmit="CrearHogar">
-                <div class="stack">
-                    <div class="field">
-                        <label>Correo de tu pareja</label>
-                        <InputText class="input" @bind-Value="_crearHogarForm.EmailPareja" placeholder="pareja@correo.com" />
-                    </div>
-
-                    <div class="switch-row">
-                        <div>
-                            <div style="font-weight:600">¿Buscan en Bogotá, Cali, Medellín, Barranquilla o Bucaramanga?</div>
-                            <div class="muted">Incluye sus aglomeraciones. Cambia el tope VIS aplicable (150 vs 135 SMMLV).</div>
-                        </div>
-                        <button type="button" class="switch @(_crearHogarForm.AplicaTope150 ? "on" : "")"
-                                @onclick="() => _crearHogarForm.AplicaTope150 = !_crearHogarForm.AplicaTope150">
-                            <div class="knob"></div>
-                        </button>
-                    </div>
-
-                    <AlertBox Mensaje="@_error" />
-
-                    <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
-                        @if (_guardando) { <span class="spinner"></span> }
-                        <span>Vincular hogar</span>
-                    </button>
-                </div>
-            </EditForm>
-        </div>
-    </div>
-}
-else
+else if (_hogar is not null)
 {
     <div class="stack">
         <div>
@@ -68,15 +32,54 @@ else
             </div>
         }
 
-        <div class="card">
-            <div class="switch-row">
-                <div>
-                    <div style="font-weight:600">Redondeo automático</div>
-                    <div class="muted">Cada gasto del día a día de cualquiera de los dos aporta su "vuelto" hasta el siguiente $1.000 a estas metas.</div>
+        @if (_aportesPorUsuario.Count > 0)
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="label">Quién ha aportado</div>
+                    @foreach (var aporte in _aportesPorUsuario)
+                    {
+                        <div class="row-between">
+                            <span>@aporte.UsuarioNombre</span>
+                            <span class="money money-md">@Formato.Pesos(aporte.TotalAportado)</span>
+                        </div>
+                    }
                 </div>
-                <button type="button" class="switch @(_hogar.RedondeoActivo ? "on" : "")" @onclick="AlternarRedondeo" disabled="@_actualizandoRedondeo">
-                    <div class="knob"></div>
-                </button>
+            </div>
+        }
+
+        <div class="card">
+            <div class="stack">
+                <div class="switch-row">
+                    <div>
+                        <div style="font-weight:600">Redondeo automático</div>
+                        <div class="muted">Cada gasto del día a día de cualquiera de los dos aporta su "vuelto" hasta el siguiente $1.000 a estas metas.</div>
+                    </div>
+                    <button type="button" class="switch @(_hogar.RedondeoActivo ? "on" : "")" @onclick="AlternarRedondeo" disabled="@_actualizandoRedondeo">
+                        <div class="knob"></div>
+                    </button>
+                </div>
+
+                @if (_hogar.RedondeoActivo)
+                {
+                    <div class="divider"></div>
+                    <div class="muted" style="font-size:13px">¿Cómo se reparte el vuelto entre las metas?</div>
+                    <div class="row" style="gap:10px">
+                        <div class="field" style="margin:0; flex:1">
+                            <label>Apartamento %</label>
+                            <InputNumber class="input" @bind-Value="_repartoForm.PorcentajeApartamento" />
+                        </div>
+                        <div class="field" style="margin:0; flex:1">
+                            <label>Emergencia %</label>
+                            <InputNumber class="input" @bind-Value="_repartoForm.PorcentajeEmergencia" />
+                        </div>
+                    </div>
+                    <AlertBox Mensaje="@_errorReparto" />
+                    <button class="btn btn-secondary btn-block" disabled="@_guardandoReparto" @onclick="GuardarReparto">
+                        @if (_guardandoReparto) { <span class="spinner"></span> }
+                        <span>Guardar reparto</span>
+                    </button>
+                }
             </div>
         </div>
 
@@ -163,18 +166,95 @@ else
         }
     </div>
 }
+else if (_invitacionRecibida is not null)
+{
+    <div class="stack">
+        <h2>Tienes una invitación</h2>
+        <div class="card">
+            <div class="stack">
+                <p>
+                    <strong>@_invitacionRecibida.InvitadorNombre</strong> te invitó a crear un hogar en MoneyBack
+                    para ahorrar juntos. Si aceptas, sus aportes de redondeo y tus metas quedan compartidos.
+                </p>
+                <AlertBox Mensaje="@_error" />
+                <div class="row" style="gap:8px">
+                    <button class="btn btn-secondary" style="flex:1" disabled="@_guardando" @onclick="RechazarInvitacion">Rechazar</button>
+                    <button class="btn btn-primary" style="flex:1" disabled="@_guardando" @onclick="AceptarInvitacion">
+                        @if (_guardando) { <span class="spinner"></span> }
+                        <span>Aceptar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (_invitacionEnviada is not null)
+{
+    <div class="stack">
+        <h2>Invitación enviada</h2>
+        <div class="card">
+            <div class="stack">
+                <p>Le enviamos una invitación a <strong>@_invitacionEnviada.InvitadoNombre</strong>. En cuanto la acepte, verás el hogar acá.</p>
+                <AlertBox Mensaje="@_error" />
+                <button class="btn btn-secondary btn-block" disabled="@_guardando" @onclick="RechazarInvitacion">Cancelar invitación</button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack">
+        <h2>Invita a tu pareja</h2>
+        <p class="muted">Antes de empezar a ahorrar juntos, invita a tu pareja a un hogar. Ella (o él) debe haberse registrado primero, y debe aceptar la invitación para que quede vinculado.</p>
+
+        <div class="card">
+            <EditForm Model="_crearHogarForm" OnValidSubmit="EnviarInvitacion">
+                <div class="stack">
+                    <div class="field">
+                        <label>Correo de tu pareja</label>
+                        <InputText class="input" @bind-Value="_crearHogarForm.EmailPareja" placeholder="pareja@correo.com" />
+                    </div>
+
+                    <div class="switch-row">
+                        <div>
+                            <div style="font-weight:600">¿Buscan en Bogotá, Cali, Medellín, Barranquilla o Bucaramanga?</div>
+                            <div class="muted">Incluye sus aglomeraciones. Cambia el tope VIS aplicable (150 vs 135 SMMLV).</div>
+                        </div>
+                        <button type="button" class="switch @(_crearHogarForm.AplicaTope150 ? "on" : "")"
+                                @onclick="() => _crearHogarForm.AplicaTope150 = !_crearHogarForm.AplicaTope150">
+                            <div class="knob"></div>
+                        </button>
+                    </div>
+
+                    <AlertBox Mensaje="@_error" />
+
+                    <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
+                        @if (_guardando) { <span class="spinner"></span> }
+                        <span>Enviar invitación</span>
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
 
 @code {
     private bool _cargando = true;
     private bool _guardando;
     private bool _actualizandoRedondeo;
+    private bool _guardandoReparto;
     private bool _mostrandoFormNuevaMeta;
     private string? _error;
+    private string? _errorReparto;
     private HogarResponse? _hogar;
+    private InvitacionHogarResponse? _invitacionRecibida;
+    private InvitacionHogarResponse? _invitacionEnviada;
     private List<MetaResponse> _metas = [];
+    private List<AportePorUsuario> _aportesPorUsuario = [];
 
     private readonly CrearHogarFormModel _crearHogarForm = new();
     private readonly CrearMetaFormModel _crearMetaForm = new();
+    private readonly RepartoFormModel _repartoForm = new();
 
     private List<TipoMeta> _tiposDisponibles =>
         Enum.GetValues<TipoMeta>().Except(_metas.Select(m => m.Tipo)).ToList();
@@ -208,24 +288,15 @@ else
         _actualizandoRedondeo = false;
     }
 
-    private async Task CargarAsync()
+    private async Task GuardarReparto()
     {
-        _cargando = true;
-        _hogar = await Api.ObtenerMiHogarAsync();
-        if (_hogar is not null)
-        {
-            _metas = await Api.ObtenerMetasAsync(_hogar.Id);
-        }
-        _mostrandoFormNuevaMeta = _metas.Count == 0;
-        _cargando = false;
-    }
+        if (_hogar is null) return;
+        _errorReparto = null;
+        _guardandoReparto = true;
 
-    private async Task CrearHogar()
-    {
-        _error = null;
-        _guardando = true;
-        var resultado = await Api.CrearHogarAsync(new CrearHogarRequest(
-            _crearHogarForm.EmailPareja, _crearHogarForm.AplicaTope150));
+        var resultado = await Api.ActualizarHogarAsync(new ActualizarHogarRequest(
+            _hogar.AplicaTope150, _hogar.RedondeoActivo,
+            _repartoForm.PorcentajeEmergencia ?? 0, _repartoForm.PorcentajeApartamento ?? 0));
 
         if (resultado.Exito)
         {
@@ -233,9 +304,118 @@ else
         }
         else
         {
+            _errorReparto = resultado.TodosLosErrores();
+        }
+
+        _guardandoReparto = false;
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _hogar = await Api.ObtenerMiHogarAsync();
+        if (_hogar is not null)
+        {
+            _metas = await Api.ObtenerMetasAsync(_hogar.Id);
+            _repartoForm.PorcentajeEmergencia = _hogar.PorcentajeRedondeoEmergencia;
+            _repartoForm.PorcentajeApartamento = _hogar.PorcentajeRedondeoApartamento;
+            _aportesPorUsuario = await CalcularAportesPorUsuarioAsync(_metas);
+        }
+        else
+        {
+            var misInvitaciones = await Api.ObtenerMisInvitacionesHogarAsync();
+            _invitacionRecibida = misInvitaciones.Recibida;
+            _invitacionEnviada = misInvitaciones.Enviada;
+        }
+        _mostrandoFormNuevaMeta = _metas.Count == 0;
+        _cargando = false;
+    }
+
+    private async Task EnviarInvitacion()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.CrearInvitacionHogarAsync(new CrearInvitacionHogarRequest(
+            _crearHogarForm.EmailPareja, _crearHogarForm.AplicaTope150));
+
+        if (resultado.Exito)
+        {
+            _invitacionEnviada = resultado.Valor;
+        }
+        else
+        {
             _error = resultado.TodosLosErrores();
         }
         _guardando = false;
+    }
+
+    private async Task AceptarInvitacion()
+    {
+        if (_invitacionRecibida is null) return;
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.AceptarInvitacionHogarAsync(_invitacionRecibida.Id);
+
+        if (resultado.Exito)
+        {
+            _invitacionRecibida = null;
+            await CargarAsync();
+            return;
+        }
+
+        _error = resultado.TodosLosErrores();
+        _guardando = false;
+    }
+
+    private async Task RechazarInvitacion()
+    {
+        var invitacionId = _invitacionRecibida?.Id ?? _invitacionEnviada?.Id;
+        if (invitacionId is null) return;
+
+        _error = null;
+        _guardando = true;
+
+        var ok = await Api.RechazarInvitacionHogarAsync(invitacionId.Value);
+        if (ok)
+        {
+            _invitacionRecibida = null;
+            _invitacionEnviada = null;
+        }
+        else
+        {
+            _error = "No pudimos completar la acción. Intenta de nuevo.";
+        }
+        _guardando = false;
+    }
+
+    /// <summary>
+    /// No existe un endpoint que agregue aportes de todas las metas del
+    /// hogar de una — como máximo son dos metas (Apartamento + Emergencia),
+    /// así que pedir el detalle de cada una y sumar en el cliente es más
+    /// simple que agregar un endpoint nuevo solo para esto.
+    /// </summary>
+    private async Task<List<AportePorUsuario>> CalcularAportesPorUsuarioAsync(List<MetaResponse> metas)
+    {
+        var totales = new Dictionary<int, (string Nombre, decimal Total)>();
+
+        foreach (var meta in metas)
+        {
+            var detalle = await Api.ObtenerMetaAsync(meta.Id);
+            if (detalle is null) continue;
+
+            foreach (var aporte in detalle.AportesPorUsuario)
+            {
+                var actual = totales.TryGetValue(aporte.UsuarioId, out var existente) ? existente : (aporte.UsuarioNombre, 0m);
+                totales[aporte.UsuarioId] = (aporte.UsuarioNombre, actual.Item2 + aporte.TotalAportado);
+            }
+        }
+
+        return totales
+            .Select(kv => new AportePorUsuario(kv.Key, kv.Value.Nombre, kv.Value.Total))
+            .OrderByDescending(a => a.TotalAportado)
+            .ToList();
     }
 
     private async Task CrearMeta()
@@ -270,5 +450,11 @@ else
         public TipoMeta Tipo { get; set; } = TipoMeta.Apartamento;
         public string Nombre { get; set; } = "";
         public decimal? MontoObjetivo { get; set; }
+    }
+
+    private class RepartoFormModel
+    {
+        public decimal? PorcentajeEmergencia { get; set; }
+        public decimal? PorcentajeApartamento { get; set; }
     }
 }

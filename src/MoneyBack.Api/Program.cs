@@ -132,6 +132,7 @@ app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapAdminEndpoints();
 app.MapHogaresEndpoints();
+app.MapInvitacionesHogarEndpoints();
 app.MapMetasEndpoints();
 app.MapSubsidiosEndpoints();
 app.MapCategoriasEndpoints();

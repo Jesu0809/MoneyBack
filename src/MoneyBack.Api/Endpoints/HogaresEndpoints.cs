@@ -1,9 +1,7 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
-using MoneyBack.Api.Models;
 using MoneyBack.Api.Models.Metas;
 using MoneyBack.Api.Services;
 
@@ -15,61 +13,10 @@ public static class HogaresEndpoints
     {
         var group = app.MapGroup("/api/hogares").WithTags("Hogares").RequireAuthorization();
 
-        group.MapPost("/", async (
-            CrearHogarRequest request,
-            ClaimsPrincipal principal,
-            ApplicationDbContext db,
-            UserManager<Usuario> userManager) =>
-        {
-            var usuarioId = principal.GetUsuarioId();
-
-            if (request.PorcentajeRedondeoEmergencia + request.PorcentajeRedondeoApartamento != 100)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["porcentajes"] = ["Los porcentajes de redondeo deben sumar 100."]
-                });
-            }
-
-            var pareja = await userManager.FindByEmailAsync(request.EmailPareja);
-            if (pareja is null)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["emailPareja"] = ["No encontramos una cuenta con ese correo. Tu pareja debe registrarse primero."]
-                });
-            }
-
-            if (pareja.Id == usuarioId)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["emailPareja"] = ["Un hogar necesita dos usuarios distintos."]
-                });
-            }
-
-            var yaTieneHogar = await db.Hogares.AnyAsync(h =>
-                h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId ||
-                h.Usuario1Id == pareja.Id || h.Usuario2Id == pareja.Id);
-            if (yaTieneHogar)
-            {
-                return Results.Conflict("Uno de los dos usuarios ya pertenece a un hogar.");
-            }
-
-            var hogar = new Hogar
-            {
-                Usuario1Id = usuarioId,
-                Usuario2Id = pareja.Id,
-                AplicaTope150 = request.AplicaTope150,
-                PorcentajeRedondeoEmergencia = request.PorcentajeRedondeoEmergencia,
-                PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento
-            };
-            db.Hogares.Add(hogar);
-            await db.SaveChangesAsync();
-
-            var yo = await userManager.FindByIdAsync(usuarioId.ToString());
-            return Results.Created($"/api/hogares/{hogar.Id}", ToResponse(hogar, yo!.Nombre, pareja.Nombre));
-        });
+        // Ya no hay un POST "/" que cree el hogar directo — eso vinculaba a
+        // dos personas solo con que una escribiera el correo de la otra,
+        // sin que la invitada confirmara nada. Ver InvitacionesHogarEndpoints:
+        // ahora un hogar solo nace cuando el invitado acepta la invitación.
 
         group.MapGet("/mio", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
         {

@@ -20,6 +20,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     }
 
     public DbSet<Hogar> Hogares => Set<Hogar>();
+    public DbSet<InvitacionHogar> InvitacionesHogar => Set<InvitacionHogar>();
     public DbSet<MetaAhorro> MetasAhorro => Set<MetaAhorro>();
     public DbSet<MovimientoMeta> MovimientosMeta => Set<MovimientoMeta>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -49,6 +50,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.Entity<IdentityRoleClaim<int>>().ToTable("RoleClaims");
 
         builder.ApplyConfiguration(new HogarConfiguration());
+        builder.ApplyConfiguration(new InvitacionHogarConfiguration());
         builder.ApplyConfiguration(new PresupuestoConfiguration());
         builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());
         builder.ApplyConfiguration(new DeudaConfiguration());

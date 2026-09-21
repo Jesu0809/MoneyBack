@@ -1,10 +1,28 @@
+using System.Text.Json.Serialization;
+
 namespace MoneyBack.Web.Models;
 
-public record CrearHogarRequest(
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum EstadoInvitacionHogar { Pendiente, Aceptada, Rechazada }
+
+public record CrearInvitacionHogarRequest(
     string EmailPareja,
     bool AplicaTope150 = false,
     decimal PorcentajeRedondeoEmergencia = 20,
     decimal PorcentajeRedondeoApartamento = 80);
+
+public record InvitacionHogarResponse(
+    int Id,
+    int InvitadorId,
+    string InvitadorNombre,
+    int InvitadoId,
+    string InvitadoNombre,
+    EstadoInvitacionHogar Estado,
+    DateTime FechaCreacion);
+
+public record MisInvitacionesHogarResponse(
+    InvitacionHogarResponse? Recibida,
+    InvitacionHogarResponse? Enviada);
 
 public record ActualizarHogarRequest(
     bool AplicaTope150,
