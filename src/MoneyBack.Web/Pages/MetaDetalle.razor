@@ -146,16 +146,31 @@ else
 @code {
     [Parameter] public int MetaId { get; set; }
 
+    /// <summary>
+    /// Permite llegar desde Día a día con el aporte pre-llenado (ver botón
+    /// "Aportar a nuestra meta" en DiaADia.razor) — abre el formulario ya
+    /// listo para confirmar en vez de que el usuario tenga que repetir el monto.
+    /// </summary>
+    [SupplyParameterFromQuery] public decimal? Monto { get; set; }
+
     private bool _cargando = true;
     private bool _guardando;
     private bool _mostrarFormMovimiento;
     private string? _error;
     private MetaDetalleResponse? _meta;
     private readonly MovFormModel _movForm = new();
+    private bool _montoAplicado;
 
     protected override async Task OnParametersSetAsync()
     {
         await CargarAsync();
+
+        if (!_montoAplicado && Monto is > 0)
+        {
+            _movForm.Monto = Monto;
+            _mostrarFormMovimiento = true;
+            _montoAplicado = true;
+        }
     }
 
     private async Task CargarAsync()
