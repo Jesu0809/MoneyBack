@@ -169,7 +169,7 @@ public static class AuthEndpoints
             if (usuario is null) return Results.NotFound();
 
             var roles = await userManager.GetRolesAsync(usuario);
-            return Results.Ok(new PerfilResponse(usuario.Id, usuario.Nombre, usuario.Email!, roles.ToList()));
+            return Results.Ok(new PerfilResponse(usuario.Id, usuario.Nombre, usuario.Email!, roles.ToList(), usuario.DiaPago1, usuario.DiaPago2));
         }).RequireAuthorization();
 
         group.MapPut("/me", async (ActualizarPerfilRequest request, ClaimsPrincipal principal, UserManager<Usuario> userManager) =>
@@ -189,7 +189,31 @@ public static class AuthEndpoints
             await userManager.UpdateAsync(usuario);
 
             var roles = await userManager.GetRolesAsync(usuario);
-            return Results.Ok(new PerfilResponse(usuario.Id, usuario.Nombre, usuario.Email!, roles.ToList()));
+            return Results.Ok(new PerfilResponse(usuario.Id, usuario.Nombre, usuario.Email!, roles.ToList(), usuario.DiaPago1, usuario.DiaPago2));
+        }).RequireAuthorization();
+
+        group.MapPut("/me/dias-pago", async (ActualizarDiasPagoRequest request, ClaimsPrincipal principal, UserManager<Usuario> userManager) =>
+        {
+            foreach (var dia in new[] { request.DiaPago1, request.DiaPago2 })
+            {
+                if (dia is < 1 or > 31)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["diaPago"] = ["El día debe estar entre 1 y 31."]
+                    });
+                }
+            }
+
+            var usuario = await userManager.FindByIdAsync(principal.GetUsuarioId().ToString());
+            if (usuario is null) return Results.NotFound();
+
+            usuario.DiaPago1 = request.DiaPago1;
+            usuario.DiaPago2 = request.DiaPago2;
+            await userManager.UpdateAsync(usuario);
+
+            var roles = await userManager.GetRolesAsync(usuario);
+            return Results.Ok(new PerfilResponse(usuario.Id, usuario.Nombre, usuario.Email!, roles.ToList(), usuario.DiaPago1, usuario.DiaPago2));
         }).RequireAuthorization();
 
         group.MapPost("/cambiar-password", async (CambiarPasswordRequest request, ClaimsPrincipal principal, UserManager<Usuario> userManager) =>

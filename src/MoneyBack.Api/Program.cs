@@ -34,6 +34,7 @@ builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOpt
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<PushNotificationSender>();
 builder.Services.AddHostedService<RevisionSuscripcionesService>();
+builder.Services.AddHostedService<ResumenSemanalService>();
 
 builder.Services
     .AddIdentityCore<Usuario>(options =>

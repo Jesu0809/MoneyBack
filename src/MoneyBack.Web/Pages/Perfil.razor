@@ -44,6 +44,41 @@
         <div class="card">
             <div class="stack">
                 <div class="row" style="gap:8px">
+                    <Icon Name="calendar" Size="17" />
+                    <span class="label" style="margin:0">Días de pago aproximados</span>
+                </div>
+                <p class="muted" style="font-size:13px">
+                    Úsalos para avisos como "te faltan pocos días para tu próximo
+                    pago". No tienen que ser exactos — si a veces te pagan antes
+                    o después, deja el día que más se acerque.
+                </p>
+                <EditForm Model="_diasPagoForm" OnValidSubmit="GuardarDiasPago">
+                    <div class="row" style="gap:10px">
+                        <div class="field" style="margin:0; flex:1">
+                            <label>Primer pago</label>
+                            <InputNumber class="input" @bind-Value="_diasPagoForm.DiaPago1" placeholder="1" />
+                        </div>
+                        <div class="field" style="margin:0; flex:1">
+                            <label>Segundo pago (opcional)</label>
+                            <InputNumber class="input" @bind-Value="_diasPagoForm.DiaPago2" placeholder="15" />
+                        </div>
+                    </div>
+                    <AlertBox Mensaje="@_errorDiasPago" />
+                    @if (_diasPagoGuardado)
+                    {
+                        <AlertBox Tipo="accent" Mensaje="Días de pago actualizados." />
+                    }
+                    <button class="btn btn-primary" type="submit" disabled="@_guardandoDiasPago" style="margin-top:10px">
+                        @if (_guardandoDiasPago) { <span class="spinner"></span> }
+                        <span>Guardar</span>
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stack">
+                <div class="row" style="gap:8px">
                     <Icon Name="lock" Size="17" />
                     <span class="label" style="margin:0">Contraseña</span>
                 </div>
@@ -235,6 +270,10 @@
     private PerfilResponse? _perfil;
     private readonly NombreFormModel _nombreForm = new();
     private readonly PasswordFormModel _passwordForm = new();
+    private readonly DiasPagoFormModel _diasPagoForm = new();
+    private bool _guardandoDiasPago;
+    private bool _diasPagoGuardado;
+    private string? _errorDiasPago;
 
     private bool _pushSoportado;
     private bool _pushActivo;
@@ -250,7 +289,12 @@
     protected override async Task OnInitializedAsync()
     {
         _perfil = await Api.ObtenerPerfilAsync();
-        if (_perfil is not null) _nombreForm.Nombre = _perfil.Nombre;
+        if (_perfil is not null)
+        {
+            _nombreForm.Nombre = _perfil.Nombre;
+            _diasPagoForm.DiaPago1 = _perfil.DiaPago1;
+            _diasPagoForm.DiaPago2 = _perfil.DiaPago2;
+        }
         _cargando = false;
 
         _pushSoportado = await Push.SonSoportadasAsync();
@@ -361,9 +405,36 @@
         _guardandoPassword = false;
     }
 
+    private async Task GuardarDiasPago()
+    {
+        _errorDiasPago = null;
+        _diasPagoGuardado = false;
+        _guardandoDiasPago = true;
+
+        var resultado = await Api.ActualizarDiasPagoAsync(new ActualizarDiasPagoRequest(_diasPagoForm.DiaPago1, _diasPagoForm.DiaPago2));
+
+        if (resultado.Exito)
+        {
+            _perfil = resultado.Valor;
+            _diasPagoGuardado = true;
+        }
+        else
+        {
+            _errorDiasPago = resultado.TodosLosErrores();
+        }
+
+        _guardandoDiasPago = false;
+    }
+
     private class NombreFormModel
     {
         public string Nombre { get; set; } = "";
+    }
+
+    private class DiasPagoFormModel
+    {
+        public int? DiaPago1 { get; set; }
+        public int? DiaPago2 { get; set; }
     }
 
     private class PasswordFormModel

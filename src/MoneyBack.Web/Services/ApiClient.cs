@@ -19,6 +19,12 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await ApiResult<PerfilResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<PerfilResponse>()!);
     }
 
+    public async Task<ApiResult<PerfilResponse>> ActualizarDiasPagoAsync(ActualizarDiasPagoRequest request)
+    {
+        var response = await Api.PutAsJsonAsync("api/auth/me/dias-pago", request);
+        return await ApiResult<PerfilResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<PerfilResponse>()!);
+    }
+
     public async Task<ApiResult<object?>> CambiarPasswordAsync(CambiarPasswordRequest request)
     {
         var response = await Api.PostAsJsonAsync("api/auth/cambiar-password", request);
