@@ -145,6 +145,12 @@
                                                             · <Icon Name="coin" Size="12" />
                                                         </span>
                                                     }
+                                                    @if (mov.TarjetaCreditoNombre is not null)
+                                                    {
+                                                        <span class="row" style="display:inline-flex; gap:2px; vertical-align:middle" title="@mov.TarjetaCreditoNombre">
+                                                            · <Icon Name="credit-card" Size="12" />
+                                                        </span>
+                                                    }
                                                 </div>
                                             </div>
                                         </div>
@@ -220,6 +226,20 @@
                     </div>
                 }
 
+                @if (_form.Tipo == TipoCategoria.Gasto && _tarjetas.Count > 0)
+                {
+                    <div class="field">
+                        <label>Pagado con (opcional)</label>
+                        <InputSelect class="input" @bind-Value="_form.TarjetaCreditoId">
+                            <option value="">Efectivo / débito</option>
+                            @foreach (var tarjeta in _tarjetas)
+                            {
+                                <option value="@tarjeta.Id">@tarjeta.Nombre</option>
+                            }
+                        </InputSelect>
+                    </div>
+                }
+
                 <div class="field">
                     <label>Nota (opcional)</label>
                     <InputText class="input" @bind-Value="_form.Nota" placeholder="Almuerzo" />
@@ -254,6 +274,7 @@
     private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
     private int _anioActual = DateTime.UtcNow.Year;
     private List<CategoriaResponse> _categorias = [];
+    private List<TarjetaCreditoResponse> _tarjetas = [];
     private List<MovimientoDiaADiaResponse> _movimientos = [];
     private ResumenDiaADiaResponse? _resumen;
     private ResumenDiaADiaResponse? _saldoAcumulado;
@@ -262,6 +283,7 @@
     protected override async Task OnInitializedAsync()
     {
         _categorias = await Api.ObtenerCategoriasAsync();
+        _tarjetas = (await Api.ObtenerTarjetasCreditoAsync()).Where(t => t.Activa).ToList();
         _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
         await CargarMesAsync();
 
@@ -356,6 +378,7 @@
         _form.Tipo = tipo;
         var primeraCategoria = _categorias.FirstOrDefault(c => c.Tipo == tipo && c.Activa);
         _form.CategoriaId = primeraCategoria?.Id ?? 0;
+        _form.TarjetaCreditoId = null;
     }
 
     private async Task Registrar()
@@ -364,7 +387,7 @@
         _guardando = true;
 
         var resultado = await Api.RegistrarMovimientoDiaADiaAsync(new CrearMovimientoDiaADiaRequest(
-            _form.CategoriaId, _form.Monto, null, _form.Nota));
+            _form.CategoriaId, _form.Monto, null, _form.Nota, _form.TarjetaCreditoId));
 
         if (resultado.Exito)
         {
@@ -372,6 +395,7 @@
             UiOverlay.CerrarModal();
             _form.Monto = 0;
             _form.Nota = "";
+            _form.TarjetaCreditoId = null;
             _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
             await CargarMesAsync();
         }
@@ -430,5 +454,6 @@
         public int CategoriaId { get; set; }
         public decimal Monto { get; set; }
         public string? Nota { get; set; }
+        public int? TarjetaCreditoId { get; set; }
     }
 }

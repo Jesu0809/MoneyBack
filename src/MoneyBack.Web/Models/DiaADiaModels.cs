@@ -9,7 +9,7 @@ public record CategoriaResponse(int Id, string Nombre, TipoCategoria Tipo, strin
 public record CrearCategoriaRequest(string Nombre, TipoCategoria Tipo, string Icono);
 public record ActualizarCategoriaRequest(string Nombre, string Icono, bool Activa);
 
-public record CrearMovimientoDiaADiaRequest(int CategoriaId, decimal Monto, DateTime? Fecha, string? Nota);
+public record CrearMovimientoDiaADiaRequest(int CategoriaId, decimal Monto, DateTime? Fecha, string? Nota, int? TarjetaCreditoId = null);
 
 public record MovimientoDiaADiaResponse(
     int Id,
@@ -20,7 +20,9 @@ public record MovimientoDiaADiaResponse(
     decimal Monto,
     DateTime Fecha,
     string? Nota,
-    bool RedondeoAplicado);
+    bool RedondeoAplicado,
+    int? TarjetaCreditoId,
+    string? TarjetaCreditoNombre);
 
 public record TotalPorCategoria(int CategoriaId, string CategoriaNombre, string CategoriaIcono, decimal Total);
 

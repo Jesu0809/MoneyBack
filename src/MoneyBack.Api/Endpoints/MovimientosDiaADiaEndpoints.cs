@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
 using MoneyBack.Api.Models.DiaADia;
+using MoneyBack.Api.Models.Tarjetas;
 using MoneyBack.Api.Services;
 
 namespace MoneyBack.Api.Endpoints;
@@ -25,7 +26,8 @@ public static class MovimientosDiaADiaEndpoints
                 .OrderByDescending(m => m.Fecha)
                 .Select(m => new MovimientoDiaADiaResponse(
                     m.Id, m.CategoriaId, m.Categoria.Nombre, m.Categoria.Icono, m.Categoria.Tipo,
-                    m.Monto, m.Fecha, m.Nota, m.RedondeoAplicado))
+                    m.Monto, m.Fecha, m.Nota, m.RedondeoAplicado,
+                    m.TarjetaCreditoId, m.TarjetaCredito != null ? m.TarjetaCredito.Nombre : null))
                 .ToListAsync();
 
             return Results.Ok(movimientos);
@@ -74,13 +76,35 @@ public static class MovimientosDiaADiaEndpoints
                 });
             }
 
+            TarjetaCredito? tarjeta = null;
+            if (request.TarjetaCreditoId is not null)
+            {
+                if (categoria.Tipo == TipoCategoria.Ingreso)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["tarjetaCreditoId"] = ["Un ingreso no se puede pagar con tarjeta de crédito."]
+                    });
+                }
+
+                tarjeta = await db.TarjetasCredito.FirstOrDefaultAsync(t => t.Id == request.TarjetaCreditoId && t.UsuarioId == usuarioId);
+                if (tarjeta is null)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["tarjetaCreditoId"] = ["La tarjeta no existe."]
+                    });
+                }
+            }
+
             var movimiento = new MovimientoDiaADia
             {
                 UsuarioId = usuarioId,
                 CategoriaId = categoria.Id,
                 Monto = request.Monto,
                 Fecha = request.Fecha ?? DateTime.UtcNow,
-                Nota = request.Nota
+                Nota = request.Nota,
+                TarjetaCreditoId = tarjeta?.Id
             };
             db.MovimientosDiaADia.Add(movimiento);
 
@@ -93,7 +117,8 @@ public static class MovimientosDiaADiaEndpoints
 
             return Results.Created($"/api/movimientos-diaadia/{movimiento.Id}", new MovimientoDiaADiaResponse(
                 movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
-                movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado));
+                movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado,
+                tarjeta?.Id, tarjeta?.Nombre));
         });
 
         group.MapDelete("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>

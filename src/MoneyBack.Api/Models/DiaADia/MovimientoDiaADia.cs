@@ -1,4 +1,5 @@
 using MoneyBack.Api.Models;
+using MoneyBack.Api.Models.Tarjetas;
 
 namespace MoneyBack.Api.Models.DiaADia;
 
@@ -29,4 +30,13 @@ public class MovimientoDiaADia
     /// a procesar).
     /// </summary>
     public bool RedondeoAplicado { get; set; } = false;
+
+    /// <summary>
+    /// Etiqueta opcional: con qué tarjeta se pagó este gasto. A propósito
+    /// NO cambia en nada cómo este gasto afecta el saldo acumulado, las
+    /// categorías, ni el redondeo — es solo informativa, para poder
+    /// calcular el saldo pendiente de la tarjeta (ver TarjetasCreditoEndpoints).
+    /// </summary>
+    public int? TarjetaCreditoId { get; set; }
+    public TarjetaCredito? TarjetaCredito { get; set; }
 }

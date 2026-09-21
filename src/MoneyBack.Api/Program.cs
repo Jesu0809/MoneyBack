@@ -142,6 +142,7 @@ app.MapReportesEndpoints();
 app.MapPushEndpoints();
 app.MapTokensAtajoEndpoints();
 app.MapAtajosEndpoints();
+app.MapTarjetasCreditoEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 

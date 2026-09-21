@@ -8,6 +8,7 @@ using MoneyBack.Api.Models.Deudas;
 using MoneyBack.Api.Models.Metas;
 using MoneyBack.Api.Models.Notificaciones;
 using MoneyBack.Api.Models.Suscripciones;
+using MoneyBack.Api.Models.Tarjetas;
 
 namespace MoneyBack.Api.Data;
 
@@ -32,6 +33,8 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<PagoDeuda> PagosDeuda => Set<PagoDeuda>();
     public DbSet<SuscripcionPush> SuscripcionesPush => Set<SuscripcionPush>();
     public DbSet<TokenAtajo> TokensAtajo => Set<TokenAtajo>();
+    public DbSet<TarjetaCredito> TarjetasCredito => Set<TarjetaCredito>();
+    public DbSet<PagoTarjeta> PagosTarjeta => Set<PagoTarjeta>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -51,5 +54,6 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new DeudaConfiguration());
         builder.ApplyConfiguration(new SuscripcionPushConfiguration());
         builder.ApplyConfiguration(new TokenAtajoConfiguration());
+        builder.ApplyConfiguration(new TarjetaCreditoConfiguration());
     }
 }

@@ -314,6 +314,37 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<List<TarjetaCreditoResponse>> ObtenerTarjetasCreditoAsync()
+    {
+        var response = await Api.GetAsync("api/tarjetas-credito");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<TarjetaCreditoResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<TarjetaCreditoResponse>> CrearTarjetaCreditoAsync(CrearTarjetaCreditoRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/tarjetas-credito", request);
+        return await ApiResult<TarjetaCreditoResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<TarjetaCreditoResponse>()!);
+    }
+
+    public async Task<bool> EliminarTarjetaCreditoAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/tarjetas-credito/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<SaldoPendienteResponse?> ObtenerSaldoPendienteTarjetaAsync(int id)
+    {
+        var response = await Api.GetAsync($"api/tarjetas-credito/{id}/saldo-pendiente");
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<SaldoPendienteResponse>() : null;
+    }
+
+    public async Task<ApiResult<object?>> RegistrarPagoTarjetaAsync(int id, RegistrarPagoTarjetaRequest request)
+    {
+        var response = await Api.PostAsJsonAsync($"api/tarjetas-credito/{id}/pagos", request);
+        return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
+    }
+
     private static string ConstruirQueryFechas(DateTime? desde, DateTime? hasta)
     {
         var partes = new List<string>();
