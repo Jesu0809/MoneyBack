@@ -400,9 +400,12 @@ else
     {
         var totales = new Dictionary<int, (string Nombre, decimal Total)>();
 
-        foreach (var meta in metas)
+        // En paralelo: son metas distintas, no hay razón para esperar una
+        // antes de pedir la otra.
+        var detalles = await Task.WhenAll(metas.Select(m => Api.ObtenerMetaAsync(m.Id)));
+
+        foreach (var detalle in detalles)
         {
-            var detalle = await Api.ObtenerMetaAsync(meta.Id);
             if (detalle is null) continue;
 
             foreach (var aporte in detalle.AportesPorUsuario)

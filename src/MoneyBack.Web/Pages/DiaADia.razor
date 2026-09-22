@@ -284,14 +284,35 @@
     private List<MetaResponse> _metasActivas = [];
     private readonly FormModel _form = new();
 
+    /// <summary>
+    /// Todas estas consultas son independientes entre sí, pero en serie
+    /// sumaban ~8 viajes al servidor (~330ms cada uno = más de 2 segundos de
+    /// pantalla vacía). En paralelo el costo es el de la más lenta, no el de
+    /// la suma. Lo único encadenado de verdad es metas, que necesita el id
+    /// del hogar.
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        _categorias = await Api.ObtenerCategoriasAsync();
-        _tarjetas = (await Api.ObtenerTarjetasCreditoAsync()).Where(t => t.Activa).ToList();
-        _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
-        await CargarMesAsync();
+        var desde = _mesActual;
+        var hasta = _mesActual.AddMonths(1).AddTicks(-1);
 
-        var hogar = await Api.ObtenerMiHogarAsync();
+        var categoriasTask = Api.ObtenerCategoriasAsync();
+        var tarjetasTask = Api.ObtenerTarjetasCreditoAsync();
+        var saldoTask = Api.ObtenerResumenDiaADiaAsync();
+        var movimientosTask = Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
+        var resumenMesTask = Api.ObtenerResumenDiaADiaAsync(desde, hasta);
+        var hogarTask = Api.ObtenerMiHogarAsync();
+
+        await Task.WhenAll(categoriasTask, tarjetasTask, saldoTask, movimientosTask, resumenMesTask, hogarTask);
+
+        _categorias = await categoriasTask;
+        _tarjetas = (await tarjetasTask).Where(t => t.Activa).ToList();
+        _saldoAcumulado = await saldoTask;
+        _movimientos = await movimientosTask;
+        _resumen = await resumenMesTask;
+        _cargando = false;
+
+        var hogar = await hogarTask;
         if (hogar is not null)
         {
             _metasActivas = (await Api.ObtenerMetasAsync(hogar.Id)).Where(m => m.Activa).ToList();
