@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
@@ -106,7 +107,11 @@ public static class AtajosEndpoints
 
             await db.SaveChangesAsync();
 
-            return Results.Ok(new { mensaje = $"{(categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")} de {monto:N0} en {categoria.Nombre} registrado." });
+            // El servidor corre en cultura invariante, así que {monto:N0} salía
+            // como "1,500" (formato gringo). Este texto lo lee el usuario en el
+            // "Mostrar resultado" del Atajo, así que se formatea en es-CO.
+            var montoFormateado = monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
+            return Results.Ok(new { mensaje = $"{(categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")} de ${montoFormateado} en {categoria.Nombre} registrado." });
         });
     }
 

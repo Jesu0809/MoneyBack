@@ -171,12 +171,44 @@
                                 <button class="btn btn-secondary" type="button" @onclick="CopiarToken">Copiar</button>
                             </div>
                             <div class="divider"></div>
+
+                            <div class="segmented" style="width:100%">
+                                <button type="button" class="segmented-btn @(_recetaRapida ? "active" : "")" @onclick="() => _recetaRapida = true">Rápido · 3 pasos</button>
+                                <button type="button" class="segmented-btn @(!_recetaRapida ? "active" : "")" @onclick="() => _recetaRapida = false">Completo · 7 pasos</button>
+                            </div>
+
+                            @if (_recetaRapida)
+                            {
+                                <p style="margin:0; font-size:13px">
+                                    Registra siempre en <strong>una misma categoría</strong>, sin
+                                    preguntarte cuál. Es el más fácil de armar bien a la primera
+                                    y el más cómodo para el día a día: tocas, escribes el monto, listo.
+                                </p>
+                                <ol style="margin:0; padding-left:20px; font-size:13px">
+                                    <li><strong>Preguntar</strong> — tipo Número, pregunta "¿Cuánto?"</li>
+                                    <li>
+                                        <strong>Obtener contenido de URL</strong> — Método: POST.
+                                        URL: escribe
+                                        <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/movimientos-por-nombre?categoriaNombre=Mercado&amp;monto=</code>
+                                        y ahí inserta la variable del paso 1 (toca el campo, elige "Variable").
+                                        En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
+                                        con el token de arriba.
+                                    </li>
+                                    <li><strong>Mostrar resultado</strong> — te confirma qué quedó registrado.</li>
+                                </ol>
+                                <p class="muted" style="font-size:12px; margin:0">
+                                    Cambia <code style="font-size:11px">Mercado</code> en la URL por la
+                                    categoría que más uses. Tiene que existir y estar activa, escrita igual.
+                                    Si quieres uno para gastos y otro para ingresos, haz dos atajos
+                                    cambiando solo esa parte.
+                                </p>
+                            }
+                            else
+                            {
                             <p style="margin:0; font-size:13px">
-                                En la app <strong>Atajos</strong> de tu iPhone, crea un
-                                atajo nuevo con estas acciones, en este orden. Así el
-                                menú de categorías sale directo de las tuyas de verdad
-                                (no hay que escribir el nombre a mano, ni riesgo de que
-                                no exista):
+                                Te deja <strong>elegir la categoría cada vez</strong>, con un menú
+                                que sale de tus categorías reales (no hay que escribir el nombre
+                                a mano, ni riesgo de que no exista). Son más pasos para armarlo:
                             </p>
                             <ol style="margin:0; padding-left:20px; font-size:13px">
                                 <li>
@@ -217,9 +249,21 @@
                                 </li>
                                 <li><strong>Mostrar resultado</strong> — para confirmar sin abrir nada más.</li>
                             </ol>
-                            <p class="muted" style="font-size:12px; margin:0">
-                                Luego: Ajustes → Botón de Acción → Atajo → elige el que acabas de crear.
-                            </p>
+                            }
+
+                            <div class="divider"></div>
+                            <p style="margin:0; font-size:13px"><strong>Para dispararlo con una sola mano:</strong></p>
+                            <ul style="margin:0; padding-left:20px; font-size:13px">
+                                <li>
+                                    <strong>Con Botón de Acción</strong> (iPhone 15 Pro en adelante):
+                                    Ajustes → Botón de Acción → Atajo → elige el que acabas de crear.
+                                </li>
+                                <li>
+                                    <strong>Sin Botón de Acción</strong> (cualquier iPhone):
+                                    Ajustes → Accesibilidad → Tocar → Toque trasero → Toque doble →
+                                    elige el atajo. Queda a dos golpecitos en la parte de atrás del teléfono.
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 }
@@ -282,6 +326,7 @@
     private string? _errorPush;
 
     private List<TokenAtajoResponse> _tokens = [];
+    private bool _recetaRapida = true;
     private string? _tokenNuevo;
     private bool _generandoToken;
     private string? _errorToken;
