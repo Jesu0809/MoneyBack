@@ -171,85 +171,31 @@
                                 <button class="btn btn-secondary" type="button" @onclick="CopiarToken">Copiar</button>
                             </div>
                             <div class="divider"></div>
-
-                            <div class="segmented" style="width:100%">
-                                <button type="button" class="segmented-btn @(_recetaRapida ? "active" : "")" @onclick="() => _recetaRapida = true">Rápido · 3 pasos</button>
-                                <button type="button" class="segmented-btn @(!_recetaRapida ? "active" : "")" @onclick="() => _recetaRapida = false">Completo · 7 pasos</button>
-                            </div>
-
-                            @if (_recetaRapida)
-                            {
-                                <p style="margin:0; font-size:13px">
-                                    Registra siempre en <strong>una misma categoría</strong>, sin
-                                    preguntarte cuál. Es el más fácil de armar bien a la primera
-                                    y el más cómodo para el día a día: tocas, escribes el monto, listo.
-                                </p>
-                                <ol style="margin:0; padding-left:20px; font-size:13px">
-                                    <li><strong>Preguntar</strong> — tipo Número, pregunta "¿Cuánto?"</li>
-                                    <li>
-                                        <strong>Obtener contenido de URL</strong> — Método: POST.
-                                        URL: escribe
-                                        <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/movimientos-por-nombre?categoriaNombre=Mercado&amp;monto=</code>
-                                        y ahí inserta la variable del paso 1 (toca el campo, elige "Variable").
-                                        En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
-                                        con el token de arriba.
-                                    </li>
-                                    <li><strong>Mostrar resultado</strong> — te confirma qué quedó registrado.</li>
-                                </ol>
-                                <p class="muted" style="font-size:12px; margin:0">
-                                    Cambia <code style="font-size:11px">Mercado</code> en la URL por la
-                                    categoría que más uses. Tiene que existir y estar activa, escrita igual.
-                                    Si quieres uno para gastos y otro para ingresos, haz dos atajos
-                                    cambiando solo esa parte.
-                                </p>
-                            }
-                            else
-                            {
                             <p style="margin:0; font-size:13px">
-                                Te deja <strong>elegir la categoría cada vez</strong>, con un menú
-                                que sale de tus categorías reales (no hay que escribir el nombre
-                                a mano, ni riesgo de que no exista). Son más pasos para armarlo:
+                                En la app <strong>Atajos</strong> de tu iPhone, crea un atajo
+                                nuevo con estas <strong>3 acciones</strong>. Le escribes el gasto
+                                como lo dirías de viva voz y el servidor se encarga de entenderlo:
                             </p>
                             <ol style="margin:0; padding-left:20px; font-size:13px">
-                                <li>
-                                    <strong>Obtener contenido de URL</strong> — Método: GET.
-                                    URL: <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/categorias</code>.
-                                    En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
-                                    con el valor: pega el token de arriba.
-                                </li>
-                                <li>
-                                    <strong>Repetir con cada elemento</strong> — Entrada: el
-                                    resultado del paso 1 (si Atajos no lo reconoce como lista
-                                    automáticamente, agrega antes un "Obtener diccionario de
-                                    entrada").
-                                    <br />Dentro del Repetir: <strong>Obtener valor de diccionario</strong>
-                                    — Clave: <code style="font-size:12px">nombre</code>,
-                                    Diccionario: Elemento del repetir.
-                                </li>
-                                <li>
-                                    <strong>Fin de repetir</strong> — esto crea automáticamente
-                                    la variable "Resultados de Repetir" (la lista de nombres).
-                                </li>
-                                <li>
-                                    <strong>Elegir de la lista</strong> — Lista: "Resultados de
-                                    Repetir", mensaje "¿Categoría?". Esto muestra un menú nativo
-                                    con tus categorías reales para tocar una.
-                                </li>
-                                <li><strong>Preguntar</strong> — tipo Número, pregunta "¿Monto?"</li>
+                                <li><strong>Preguntar</strong> — tipo Texto, pregunta "¿Qué gastaste?"</li>
                                 <li>
                                     <strong>Obtener contenido de URL</strong> — Método: POST.
-                                    URL: escribe
-                                    <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/movimientos-por-nombre?categoriaNombre=</code>
-                                    y ahí inserta la variable "Elemento elegido" del paso 4
-                                    (toca el campo, elige "Variable"), luego sigue escribiendo
-                                    <code style="font-size:12px">&amp;monto=</code>
-                                    e inserta la variable del paso 5.
-                                    En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
-                                    con el mismo valor de arriba.
+                                    URL: <code style="font-size:12px">https://moneyback-api.fly.dev/api/atajos/registrar-texto</code>.
+                                    <br />En "Solicitar cuerpo" elige <strong>Archivo</strong> y pon ahí la
+                                    variable del paso 1 (la respuesta de Preguntar).
+                                    <br />En "Encabezados", agrega <code style="font-size:12px">X-Atajo-Token</code>
+                                    con el token de arriba.
                                 </li>
-                                <li><strong>Mostrar resultado</strong> — para confirmar sin abrir nada más.</li>
+                                <li><strong>Mostrar resultado</strong> — te confirma qué quedó registrado.</li>
                             </ol>
-                            }
+
+                            <div class="alert" style="padding:10px; font-size:12.5px">
+                                <div class="stack" style="gap:4px; width:100%">
+                                    <strong style="font-size:12.5px">Qué puedes escribirle:</strong>
+                                    <span><code style="font-size:11px">15000 mercado</code> · <code style="font-size:11px">$15.000 en mercado</code> · <code style="font-size:11px">merc 15 mil</code></span>
+                                    <span class="muted">No importa el orden, ni las mayúsculas, ni las tildes. Los puntos de miles se entienden como en Colombia: "15.000" son quince mil. Si no reconoce algo, te lo dice en el resultado en vez de registrar cualquier cosa.</span>
+                                </div>
+                            </div>
 
                             <div class="divider"></div>
                             <p style="margin:0; font-size:13px"><strong>Para dispararlo con una sola mano:</strong></p>
@@ -261,7 +207,7 @@
                                 <li>
                                     <strong>Sin Botón de Acción</strong> (cualquier iPhone):
                                     Ajustes → Accesibilidad → Tocar → Toque trasero → Toque doble →
-                                    elige el atajo. Queda a dos golpecitos en la parte de atrás del teléfono.
+                                    elige el atajo. Queda a dos golpecitos atrás del teléfono.
                                 </li>
                             </ul>
                         </div>
@@ -326,7 +272,6 @@
     private string? _errorPush;
 
     private List<TokenAtajoResponse> _tokens = [];
-    private bool _recetaRapida = true;
     private string? _tokenNuevo;
     private bool _generandoToken;
     private string? _errorToken;

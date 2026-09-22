@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
@@ -21,6 +22,8 @@ public static class AtajosEndpoints
     public static void MapAtajosEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/atajos").WithTags("Atajos");
+
+        group.MapRegistrarTexto();
 
         group.MapGet("/categorias", async (HttpRequest request, TipoCategoria? tipo, ApplicationDbContext db) =>
         {
@@ -113,6 +116,64 @@ public static class AtajosEndpoints
             var montoFormateado = monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
             return Results.Ok(new { mensaje = $"{(categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")} de ${montoFormateado} en {categoria.Nombre} registrado." });
         });
+    }
+
+    /// <summary>
+    /// Lee el cuerpo como texto plano. Se prefiere el cuerpo sobre la query
+    /// string porque el texto que llega ("$15.000 en mercado", o un SMS
+    /// completo del banco) trae espacios, signos y acentos: en Atajos, meter
+    /// eso en la URL obliga a pensar en codificación, mientras que soltar la
+    /// variable en el campo "cuerpo" simplemente funciona.
+    /// </summary>
+    public static void MapRegistrarTexto(this RouteGroupBuilder group)
+    {
+        group.MapPost("/registrar-texto", async (HttpRequest request, ApplicationDbContext db) =>
+        {
+            var usuarioId = await ValidarTokenAsync(request, db);
+            if (usuarioId is null) return Results.Unauthorized();
+
+            var texto = await LeerTextoDelCuerpoAsync(request);
+
+            var categorias = await db.Categorias
+                .Where(c => c.UsuarioId == usuarioId.Value && c.Activa)
+                .ToListAsync();
+
+            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias);
+            if (!interpretacion.Exito)
+            {
+                // 200 y no 400 a propósito: en Atajos, un código de error hace
+                // que la acción falle y el usuario solo vea un aviso genérico
+                // del sistema. Con 200 el "Mostrar resultado" le muestra la
+                // explicación real de qué faltó.
+                return Results.Ok(new { mensaje = interpretacion.Razon });
+            }
+
+            var categoria = interpretacion.Categoria!;
+            var movimiento = new MovimientoDiaADia
+            {
+                UsuarioId = usuarioId.Value,
+                CategoriaId = categoria.Id,
+                Monto = interpretacion.Monto
+            };
+            db.MovimientosDiaADia.Add(movimiento);
+
+            if (categoria.Tipo == TipoCategoria.Gasto)
+            {
+                await RedondeoService.AplicarSiCorrespondeAsync(movimiento, db);
+            }
+
+            await db.SaveChangesAsync();
+
+            var montoFormateado = interpretacion.Monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
+            var verbo = categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso";
+            return Results.Ok(new { mensaje = $"{verbo} de ${montoFormateado} en {categoria.Nombre} registrado." });
+        });
+    }
+
+    private static async Task<string> LeerTextoDelCuerpoAsync(HttpRequest request)
+    {
+        using var lector = new StreamReader(request.Body, Encoding.UTF8);
+        return (await lector.ReadToEndAsync()).Trim();
     }
 
     private static async Task<int?> ValidarTokenAsync(HttpRequest request, ApplicationDbContext db)
