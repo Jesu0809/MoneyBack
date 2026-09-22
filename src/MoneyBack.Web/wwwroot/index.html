@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover es lo que activa env(safe-area-inset-*) en CSS.
+         Sin esto esas variables valen 0 y la app queda encajonada entre
+         barras en vez de ir de borde a borde como una app nativa. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>MoneyBack</title>
     <base href="/" />
     <link rel="icon" type="image/png" href="icon-192.png" />
@@ -14,7 +17,10 @@
          standalone) al agregarla a la pantalla de inicio — sin esto, Safari
          la sigue tratando como una pestaña normal y no entrega push. -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- black-translucent deja que el fondo de la app suba por debajo de la
+         barra de estado del iPhone, en vez de cortarla con una franja. Va de
+         la mano con viewport-fit=cover y el env(safe-area-inset-*) del CSS. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MoneyBack" />
     <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="css/app.css" />
@@ -38,6 +44,18 @@
         <span class="dismiss">🗙</span>
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+    <!-- Antes el service worker solo se registraba al activar notificaciones
+         (ver interop.js): quien nunca las activaba se quedaba sin caché y sin
+         poder abrir la app sin señal. Se registra después de 'load' para no
+         competir con la descarga inicial de Blazor. -->
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/service-worker.js")
+                    .catch((error) => console.error("No se pudo registrar el service worker:", error));
+            });
+        }
+    </script>
 </body>
 
 </html>

@@ -16,6 +16,17 @@
   </ItemGroup>
 
   <!--
+    El directorio de publicación no se limpia solo entre publishes. Como los
+    nombres de los archivos llevan hash de contenido, cada despliegue dejaba
+    ahí las copias viejas del anterior y todas se subían a Firebase igual:
+    llegamos a tener 4 copias de MoneyBack.Web.wasm y 210 archivos en
+    _framework donde deberían ser ~60.
+  -->
+  <Target Name="LimpiarPublishAntesDePublicar" BeforeTargets="PrepareForPublish">
+    <RemoveDir Directories="$(PublishDir)" Condition="'$(PublishDir)' != '' And Exists('$(PublishDir)')" />
+  </Target>
+
+  <!--
     css/app.css no pasa por el pipeline de fingerprinting de Blazor (ese solo
     aplica a módulos JS/import maps, no a <link> de hojas de estilo). Sin esto,
     el nombre del archivo nunca cambia entre despliegues, así que un navegador
