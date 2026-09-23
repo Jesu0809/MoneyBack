@@ -145,7 +145,7 @@ public static class AtajosEndpoints
                 // que la acción falle y el usuario solo vea un aviso genérico
                 // del sistema. Con 200 el "Mostrar resultado" le muestra la
                 // explicación real de qué faltó.
-                return Results.Ok(new { mensaje = interpretacion.Razon });
+                return Results.Text(interpretacion.Razon ?? "No se pudo registrar.", "text/plain");
             }
 
             var categoria = interpretacion.Categoria!;
@@ -166,7 +166,12 @@ public static class AtajosEndpoints
 
             var montoFormateado = interpretacion.Monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
             var verbo = categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso";
-            return Results.Ok(new { mensaje = $"{verbo} de ${montoFormateado} en {categoria.Nombre} registrado." });
+
+            // Texto plano, no JSON: el "Mostrar resultado" de Atajos enseña la
+            // respuesta tal cual, así que con JSON el usuario vería llaves y
+            // comillas. Así lee una frase limpia sin necesidad de agregar un
+            // paso extra para sacar el campo del diccionario.
+            return Results.Text($"{verbo} de ${montoFormateado} en {categoria.Nombre} registrado.", "text/plain");
         });
     }
 
