@@ -127,6 +127,23 @@ public static class AtajosEndpoints
     /// </summary>
     public static void MapRegistrarTexto(this RouteGroupBuilder group)
     {
+        // Devuelve solo los nombres, como arreglo JSON de strings. Atajos
+        // convierte eso en una lista de una vez, así que "Elegir de la lista"
+        // puede consumirlo directo — sin el "Repetir con cada elemento" y el
+        // "Obtener valor de diccionario" que pedía /categorias, que eran 3
+        // acciones extra armadas a mano y la parte más fácil de arruinar.
+        group.MapGet("/categorias-lista", async (HttpRequest request, TipoCategoria? tipo, ApplicationDbContext db) =>
+        {
+            var usuarioId = await ValidarTokenAsync(request, db);
+            if (usuarioId is null) return Results.Unauthorized();
+
+            var query = db.Categorias.Where(c => c.UsuarioId == usuarioId && c.Activa);
+            if (tipo is not null) query = query.Where(c => c.Tipo == tipo);
+
+            var nombres = await query.OrderBy(c => c.Nombre).Select(c => c.Nombre).ToListAsync();
+            return Results.Ok(nombres);
+        });
+
         group.MapPost("/registrar-texto", async (HttpRequest request, string? categoriaPorDefecto, ApplicationDbContext db) =>
         {
             var usuarioId = await ValidarTokenAsync(request, db);
@@ -134,11 +151,20 @@ public static class AtajosEndpoints
 
             var texto = await LeerTextoDelCuerpoAsync(request);
 
+            // La categoría también puede venir por encabezado. Es más seguro
+            // que meterla en la URL desde Atajos: ahí toca insertar la
+            // variable dentro del texto de la dirección y basta con que caiga
+            // un carácter fuera de lugar para que iOS diga "URL incompatible".
+            // El encabezado es un campo aparte, sin esa trampa.
+            var categoriaElegida = request.Headers.TryGetValue("X-Categoria", out var valorCategoria)
+                ? valorCategoria.ToString()
+                : categoriaPorDefecto;
+
             var categorias = await db.Categorias
                 .Where(c => c.UsuarioId == usuarioId.Value && c.Activa)
                 .ToListAsync();
 
-            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaPorDefecto);
+            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaElegida);
             if (!interpretacion.Exito)
             {
                 // 200 y no 400 a propósito: en Atajos, un código de error hace
