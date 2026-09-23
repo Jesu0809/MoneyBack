@@ -185,7 +185,7 @@
                                     </li>
                                     <li>
                                         En el atajo instalado, entra al primer paso (<strong>Texto</strong>),
-                                        borra donde dice <code style="font-size:11px">PEGA_TU_TOKEN_AQUI</code>
+                                        borra donde dice <code style="font-size:11px">Pega_tu_token_Aquí</code>
                                         y pega el tuyo. <strong>Eso es todo.</strong>
                                     </li>
                                 </ol>
@@ -360,8 +360,13 @@
     /// PEGA_TU_TOKEN_AQUI, que cada persona reemplaza por el suyo.
     ///
     /// Vacío = la app muestra solo la receta manual, sin botón de instalar.
+    ///
+    /// Esta plantilla se verificó descargándola: no trae ningún token real,
+    /// el primer paso dice "Pega_tu_token_Aquí", y los encabezados quedan
+    /// bien cableados (X-Atajo-Token y X-Categoria al paso correcto). Si
+    /// algún día se reemplaza por otra, hay que revisar lo mismo antes.
     /// </summary>
-    private const string EnlaceAtajoGasto = "";
+    private const string EnlaceAtajoGasto = "https://www.icloud.com/shortcuts/e279acdb7e564c06a5fe7dbe7f42c606";
 
     private bool _verRecetaManual;
 
