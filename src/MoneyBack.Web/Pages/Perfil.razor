@@ -172,95 +172,114 @@
                             </div>
                             <div class="divider"></div>
 
-                            <p style="margin:0; font-size:13px">
-                                <strong>Importante para compartirlo:</strong> el token va en su
-                                propio paso "Texto" al principio. Así, cuando le pases el atajo a
-                                alguien (Compartir → Copiar enlace de iCloud), esa persona solo
-                                tiene que cambiar <em>ese campo</em> por su propio token — no
-                                rearmar nada.
-                            </p>
+                            @if (!string.IsNullOrWhiteSpace(EnlaceAtajoGasto))
+                            {
+                                <p style="margin:0; font-size:13px">
+                                    <strong>Instálalo en 3 pasos</strong> — no tienes que armar nada a mano.
+                                </p>
+                                <ol style="margin:0; padding-left:20px; font-size:13px">
+                                    <li>Copia tu token de arriba (botón <strong>Copiar</strong>).</li>
+                                    <li>
+                                        Toca <strong>Instalar el atajo</strong> aquí abajo y luego
+                                        <strong>"Añadir atajo"</strong>.
+                                    </li>
+                                    <li>
+                                        En el atajo instalado, entra al primer paso (<strong>Texto</strong>),
+                                        borra donde dice <code style="font-size:11px">PEGA_TU_TOKEN_AQUI</code>
+                                        y pega el tuyo. <strong>Eso es todo.</strong>
+                                    </li>
+                                </ol>
+
+                                <a class="btn btn-primary btn-block" href="@EnlaceAtajoGasto" target="_blank" rel="noopener">
+                                    <Icon Name="archive" Size="17" /> Instalar el atajo
+                                </a>
+
+                                <p class="muted" style="font-size:12px; margin:0">
+                                    El atajo usa <em>tus</em> categorías, no las de quien lo compartió:
+                                    las pide al servidor con tu token cada vez que lo abres.
+                                </p>
+
+                                <div class="divider"></div>
+                                <p style="margin:0; font-size:13px"><strong>Para dispararlo con una mano:</strong></p>
+                                <ul style="margin:0; padding-left:20px; font-size:13px">
+                                    <li><strong>Con Botón de Acción</strong> (iPhone 15 Pro o más nuevo): Ajustes → Botón de Acción → Atajo.</li>
+                                    <li><strong>Sin Botón de Acción</strong>: Ajustes → Accesibilidad → Tocar → Toque trasero → Toque doble.</li>
+                                </ul>
+                            }
 
                             <div class="divider"></div>
-                            <p style="margin:0; font-size:13px">
-                                <strong>Atajo 1 · Registrar un gasto (Botón de Acción)</strong>
-                            </p>
-                            <ol style="margin:0; padding-left:20px; font-size:13px">
-                                <li><strong>Texto</strong> — pega aquí tu token de arriba. (Renómbralo "Token" si quieres.)</li>
-                                <li><strong>Preguntar</strong> — tipo Texto, pregunta "¿Qué gastaste?"</li>
-                                <li>
-                                    <strong>Obtener contenido de URL</strong> — Método: <strong>POST</strong>.
-                                    <div class="row" style="gap:6px; margin:4px 0">
-                                        <input class="input" readonly value="@UrlRegistrarTexto" style="font-family:monospace; font-size:11px" />
-                                        <button class="btn btn-secondary" type="button" @onclick="() => Copiar(UrlRegistrarTexto)">Copiar</button>
-                                    </div>
-                                    En "Solicitar cuerpo" elige <strong>Archivo</strong> y pon la variable del paso 2.
-                                    <br />En "Encabezados": clave <code style="font-size:11px">X-Atajo-Token</code>,
-                                    valor = la variable del paso 1.
-                                </li>
-                                <li><strong>Mostrar resultado</strong></li>
-                            </ol>
+                            <button type="button" class="btn btn-secondary btn-block" @onclick="() => _verRecetaManual = !_verRecetaManual">
+                                @(_verRecetaManual ? "Ocultar" : "Ver") cómo armarlo a mano
+                            </button>
 
-                            <div class="alert" style="padding:10px; font-size:12.5px">
-                                <div class="stack" style="gap:4px; width:100%">
-                                    <strong style="font-size:12.5px">Qué escribirle:</strong>
-                                    <span><code style="font-size:11px">15000 mercado</code> · <code style="font-size:11px">$15.000 en mercado</code> · <code style="font-size:11px">merc 15 mil</code></span>
-                                    <span class="muted">No importa el orden, mayúsculas ni tildes. "15.000" son quince mil, como se escribe acá. Si no entiende algo te lo dice, en vez de registrar cualquier cosa.</span>
-                                </div>
-                            </div>
+                            @if (_verRecetaManual)
+                            {
+                                <p class="muted" style="font-size:12.5px; margin:0">
+                                    Solo si quieres cambiarle algo o entender cómo funciona. Son 6 acciones
+                                    en la app <strong>Atajos</strong>:
+                                </p>
+                                <ol style="margin:0; padding-left:20px; font-size:13px">
+                                    <li><strong>Texto</strong> — tu token.</li>
+                                    <li><strong>Solicitar entrada</strong> — tipo Número, "¿Cuánto?"</li>
+                                    <li>
+                                        <strong>Obtener contenido de URL</strong> — GET, encabezado
+                                        <code style="font-size:11px">X-Atajo-Token</code> = paso 1.
+                                        <div class="row" style="gap:6px; margin:4px 0">
+                                            <input class="input" readonly value="@UrlCategoriasLista" style="font-family:monospace; font-size:11px" />
+                                            <button class="btn btn-secondary" type="button" @onclick="() => Copiar(UrlCategoriasLista)">Copiar</button>
+                                        </div>
+                                    </li>
+                                    <li><strong>Elegir de la lista</strong> — entrada: el resultado del paso 3. Mensaje "¿En qué?"</li>
+                                    <li>
+                                        <strong>Obtener contenido de URL</strong> — <strong>POST</strong>.
+                                        <div class="row" style="gap:6px; margin:4px 0">
+                                            <input class="input" readonly value="@UrlRegistrarTexto" style="font-family:monospace; font-size:11px" />
+                                            <button class="btn btn-secondary" type="button" @onclick="() => Copiar(UrlRegistrarTexto)">Copiar</button>
+                                        </div>
+                                        Encabezados: <code style="font-size:11px">X-Atajo-Token</code> = paso 1,
+                                        <code style="font-size:11px">X-Categoria</code> = paso 4.
+                                        <br />Solicitar cuerpo: <strong>Archivo</strong> → la variable del paso 2.
+                                    </li>
+                                    <li><strong>Detener y mostrar resultado</strong></li>
+                                </ol>
+                                <p class="muted" style="font-size:12px; margin:0">
+                                    Ojo: al insertar una variable, asegúrate de que el cursor esté en el campo
+                                    correcto. Si cae dentro de la URL, iOS dice "URL incompatible".
+                                </p>
+                            }
 
                             <div class="divider"></div>
-                            <p style="margin:0; font-size:13px">
-                                <strong>Atajo 2 · Registrar solo, desde el SMS del banco</strong>
-                            </p>
+                            <p style="margin:0; font-size:13px"><strong>Desde el SMS del banco</strong> (opcional)</p>
                             <p class="muted" style="font-size:12.5px; margin:0">
-                                Este no es un atajo normal sino una <strong>Automatización</strong>:
-                                en Atajos, pestaña Automatización → + → <strong>Mensaje</strong>.
+                                Esto no es un atajo sino una <strong>Automatización</strong> (Atajos → pestaña
+                                Automatización → + → Mensaje). Las automatizaciones no se pueden compartir por
+                                enlace, así que toca armarla en cada teléfono.
                             </p>
                             <ol style="margin:0; padding-left:20px; font-size:13px">
                                 <li>
-                                    En <strong>"Mensaje contiene"</strong> escribe un pedazo fijo del
-                                    SMS de tu banco — por ejemplo <code style="font-size:11px">Compra por</code>.
-                                    Activa <strong>"Ejecutar inmediatamente"</strong> para que no te pregunte cada vez.
+                                    <strong>"Mensaje contiene"</strong>: un pedazo fijo del SMS de tu banco,
+                                    por ejemplo <code style="font-size:11px">Compra por</code>. Activa
+                                    <strong>"Ejecutar inmediatamente"</strong>.
                                 </li>
-                                <li><strong>Texto</strong> — tu token, igual que en el otro atajo.</li>
+                                <li><strong>Texto</strong> — tu token.</li>
                                 <li>
-                                    <strong>Obtener contenido de URL</strong> — Método: <strong>POST</strong>.
+                                    <strong>Obtener contenido de URL</strong> — POST, encabezado
+                                    <code style="font-size:11px">X-Atajo-Token</code> = paso 2, cuerpo
+                                    <strong>Archivo</strong> = variable "Contenido del mensaje".
                                     <div class="row" style="gap:6px; margin:4px 0">
                                         <input class="input" readonly value="@UrlRegistrarSmsGasto" style="font-family:monospace; font-size:11px" />
                                         <button class="btn btn-secondary" type="button" @onclick="() => Copiar(UrlRegistrarSmsGasto)">Copiar</button>
                                     </div>
-                                    En "Solicitar cuerpo" elige <strong>Archivo</strong> y pon la variable
-                                    <strong>"Contenido del mensaje"</strong> (la que ofrece el disparador).
-                                    <br />En "Encabezados": <code style="font-size:11px">X-Atajo-Token</code> = variable del paso 2.
                                 </li>
                             </ol>
                             <p class="muted" style="font-size:12.5px; margin:0">
-                                El banco nombra el comercio ("EXITO", "RAPPI"), no tu categoría — por eso
-                                la URL ya lleva <code style="font-size:11px">Otros gastos</code> fija. Cámbiala
-                                por la que prefieras (con <code style="font-size:11px">%20</code> en vez de espacios).
-                            </p>
-                            <p class="muted" style="font-size:12.5px; margin:0">
-                                <strong>Para los ingresos</strong>, haz otra automatización igual pero con
-                                <code style="font-size:11px">Recibiste</code> como disparador y esta URL:
+                                Para los ingresos, otra igual con <code style="font-size:11px">Recibiste</code>
+                                como disparador y esta URL:
                             </p>
                             <div class="row" style="gap:6px">
                                 <input class="input" readonly value="@UrlRegistrarSmsIngreso" style="font-family:monospace; font-size:11px" />
                                 <button class="btn btn-secondary" type="button" @onclick="() => Copiar(UrlRegistrarSmsIngreso)">Copiar</button>
                             </div>
-
-                            <div class="divider"></div>
-                            <p style="margin:0; font-size:13px"><strong>Para disparar el Atajo 1 con una sola mano:</strong></p>
-                            <ul style="margin:0; padding-left:20px; font-size:13px">
-                                <li>
-                                    <strong>Con Botón de Acción</strong> (iPhone 15 Pro en adelante):
-                                    Ajustes → Botón de Acción → Atajo → elígelo.
-                                </li>
-                                <li>
-                                    <strong>Sin Botón de Acción</strong> (cualquier iPhone):
-                                    Ajustes → Accesibilidad → Tocar → Toque trasero → Toque doble.
-                                    Queda a dos golpecitos atrás del teléfono.
-                                </li>
-                            </ul>
                         </div>
                     </div>
                 }
@@ -326,8 +345,25 @@
     // URL larga a mano en la app Atajos es la forma más fácil de que el atajo
     // "no funcione" por un typo invisible.
     private const string UrlRegistrarTexto = "https://moneyback-api.fly.dev/api/atajos/registrar-texto";
+    private const string UrlCategoriasLista = "https://moneyback-api.fly.dev/api/atajos/categorias-lista?tipo=Gasto";
     private const string UrlRegistrarSmsGasto = UrlRegistrarTexto + "?categoriaPorDefecto=Otros%20gastos";
     private const string UrlRegistrarSmsIngreso = UrlRegistrarTexto + "?categoriaPorDefecto=Otros%20ingresos";
+
+    /// <summary>
+    /// Enlace de iCloud a la plantilla del atajo. Es la única forma que deja
+    /// Apple de repartir un atajo ya armado (los archivos .shortcut sin firmar
+    /// los rechaza iOS), y solo se puede generar desde un iPhone.
+    ///
+    /// La plantilla NO puede traer un token real: el token queda escrito
+    /// dentro del atajo y cualquiera que instale el enlace registraría
+    /// movimientos en la cuenta de quien lo compartió. Debe traer el texto
+    /// PEGA_TU_TOKEN_AQUI, que cada persona reemplaza por el suyo.
+    ///
+    /// Vacío = la app muestra solo la receta manual, sin botón de instalar.
+    /// </summary>
+    private const string EnlaceAtajoGasto = "";
+
+    private bool _verRecetaManual;
 
     private List<TokenAtajoResponse> _tokens = [];
     private string? _tokenNuevo;
