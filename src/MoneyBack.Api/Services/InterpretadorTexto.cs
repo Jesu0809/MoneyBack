@@ -35,8 +35,15 @@ public static partial class InterpretadorTexto
     /// ignora si el texto sí nombra una categoría (que es el caso del atajo
     /// del Botón de Acción, donde la persona escribe "15000 mercado").
     /// </param>
+    /// <param name="categoriaForzada">
+    /// Gana sobre lo que diga el texto. Lo usa el atajo de SMS: el nombre del
+    /// comercio puede chocar por casualidad con el de una categoría ("MERCADO
+    /// LIBRE" caía en Mercado aunque no sea mercado), y que el destino dependa
+    /// de esa coincidencia es impredecible. Si la persona configuró una
+    /// categoría para sus SMS, esa manda.
+    /// </param>
     public static ResultadoInterpretacion Interpretar(
-        string? texto, IReadOnlyList<Categoria> categorias, string? categoriaPorDefecto = null)
+        string? texto, IReadOnlyList<Categoria> categorias, string? categoriaPorDefecto = null, string? categoriaForzada = null)
     {
         if (string.IsNullOrWhiteSpace(texto)) return ResultadoInterpretacion.Fallo("No llegó ningún texto.");
         if (categorias.Count == 0) return ResultadoInterpretacion.Fallo("No tienes categorías activas todavía.");
@@ -47,12 +54,19 @@ public static partial class InterpretadorTexto
             return ResultadoInterpretacion.Fallo($"No encontré un monto en \"{texto.Trim()}\".");
         }
 
+        if (!string.IsNullOrWhiteSpace(categoriaForzada))
+        {
+            var forzada = PorNombre(categoriaForzada, categorias);
+            return forzada is null
+                ? ResultadoInterpretacion.Fallo($"No tienes una categoría llamada \"{categoriaForzada}\".")
+                : new ResultadoInterpretacion(monto.Value, forzada, null);
+        }
+
         var categoria = BuscarCategoria(texto, categorias);
 
         if (categoria is null && !string.IsNullOrWhiteSpace(categoriaPorDefecto))
         {
-            var buscado = Normalizar(categoriaPorDefecto);
-            categoria = categorias.FirstOrDefault(c => Normalizar(c.Nombre) == buscado);
+            categoria = PorNombre(categoriaPorDefecto, categorias);
 
             if (categoria is null)
             {
@@ -96,6 +110,12 @@ public static partial class InterpretadorTexto
         if (!decimal.TryParse(crudo, NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor)) return null;
 
         return valor * multiplicador;
+    }
+
+    private static Categoria? PorNombre(string nombre, IReadOnlyList<Categoria> categorias)
+    {
+        var buscado = Normalizar(nombre);
+        return categorias.FirstOrDefault(c => Normalizar(c.Nombre) == buscado);
     }
 
     private static Categoria? BuscarCategoria(string texto, IReadOnlyList<Categoria> categorias)

@@ -151,20 +151,24 @@ public static class AtajosEndpoints
 
             var texto = await LeerTextoDelCuerpoAsync(request);
 
-            // La categoría también puede venir por encabezado. Es más seguro
-            // que meterla en la URL desde Atajos: ahí toca insertar la
-            // variable dentro del texto de la dirección y basta con que caiga
-            // un carácter fuera de lugar para que iOS diga "URL incompatible".
-            // El encabezado es un campo aparte, sin esa trampa.
-            var categoriaElegida = request.Headers.TryGetValue("X-Categoria", out var valorCategoria)
+            // X-Categoria manda sobre el texto; categoriaPorDefecto solo entra
+            // si el texto no nombra ninguna. Son dos intenciones distintas: en
+            // el atajo del Botón de Acción la persona escribe la categoría y
+            // esa debe ganar, mientras que en el de SMS la eligió al configurar
+            // y no debe cambiarla el nombre del comercio que traiga el mensaje.
+            //
+            // Va por encabezado y no en la URL porque en Atajos insertar algo
+            // dentro de la dirección es frágil: un carácter fuera de lugar y
+            // iOS responde "URL incompatible".
+            var categoriaForzada = request.Headers.TryGetValue("X-Categoria", out var valorCategoria)
                 ? valorCategoria.ToString()
-                : categoriaPorDefecto;
+                : null;
 
             var categorias = await db.Categorias
                 .Where(c => c.UsuarioId == usuarioId.Value && c.Activa)
                 .ToListAsync();
 
-            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaElegida);
+            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaPorDefecto, categoriaForzada);
             if (!interpretacion.Exito)
             {
                 // 200 y no 400 a propósito: en Atajos, un código de error hace

@@ -132,6 +132,33 @@ public class InterpretadorTextoTests
         Assert.Equal(45_000m, resultado.Monto);
     }
 
+    /// <summary>
+    /// El nombre del comercio puede chocar con el de una categoría por pura
+    /// casualidad: "MERCADO LIBRE" no es mercado. Si el destino dependiera de
+    /// esa coincidencia, el mismo atajo mandaría gastos a categorías distintas
+    /// sin que nadie entienda por qué.
+    /// </summary>
+    [Theory]
+    [InlineData("Bancolombia Compra por $32.000 en MERCADO LIBRE")]
+    [InlineData("Compra por $19.000 en SALUD TOTAL EPS")]
+    [InlineData("Compra por $60.000 en ROPA Y MODA SAS")]
+    public void CategoriaForzada_LeGanaAlNombreDelComercio(string sms)
+    {
+        var resultado = InterpretadorTexto.Interpretar(sms, Categorias, categoriaForzada: "Otros gastos");
+
+        Assert.True(resultado.Exito, resultado.Razon);
+        Assert.Equal("Otros gastos", resultado.Categoria!.Nombre);
+    }
+
+    [Fact]
+    public void CategoriaForzadaInexistente_LoDiceClaro()
+    {
+        var resultado = InterpretadorTexto.Interpretar("compra por $10.000", Categorias, categoriaForzada: "Inventada");
+
+        Assert.False(resultado.Exito);
+        Assert.Contains("Inventada", resultado.Razon!);
+    }
+
     [Fact]
     public void SiElTextoSiNombraCategoria_EsaGanaSobreLaPorDefecto()
     {
