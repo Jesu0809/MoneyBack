@@ -121,6 +121,70 @@ public static class MovimientosDiaADiaEndpoints
                 tarjeta?.Id, tarjeta?.Nombre));
         });
 
+        group.MapPut("/{id:int}", async (int id, ActualizarMovimientoDiaADiaRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            if (request.Monto <= 0)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["monto"] = ["El monto debe ser mayor a cero."]
+                });
+            }
+
+            var usuarioId = principal.GetUsuarioId();
+            var movimiento = await db.MovimientosDiaADia.FirstOrDefaultAsync(m => m.Id == id && m.UsuarioId == usuarioId);
+            if (movimiento is null) return Results.NotFound();
+
+            var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Id == request.CategoriaId && c.UsuarioId == usuarioId);
+            if (categoria is null)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["categoriaId"] = ["La categoría no existe."]
+                });
+            }
+
+            TarjetaCredito? tarjeta = null;
+            if (request.TarjetaCreditoId is not null)
+            {
+                if (categoria.Tipo == TipoCategoria.Ingreso)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["tarjetaCreditoId"] = ["Un ingreso no se puede pagar con tarjeta de crédito."]
+                    });
+                }
+
+                tarjeta = await db.TarjetasCredito.FirstOrDefaultAsync(t => t.Id == request.TarjetaCreditoId && t.UsuarioId == usuarioId);
+                if (tarjeta is null)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["tarjetaCreditoId"] = ["La tarjeta no existe."]
+                    });
+                }
+            }
+
+            movimiento.CategoriaId = categoria.Id;
+            movimiento.Monto = request.Monto;
+            movimiento.Nota = request.Nota;
+            movimiento.TarjetaCreditoId = tarjeta?.Id;
+            if (request.Fecha is not null) movimiento.Fecha = request.Fecha.Value;
+
+            // El redondeo NO se recalcula a propósito. Ese aporte ya entró a la
+            // meta del hogar y no guarda referencia al gasto que lo originó, así
+            // que no hay forma confiable de encontrarlo y ajustarlo. Y aunque la
+            // hubiera: devolver plata de una meta compartida porque alguien
+            // corrigió una categoría sorprendería a la pareja más de lo que
+            // ayudaría. Corregir el gasto deja el aporte donde está.
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new MovimientoDiaADiaResponse(
+                movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
+                movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado,
+                tarjeta?.Id, tarjeta?.Nombre));
+        });
+
         group.MapDelete("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();

@@ -133,6 +133,39 @@
                                 @foreach (var mov in grupo)
                                 {
                                     var esIngreso = mov.Tipo == TipoCategoria.Ingreso;
+
+                                    @if (_editandoId == mov.Id)
+                                    {
+                                        <div class="stack" style="gap:10px; padding:12px 0">
+                                            <div class="field" style="margin:0">
+                                                <label>Categoría</label>
+                                                <InputSelect class="input" @bind-Value="_editForm.CategoriaId">
+                                                    @foreach (var c in _categorias.Where(c => c.Activa))
+                                                    {
+                                                        <option value="@c.Id">@c.Icono @c.Nombre</option>
+                                                    }
+                                                </InputSelect>
+                                            </div>
+                                            <div class="field" style="margin:0">
+                                                <label>Monto</label>
+                                                <InputNumber class="input" @bind-Value="_editForm.Monto" />
+                                            </div>
+                                            <div class="field" style="margin:0">
+                                                <label>Nota (opcional)</label>
+                                                <InputText class="input" @bind-Value="_editForm.Nota" />
+                                            </div>
+                                            <AlertBox Mensaje="@_errorEdicion" />
+                                            <div class="row" style="gap:8px">
+                                                <button class="btn btn-secondary" style="flex:1" @onclick="CancelarEdicion">Cancelar</button>
+                                                <button class="btn btn-primary" style="flex:1" disabled="@_guardandoEdicion" @onclick="GuardarEdicion">
+                                                    @if (_guardandoEdicion) { <span class="spinner"></span> }
+                                                    <span>Guardar</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
                                     <div class="list-item">
                                         <div class="row">
                                             <div class="icon-bubble @(esIngreso ? "icon-bubble-accent" : "icon-bubble-danger")" style="font-size:18px">
@@ -161,11 +194,15 @@
                                             <span class="money" style="font-size:15px; color: @(esIngreso ? "var(--color-accent-strong)" : "var(--color-danger)")">
                                                 @(esIngreso ? "+" : "-")@Formato.Pesos(mov.Monto)
                                             </span>
-                                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(mov.Id)">
+                                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => AbrirEdicion(mov)" title="Editar">
+                                                <Icon Name="pencil" Size="14" />
+                                            </button>
+                                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(mov.Id)" title="Eliminar">
                                                 <Icon Name="x" Size="15" />
                                             </button>
                                         </div>
                                     </div>
+                                    }
                                 }
                             </div>
                         </div>
@@ -279,6 +316,10 @@
     private List<CategoriaResponse> _categorias = [];
     private List<TarjetaCreditoResponse> _tarjetas = [];
     private List<MovimientoDiaADiaResponse> _movimientos = [];
+    private int? _editandoId;
+    private bool _guardandoEdicion;
+    private string? _errorEdicion;
+    private readonly EdicionFormModel _editForm = new();
     private ResumenDiaADiaResponse? _resumen;
     private ResumenDiaADiaResponse? _saldoAcumulado;
     private List<MetaResponse> _metasActivas = [];
@@ -454,6 +495,56 @@
         await Api.EliminarMovimientoDiaADiaAsync(id);
         _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
         await CargarMesAsync();
+    }
+
+    private void AbrirEdicion(MovimientoDiaADiaResponse mov)
+    {
+        _errorEdicion = null;
+        _editandoId = mov.Id;
+        _editForm.CategoriaId = mov.CategoriaId;
+        _editForm.Monto = mov.Monto;
+        _editForm.Nota = mov.Nota;
+        // Se conserva la tarjeta: editar la categoría de una compra no debería
+        // borrar sin avisar el vínculo con la tarjeta y descuadrar su saldo.
+        _editForm.TarjetaCreditoId = mov.TarjetaCreditoId;
+    }
+
+    private void CancelarEdicion()
+    {
+        _editandoId = null;
+        _errorEdicion = null;
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (_editandoId is null) return;
+        _errorEdicion = null;
+        _guardandoEdicion = true;
+
+        var resultado = await Api.ActualizarMovimientoDiaADiaAsync(_editandoId.Value,
+            new ActualizarMovimientoDiaADiaRequest(
+                _editForm.CategoriaId, _editForm.Monto ?? 0, null, _editForm.Nota, _editForm.TarjetaCreditoId));
+
+        if (resultado.Exito)
+        {
+            _editandoId = null;
+            _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
+            await CargarMesAsync();
+        }
+        else
+        {
+            _errorEdicion = resultado.TodosLosErrores();
+        }
+
+        _guardandoEdicion = false;
+    }
+
+    private class EdicionFormModel
+    {
+        public int CategoriaId { get; set; }
+        public decimal? Monto { get; set; }
+        public string? Nota { get; set; }
+        public int? TarjetaCreditoId { get; set; }
     }
 
     private string DonutGradient()

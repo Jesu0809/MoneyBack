@@ -9,6 +9,8 @@ public record CategoriaResponse(int Id, string Nombre, TipoCategoria Tipo, strin
 public record CrearCategoriaRequest(string Nombre, TipoCategoria Tipo, string Icono);
 public record ActualizarCategoriaRequest(string Nombre, string Icono, bool Activa);
 
+public record ActualizarMovimientoDiaADiaRequest(int CategoriaId, decimal Monto, DateTime? Fecha, string? Nota, int? TarjetaCreditoId = null);
+
 public record CrearMovimientoDiaADiaRequest(int CategoriaId, decimal Monto, DateTime? Fecha, string? Nota, int? TarjetaCreditoId = null);
 
 public record MovimientoDiaADiaResponse(
