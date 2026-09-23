@@ -101,12 +101,21 @@ public static partial class InterpretadorTexto
             limpio = limpio[..abreviado.Index] + " " + abreviado.Groups[1].Value + " ";
         }
 
-        var conSeparadores = RegexNumeroConSeparadores().Match(limpio);
-        var crudo = conSeparadores.Success
-            ? conSeparadores.Value.Replace(".", "").Replace(",", "")
-            : RegexNumeroSimple().Match(limpio) is { Success: true } simple ? simple.Value : null;
+        // El orden importa. Los nombres de comercio traen números ("OXXO CALLE
+        // 100", "PRESTO ISERRA 100") y los SMS traen fechas y teléfonos, así
+        // que agarrar "el primer número" se equivoca feo: en "en OXXO CALLE
+        // 100 por 950" sacaba 100 en vez de 950. Primero se buscan las señales
+        // de que un número ES el monto — el signo $ o la palabra "por", que es
+        // como lo escriben los bancos colombianos — y solo si no hay ninguna
+        // se cae al número suelto.
+        var crudo =
+            Capturar(RegexMontoConSimbolo(), limpio)
+            ?? Capturar(RegexMontoDespuesDePor(), limpio)
+            ?? Capturar(RegexNumeroConSeparadores(), limpio)
+            ?? Capturar(RegexNumeroSimple(), limpio);
 
         if (crudo is null) return null;
+        crudo = crudo.Replace(".", "").Replace(",", "");
         if (!decimal.TryParse(crudo, NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor)) return null;
 
         return valor * multiplicador;
@@ -163,8 +172,23 @@ public static partial class InterpretadorTexto
         return sinTildes.ToString().Normalize(NormalizationForm.FormC);
     }
 
+    /// <summary>Devuelve el grupo de captura si hay match, o el match completo si el patrón no tiene grupos.</summary>
+    private static string? Capturar(Regex patron, string texto)
+    {
+        var m = patron.Match(texto);
+        if (!m.Success) return null;
+        return m.Groups.Count > 1 && m.Groups[1].Success ? m.Groups[1].Value : m.Value;
+    }
+
     [GeneratedRegex(@"(\d+)\s*(?:mil|k|lucas)\b", RegexOptions.IgnoreCase)]
     private static partial Regex RegexMiles();
+
+    [GeneratedRegex(@"\$\s*(\d{1,3}(?:[.,]\d{3})*|\d+)")]
+    private static partial Regex RegexMontoConSimbolo();
+
+    /// <summary>"por 33,800", "por 950" — el patrón que usan los bancos colombianos.</summary>
+    [GeneratedRegex(@"\bpor\s+\$?\s*(\d{1,3}(?:[.,]\d{3})*|\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex RegexMontoDespuesDePor();
 
     [GeneratedRegex(@"\d{1,3}(?:[.,]\d{3})+")]
     private static partial Regex RegexNumeroConSeparadores();

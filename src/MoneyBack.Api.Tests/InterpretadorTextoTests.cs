@@ -119,6 +119,28 @@ public class InterpretadorTextoTests
     }
 
     /// <summary>
+    /// SMS reales de Davivienda. Usa coma como separador de miles ("33,800"
+    /// son treinta y tres mil ochocientos) y mete números en el nombre del
+    /// comercio ("OXXO CALLE 100", "PRESTO ISERRA 100").
+    ///
+    /// El último caso es el que importa: un monto de menos de mil no lleva
+    /// separador, así que "agarrar el primer número" sacaba el 100 de "CALLE
+    /// 100" en vez del monto real. Una compra de $950 quedaba como $100.
+    /// </summary>
+    [Theory]
+    [InlineData("DAVIbank: Realizaste  transaccion en PRESTO ISERRA 100 por 33,800 con tu tarjeta Clasica 2026/09/16 14:21:49.", 33800)]
+    [InlineData("DAVIbank: Enviaste 560,000 a la llave 3186014188 de manera exitosa el 15-09-2026 a las 17:52:41.", 560000)]
+    [InlineData("DAVIbank: Realizaste  transaccion en PROMO PARAMO por 2,000 con tu tarjeta Clasica 2026/09/13 21:26:35.", 2000)]
+    [InlineData("DAVIbank: Realizaste  transaccion en PWSCCO*BBC PUB ANDINO por 71,500 con tu tarjeta Clasica 2026/09/06 18:57:17.", 71500)]
+    [InlineData("DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica 2026/09/02 8:08:56.", 13500)]
+    [InlineData("DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 950 con tu tarjeta Clasica 2026/09/02 8:08:56.", 950)]
+    [InlineData("DAVIbank: Realizaste  transaccion en PRESTO ISERRA 100 por 480 con tu tarjeta Clasica 2026/09/16 14:21:49.", 480)]
+    public void SmsRealesDeDavivienda(string sms, decimal esperado)
+    {
+        Assert.Equal(esperado, InterpretadorTexto.ExtraerMonto(sms));
+    }
+
+    /// <summary>
     /// El saldo que el banco informa después del movimiento suele ser mucho
     /// más grande: tomar ese número en vez del de la compra registraría un
     /// gasto enorme e invisible. El primer monto del mensaje es el correcto.
