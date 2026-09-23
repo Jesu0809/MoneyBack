@@ -127,7 +127,7 @@ public static class AtajosEndpoints
     /// </summary>
     public static void MapRegistrarTexto(this RouteGroupBuilder group)
     {
-        group.MapPost("/registrar-texto", async (HttpRequest request, ApplicationDbContext db) =>
+        group.MapPost("/registrar-texto", async (HttpRequest request, string? categoriaPorDefecto, ApplicationDbContext db) =>
         {
             var usuarioId = await ValidarTokenAsync(request, db);
             if (usuarioId is null) return Results.Unauthorized();
@@ -138,7 +138,7 @@ public static class AtajosEndpoints
                 .Where(c => c.UsuarioId == usuarioId.Value && c.Activa)
                 .ToListAsync();
 
-            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias);
+            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaPorDefecto);
             if (!interpretacion.Exito)
             {
                 // 200 y no 400 a propósito: en Atajos, un código de error hace

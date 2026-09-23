@@ -101,6 +101,55 @@ public class InterpretadorTextoTests
     }
 
     /// <summary>
+    /// El atajo de SMS manda el mensaje del banco tal cual. El banco nombra el
+    /// comercio ("EXITO", "RAPPI"), no la categoría, así que la persona elige
+    /// una al configurar el atajo y llega por categoriaPorDefecto.
+    /// </summary>
+    [Theory]
+    [InlineData("Bancolombia le informa Compra por $150.000 en EXITO 21/09/2026 18:32. Inquietudes al 018000931987", 150000)]
+    [InlineData("Bancolombia: Pago por $45.000 a NEQUI. Saldo disponible $1.234.567", 45000)]
+    [InlineData("Davivienda informa transaccion por $23.900 en RAPPI el 22/09/2026", 23900)]
+    public void UnSmsDelBanco_SacaElMontoYUsaLaCategoriaPorDefecto(string sms, decimal esperado)
+    {
+        var resultado = InterpretadorTexto.Interpretar(sms, Categorias, "Otros gastos");
+
+        Assert.True(resultado.Exito, resultado.Razon);
+        Assert.Equal(esperado, resultado.Monto);
+        Assert.Equal("Otros gastos", resultado.Categoria!.Nombre);
+    }
+
+    /// <summary>
+    /// El saldo que el banco informa después del movimiento suele ser mucho
+    /// más grande: tomar ese número en vez del de la compra registraría un
+    /// gasto enorme e invisible. El primer monto del mensaje es el correcto.
+    /// </summary>
+    [Fact]
+    public void ConSaldoEnElMismoSms_TomaElMontoDeLaTransaccion_NoElSaldo()
+    {
+        var resultado = InterpretadorTexto.Interpretar(
+            "Bancolombia: Pago por $45.000 a NEQUI. Saldo disponible $1.234.567", Categorias, "Otros gastos");
+
+        Assert.Equal(45_000m, resultado.Monto);
+    }
+
+    [Fact]
+    public void SiElTextoSiNombraCategoria_EsaGanaSobreLaPorDefecto()
+    {
+        var resultado = InterpretadorTexto.Interpretar("15000 transporte", Categorias, "Otros gastos");
+
+        Assert.Equal("Transporte", resultado.Categoria!.Nombre);
+    }
+
+    [Fact]
+    public void UnaCategoriaPorDefectoQueNoExiste_LoDiceClaro()
+    {
+        var resultado = InterpretadorTexto.Interpretar("compra por $50.000 en EXITO", Categorias, "Inventada");
+
+        Assert.False(resultado.Exito);
+        Assert.Contains("Inventada", resultado.Razon!);
+    }
+
+    /// <summary>
     /// Una palabra corta no debe disparar una categoría por accidente: si
     /// "ro" bastara para encontrar "Ropa", cualquier texto suelto registraría
     /// plata en la categoría equivocada.

@@ -28,7 +28,15 @@ public record ResultadoInterpretacion(decimal Monto, Categoria? Categoria, strin
 /// </summary>
 public static partial class InterpretadorTexto
 {
-    public static ResultadoInterpretacion Interpretar(string? texto, IReadOnlyList<Categoria> categorias)
+    /// <param name="categoriaPorDefecto">
+    /// Nombre de la categoría a usar cuando el texto no menciona ninguna. Lo
+    /// usa el atajo de SMS: el banco escribe "EXITO" o "RAPPI", no "Mercado",
+    /// así que la categoría la elige la persona al configurar el atajo. Se
+    /// ignora si el texto sí nombra una categoría (que es el caso del atajo
+    /// del Botón de Acción, donde la persona escribe "15000 mercado").
+    /// </param>
+    public static ResultadoInterpretacion Interpretar(
+        string? texto, IReadOnlyList<Categoria> categorias, string? categoriaPorDefecto = null)
     {
         if (string.IsNullOrWhiteSpace(texto)) return ResultadoInterpretacion.Fallo("No llegó ningún texto.");
         if (categorias.Count == 0) return ResultadoInterpretacion.Fallo("No tienes categorías activas todavía.");
@@ -40,6 +48,18 @@ public static partial class InterpretadorTexto
         }
 
         var categoria = BuscarCategoria(texto, categorias);
+
+        if (categoria is null && !string.IsNullOrWhiteSpace(categoriaPorDefecto))
+        {
+            var buscado = Normalizar(categoriaPorDefecto);
+            categoria = categorias.FirstOrDefault(c => Normalizar(c.Nombre) == buscado);
+
+            if (categoria is null)
+            {
+                return ResultadoInterpretacion.Fallo($"No tienes una categoría llamada \"{categoriaPorDefecto}\".");
+            }
+        }
+
         if (categoria is null)
         {
             var ejemplo = monto.Value.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
