@@ -48,11 +48,27 @@ public static partial class InterpretadorTexto
         if (string.IsNullOrWhiteSpace(texto)) return ResultadoInterpretacion.Fallo("No llegó ningún texto.");
         if (categorias.Count == 0) return ResultadoInterpretacion.Fallo("No tienes categorías activas todavía.");
 
-        var monto = ExtraerMonto(texto);
-        if (monto is null or <= 0)
+        var detectado = DetectarMonto(texto);
+        if (detectado is null || detectado.Valor <= 0)
         {
-            return ResultadoInterpretacion.Fallo($"No encontré un monto en \"{texto.Trim()}\".");
+            return ResultadoInterpretacion.Fallo($"No encontré un monto en \"{Recortar(texto)}\". Regístralo a mano en MoneyBack.");
         }
+
+        // Acá está la defensa contra bancos con formatos que nadie ha visto.
+        // No se puede garantizar entender a todos; lo que sí se puede es no
+        // inventar. Si el número no venía marcado como plata (sin "$", sin
+        // "por", sin separador de miles) y en el texto hay varios números
+        // —fechas, teléfonos, direcciones como "CALLE 100"— entonces elegir
+        // uno sería adivinar. Mejor negarse: un gasto sin registrar se nota
+        // y se corrige; uno registrado con el monto equivocado aparece
+        // semanas después cuadrando cuentas.
+        if (!detectado.ConAncla && ContarNumeros(texto) > 1)
+        {
+            return ResultadoInterpretacion.Fallo(
+                $"No estoy seguro de cuál es el monto en \"{Recortar(texto)}\". Regístralo a mano en MoneyBack.");
+        }
+
+        var monto = (decimal?)detectado.Valor;
 
         if (!string.IsNullOrWhiteSpace(categoriaForzada))
         {
@@ -88,7 +104,16 @@ public static partial class InterpretadorTexto
     /// Se quitan los separadores solo cuando agrupan de a tres dígitos, que es
     /// lo que los distingue de un decimal real.
     /// </summary>
-    public static decimal? ExtraerMonto(string texto)
+    /// <param name="ConAncla">
+    /// true si el número venía marcado como plata — con "$", después de "por",
+    /// o con separador de miles. false significa que era el único número
+    /// suelto del texto y se asumió que era el monto.
+    /// </param>
+    public record MontoDetectado(decimal Valor, bool ConAncla);
+
+    public static decimal? ExtraerMonto(string texto) => DetectarMonto(texto)?.Valor;
+
+    public static MontoDetectado? DetectarMonto(string texto)
     {
         var multiplicador = 1m;
         var limpio = texto;
@@ -108,17 +133,37 @@ public static partial class InterpretadorTexto
         // de que un número ES el monto — el signo $ o la palabra "por", que es
         // como lo escriben los bancos colombianos — y solo si no hay ninguna
         // se cae al número suelto.
+        var conAncla = true;
         var crudo =
             Capturar(RegexMontoConSimbolo(), limpio)
             ?? Capturar(RegexMontoDespuesDePor(), limpio)
-            ?? Capturar(RegexNumeroConSeparadores(), limpio)
-            ?? Capturar(RegexNumeroSimple(), limpio);
+            ?? Capturar(RegexNumeroConSeparadores(), limpio);
+
+        if (crudo is null)
+        {
+            // Sin ninguna señal de que sea plata: es una suposición.
+            conAncla = false;
+            crudo = Capturar(RegexNumeroSimple(), limpio);
+        }
 
         if (crudo is null) return null;
         crudo = crudo.Replace(".", "").Replace(",", "");
         if (!decimal.TryParse(crudo, NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor)) return null;
 
-        return valor * multiplicador;
+        return new MontoDetectado(valor * multiplicador, conAncla || multiplicador > 1);
+    }
+
+    /// <summary>
+    /// Cuántos números distintos aparecen. Sirve para saber si una suposición
+    /// es segura: con un solo número no hay de dónde equivocarse, con varios sí.
+    /// </summary>
+    private static int ContarNumeros(string texto) => RegexNumeroSimple().Matches(texto).Count;
+
+    /// <summary>Un SMS completo no cabe en una notificación; se recorta para que el aviso siga siendo legible.</summary>
+    private static string Recortar(string texto)
+    {
+        var limpio = texto.Trim();
+        return limpio.Length <= 45 ? limpio : limpio[..45] + "...";
     }
 
     private static Categoria? PorNombre(string nombre, IReadOnlyList<Categoria> categorias)

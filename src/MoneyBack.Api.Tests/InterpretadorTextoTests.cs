@@ -141,6 +141,57 @@ public class InterpretadorTextoTests
     }
 
     /// <summary>
+    /// No se puede escribir una regla para un formato que nadie ha visto, así
+    /// que la garantía no es "siempre acierta" sino "nunca inventa". Si el
+    /// número no viene marcado como plata y el texto trae varios números
+    /// (fechas, teléfonos, direcciones), se niega y manda a registrar a mano.
+    /// Un gasto sin registrar se nota; uno con el monto equivocado aparece
+    /// semanas después cuadrando cuentas.
+    /// </summary>
+    [Theory]
+    [InlineData("Nu: compra 45000 en TIENDA 24 el 23-09-2026")]
+    [InlineData("Banco X: 12000 TIENDA 5 ref 889")]
+    [InlineData("Movimiento 7800 en LOCAL 42 terminal 9")]
+    public void FormatoDesconocidoYAmbiguo_SeNiegaEnVezDeAdivinar(string sms)
+    {
+        var resultado = InterpretadorTexto.Interpretar(sms, Categorias, categoriaForzada: "Otros gastos");
+
+        Assert.False(resultado.Exito);
+        Assert.Contains("a mano", resultado.Razon!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Pero un banco desconocido que sí marque el monto tiene que funcionar
+    /// sin que nadie le escriba una regla: basta con que use "$" o "por".
+    /// </summary>
+    [Theory]
+    [InlineData("Nu: Compra aprobada por $45.000 en TIENDA 24 el 23-09-2026", 45000)]
+    [InlineData("Banco Y: Pagaste $12.500 en LOCAL 5 ref 889", 12500)]
+    [InlineData("Cualquier banco: transaccion por 7,800 en SITIO 42", 7800)]
+    public void FormatoDesconocidoPeroConSenal_Funciona(string sms, decimal esperado)
+    {
+        var resultado = InterpretadorTexto.Interpretar(sms, Categorias, categoriaForzada: "Otros gastos");
+
+        Assert.True(resultado.Exito, resultado.Razon);
+        Assert.Equal(esperado, resultado.Monto);
+    }
+
+    /// <summary>
+    /// Lo que la persona escribe en el Botón de Acción no debe verse afectado:
+    /// "15000 mercado" trae un solo número, no hay nada que confundir.
+    /// </summary>
+    [Theory]
+    [InlineData("15000 mercado", 15000)]
+    [InlineData("mercado 15000", 15000)]
+    public void TextoEscritoAMano_SigueFuncionandoSinSenales(string texto, decimal esperado)
+    {
+        var resultado = InterpretadorTexto.Interpretar(texto, Categorias);
+
+        Assert.True(resultado.Exito, resultado.Razon);
+        Assert.Equal(esperado, resultado.Monto);
+    }
+
+    /// <summary>
     /// El saldo que el banco informa después del movimiento suele ser mucho
     /// más grande: tomar ese número en vez del de la compra registraría un
     /// gasto enorme e invisible. El primer monto del mensaje es el correcto.
