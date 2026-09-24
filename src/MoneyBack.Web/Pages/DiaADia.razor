@@ -28,6 +28,43 @@
         </div>
     </div>
 
+    @{ var sinClasificar = _movimientos.Where(m => m.CategoriaNombre == CategoriaSinClasificar).ToList(); }
+    @if (sinClasificar.Count > 0)
+    {
+        <div class="card" style="border-left:3px solid var(--color-warning)">
+            <div class="stack">
+                <div class="row" style="gap:8px">
+                    <Icon Name="alert-triangle" Size="17" />
+                    <strong>@sinClasificar.Count @(sinClasificar.Count == 1 ? "gasto sin clasificar" : "gastos sin clasificar")</strong>
+                </div>
+                <p class="muted" style="font-size:13px; margin:0">
+                    Entraron solos desde tu banco. Sabemos cuánto y dónde, pero no en qué categoría van —
+                    y mientras sigan así, tus reportes por categoría quedan incompletos.
+                </p>
+                @foreach (var m in sinClasificar)
+                {
+                    @if (_editandoId == m.Id)
+                    {
+                        <EditorMovimiento Form="_editForm" Categorias="_categorias.Where(c => c.Activa).ToList()"
+                                          Guardando="_guardandoEdicion" Error="@_errorEdicion"
+                                          OnGuardar="GuardarEdicion" OnCancelar="CancelarEdicion" />
+                    }
+                    else
+                    {
+                        <div class="row-between card-tap" style="padding:8px 0" @onclick="() => AbrirEdicion(m)">
+                            <div class="row" style="gap:8px">
+                                <Icon Name="pencil" Size="14" />
+                                <span style="font-weight:600">@(string.IsNullOrEmpty(m.Nota) ? "Sin detalle" : m.Nota)</span>
+                            </div>
+                            <span class="money" style="font-size:15px">@Formato.Pesos(m.Monto)</span>
+                        </div>
+                    }
+                }
+                <span class="muted" style="font-size:12px">Toca uno para decirle a qué categoría pertenece.</span>
+            </div>
+        </div>
+    }
+
     <div class="segmented" style="width:200px; margin: 0 auto">
         <button type="button" class="segmented-btn @(_vista == VistaResumen.Mes ? "active" : "")" @onclick="() => CambiarVista(VistaResumen.Mes)">Mes</button>
         <button type="button" class="segmented-btn @(_vista == VistaResumen.Anio ? "active" : "")" @onclick="() => CambiarVista(VistaResumen.Anio)">Año</button>
@@ -134,35 +171,11 @@
                                 {
                                     var esIngreso = mov.Tipo == TipoCategoria.Ingreso;
 
-                                    @if (_editandoId == mov.Id)
+                                    @if (_editandoId == mov.Id && mov.CategoriaNombre != CategoriaSinClasificar)
                                     {
-                                        <div class="stack" style="gap:10px; padding:12px 0">
-                                            <div class="field" style="margin:0">
-                                                <label>Categoría</label>
-                                                <InputSelect class="input" @bind-Value="_editForm.CategoriaId">
-                                                    @foreach (var c in _categorias.Where(c => c.Activa))
-                                                    {
-                                                        <option value="@c.Id">@c.Icono @c.Nombre</option>
-                                                    }
-                                                </InputSelect>
-                                            </div>
-                                            <div class="field" style="margin:0">
-                                                <label>Monto</label>
-                                                <InputNumber class="input" @bind-Value="_editForm.Monto" />
-                                            </div>
-                                            <div class="field" style="margin:0">
-                                                <label>Nota (opcional)</label>
-                                                <InputText class="input" @bind-Value="_editForm.Nota" />
-                                            </div>
-                                            <AlertBox Mensaje="@_errorEdicion" />
-                                            <div class="row" style="gap:8px">
-                                                <button class="btn btn-secondary" style="flex:1" @onclick="CancelarEdicion">Cancelar</button>
-                                                <button class="btn btn-primary" style="flex:1" disabled="@_guardandoEdicion" @onclick="GuardarEdicion">
-                                                    @if (_guardandoEdicion) { <span class="spinner"></span> }
-                                                    <span>Guardar</span>
-                                                </button>
-                                            </div>
-                                        </div>
+                                        <EditorMovimiento Form="_editForm" Categorias="_categorias.Where(c => c.Activa).ToList()"
+                                                          Guardando="_guardandoEdicion" Error="@_errorEdicion"
+                                                          OnGuardar="GuardarEdicion" OnCancelar="CancelarEdicion" />
                                     }
                                     else
                                     {
@@ -315,11 +328,19 @@
     private int _anioActual = DateTime.UtcNow.Year;
     private List<CategoriaResponse> _categorias = [];
     private List<TarjetaCreditoResponse> _tarjetas = [];
+    /// <summary>
+    /// Debe coincidir con CategoriasPredefinidas en el API. Los movimientos
+    /// que entran por el atajo caen acá porque el banco da el comercio pero
+    /// no la categoría, y la app los resalta para que no se queden así: una
+    /// categoría que parece decidida (como "Otros gastos") nadie la corrige.
+    /// </summary>
+    private const string CategoriaSinClasificar = "Sin clasificar";
+
     private List<MovimientoDiaADiaResponse> _movimientos = [];
     private int? _editandoId;
     private bool _guardandoEdicion;
     private string? _errorEdicion;
-    private readonly EdicionFormModel _editForm = new();
+    private readonly EdicionMovimientoModel _editForm = new();
     private ResumenDiaADiaResponse? _resumen;
     private ResumenDiaADiaResponse? _saldoAcumulado;
     private List<MetaResponse> _metasActivas = [];
@@ -539,13 +560,6 @@
         _guardandoEdicion = false;
     }
 
-    private class EdicionFormModel
-    {
-        public int CategoriaId { get; set; }
-        public decimal? Monto { get; set; }
-        public string? Nota { get; set; }
-        public int? TarjetaCreditoId { get; set; }
-    }
 
     private string DonutGradient()
     {

@@ -11,6 +11,19 @@ public record ActualizarCategoriaRequest(string Nombre, string Icono, bool Activ
 
 public record ActualizarMovimientoDiaADiaRequest(int CategoriaId, decimal Monto, DateTime? Fecha, string? Nota, int? TarjetaCreditoId = null);
 
+/// <summary>
+/// Estado del formulario de edición. Vive aquí y no dentro de una página
+/// porque el editor se usa en dos lugares: la lista del día a día y la
+/// sección de gastos sin clasificar.
+/// </summary>
+public class EdicionMovimientoModel
+{
+    public int CategoriaId { get; set; }
+    public decimal? Monto { get; set; }
+    public string? Nota { get; set; }
+    public int? TarjetaCreditoId { get; set; }
+}
+
 public record CrearMovimientoDiaADiaRequest(int CategoriaId, decimal Monto, DateTime? Fecha, string? Nota, int? TarjetaCreditoId = null);
 
 public record MovimientoDiaADiaResponse(

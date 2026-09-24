@@ -1,0 +1,48 @@
+@*
+    Editor en línea de un movimiento. Va envuelto en EditForm porque los
+    componentes InputSelect/InputNumber/InputText de Blazor exigen un
+    EditContext en cascada y revientan en tiempo de ejecución sin él.
+
+    Se usa desde dos sitios (la lista del día a día y la sección de gastos sin
+    clasificar), por eso es un componente y no marcado repetido.
+*@
+<EditForm Model="Form" OnValidSubmit="OnGuardar">
+    <div class="stack" style="gap:10px; padding:12px 0">
+        <div class="field" style="margin:0">
+            <label>Categoría</label>
+            <InputSelect class="input" @bind-Value="Form.CategoriaId">
+                @foreach (var c in Categorias)
+                {
+                    <option value="@c.Id">@c.Icono @c.Nombre</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="field" style="margin:0">
+            <label>Monto</label>
+            <InputNumber class="input" @bind-Value="Form.Monto" />
+        </div>
+        <div class="field" style="margin:0">
+            <label>Detalle</label>
+            <InputText class="input" @bind-Value="Form.Nota" placeholder="Dónde fue" />
+        </div>
+
+        <AlertBox Mensaje="@Error" />
+
+        <div class="row" style="gap:8px">
+            <button type="button" class="btn btn-secondary" style="flex:1" @onclick="OnCancelar">Cancelar</button>
+            <button type="submit" class="btn btn-primary" style="flex:1" disabled="@Guardando">
+                @if (Guardando) { <span class="spinner"></span> }
+                <span>Guardar</span>
+            </button>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public EdicionMovimientoModel Form { get; set; } = default!;
+    [Parameter, EditorRequired] public List<CategoriaResponse> Categorias { get; set; } = [];
+    [Parameter] public bool Guardando { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+}
