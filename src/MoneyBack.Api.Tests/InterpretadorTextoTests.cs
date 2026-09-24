@@ -244,6 +244,35 @@ public class InterpretadorTextoTests
     }
 
     /// <summary>
+    /// Sin el nombre del comercio, la lista del día a día muestra
+    /// "Otros gastos / Otros gastos" y toca abrir la app del banco para
+    /// recordar en qué se gastó. Son dos formatos distintos, uno por banco.
+    /// </summary>
+    [Theory]
+    [InlineData("DAVIbank: Realizaste  transaccion en PRESTO ISERRA 100 por 33,800 con tu tarjeta Clasica 2026/09/16 14:21:49.", "PRESTO ISERRA 100")]
+    [InlineData("DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica", "OXXO CALLE 100")]
+    [InlineData("DAVIbank: Realizaste  transaccion en PWSCCO*BBC PUB ANDINO por 71,500 con tu tarjeta Clasica", "PWSCCO*BBC PUB ANDINO")]
+    [InlineData("Nu\nTostao Coffee and Bread. Bogotá, Bogotá\n$ 6.600", "Tostao Coffee and Bread")]
+    [InlineData("Dollarcity Nomad Salitre. Bogotá, Bogotá\n$ 22.500", "Dollarcity Nomad Salitre")]
+    public void SacaElNombreDelComercio(string texto, string esperado)
+    {
+        Assert.Equal(esperado, InterpretadorTexto.ExtraerComercio(texto));
+    }
+
+    /// <summary>
+    /// Escribir "15000 mercado" a mano no trae comercio. Mejor sin nota que
+    /// con un pedazo de frase que no significa nada.
+    /// </summary>
+    [Theory]
+    [InlineData("15000 mercado")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void SinComercioReconocible_NoInventaNota(string texto)
+    {
+        Assert.Null(InterpretadorTexto.ExtraerComercio(texto));
+    }
+
+    /// <summary>
     /// El saldo que el banco informa después del movimiento suele ser mucho
     /// más grande: tomar ese número en vez del de la compra registraría un
     /// gasto enorme e invisible. El primer monto del mensaje es el correcto.

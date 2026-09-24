@@ -180,6 +180,54 @@ public static partial class InterpretadorTexto
         return limpio.Length <= 45 ? limpio : limpio[..45] + "...";
     }
 
+    /// <summary>
+    /// Saca el nombre del comercio para guardarlo como nota del movimiento.
+    /// Sin esto, la lista del día a día muestra "Otros gastos / Otros gastos"
+    /// y toca abrir la app del banco para recordar en qué se gastó.
+    ///
+    /// Son dos formatos distintos y ninguno es adivinanza:
+    ///   Davivienda: "...transaccion en PRESTO ISERRA 100 por 33,800 con tu..."
+    ///   Nu:         "Tostao Coffee and Bread. Bogotá, Bogotá\n$ 6.600"
+    /// Si el texto no calza con ninguno, devuelve null — mejor sin nota que
+    /// con un pedazo de frase que no significa nada.
+    /// </summary>
+    public static string? ExtraerComercio(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return null;
+
+        var entrePor = RegexComercioEntreEnYPor().Match(texto);
+        if (entrePor.Success) return Limpiar(entrePor.Groups[1].Value);
+
+        // Nu: el comercio abre el mensaje y la ciudad va después del punto.
+        // Se exige que el texto traiga varias líneas porque así llega el
+        // contenido de una notificación; lo que alguien escribe a mano
+        // ("15000 mercado") viene en una sola y no tiene comercio que sacar.
+        var lineas = texto.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        if (lineas.Length < 2) return null;
+
+        foreach (var linea in lineas)
+        {
+            var candidato = linea.TrimStart();
+            // Se saltan la línea del monto y las que empiezan por número,
+            // que nunca son el nombre de un comercio.
+            if (candidato.StartsWith('$') || (candidato.Length > 0 && char.IsDigit(candidato[0]))) continue;
+
+            var antesDeCiudad = candidato.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            var limpio = Limpiar(antesDeCiudad ?? "");
+
+            // "Nu" o "DAVIbank" solos son el banco, no el comercio.
+            if (limpio.Length > 3 && !limpio.Contains('$')) return limpio;
+        }
+
+        return null;
+    }
+
+    private static string Limpiar(string valor)
+    {
+        var limpio = valor.Trim().Trim('.', ',', ':', '-').Trim();
+        return limpio.Length > 40 ? limpio[..40].Trim() : limpio;
+    }
+
     private static Categoria? PorNombre(string nombre, IReadOnlyList<Categoria> categorias)
     {
         var buscado = Normalizar(nombre);
@@ -248,6 +296,10 @@ public static partial class InterpretadorTexto
     /// <summary>"por 33,800", "por 950" — el patrón que usan los bancos colombianos.</summary>
     [GeneratedRegex(@"\bpor\s+\$?\s*(\d{1,3}(?:[.,]\d{3})*|\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex RegexMontoDespuesDePor();
+
+    /// <summary>"transaccion en PRESTO ISERRA 100 por 33,800" -> "PRESTO ISERRA 100".</summary>
+    [GeneratedRegex(@"\ben\s+(.+?)\s+por\s+\$?\s*\d", RegexOptions.IgnoreCase)]
+    private static partial Regex RegexComercioEntreEnYPor();
 
     [GeneratedRegex(@"\d{1,3}(?:[.,]\d{3})+")]
     private static partial Regex RegexNumeroConSeparadores();

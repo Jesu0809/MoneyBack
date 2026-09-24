@@ -185,11 +185,16 @@ public static class AtajosEndpoints
             }
 
             var categoria = interpretacion.Categoria!;
+            var comercio = InterpretadorTexto.ExtraerComercio(texto);
             var movimiento = new MovimientoDiaADia
             {
                 UsuarioId = usuarioId.Value,
                 CategoriaId = categoria.Id,
-                Monto = interpretacion.Monto
+                Monto = interpretacion.Monto,
+                // Sin esto la lista del día a día muestra "Otros gastos /
+                // Otros gastos" y toca abrir la app del banco para recordar
+                // en qué se gastó.
+                Nota = comercio
             };
             db.MovimientosDiaADia.Add(movimiento);
 
@@ -202,12 +207,13 @@ public static class AtajosEndpoints
 
             var montoFormateado = interpretacion.Monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
             var verbo = categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso";
+            var donde = comercio is null ? "" : $" en {comercio}";
 
             // Texto plano, no JSON: el "Mostrar resultado" de Atajos enseña la
             // respuesta tal cual, así que con JSON el usuario vería llaves y
             // comillas. Así lee una frase limpia sin necesidad de agregar un
             // paso extra para sacar el campo del diccionario.
-            return Results.Text($"{verbo} de ${montoFormateado} en {categoria.Nombre} registrado.", "text/plain");
+            return Results.Text($"{verbo} de ${montoFormateado}{donde} · {categoria.Nombre}", "text/plain");
         });
     }
 
