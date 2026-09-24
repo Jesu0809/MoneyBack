@@ -192,6 +192,58 @@ public class InterpretadorTextoTests
     }
 
     /// <summary>
+    /// Nu solo avisa por notificación de su app — no manda SMS ni correo — así
+    /// que la única vía es leer el texto de una captura. El formato es distinto
+    /// al de Davivienda: "$ 6.600", con espacio y punto de miles.
+    /// </summary>
+    [Theory]
+    [InlineData("Nu\nHace 2 h\nTostao Coffee and Bread. Bogotá, Bogotá\n$ 6.600", 6600)]
+    [InlineData("Nu\nDollarcity Nomad Salitre. Bogotá, Bogotá\n$ 22.500", 22500)]
+    [InlineData("Nu\nZelo Group. Bogotá, Bogotá\n$ 3.400", 3400)]
+    [InlineData("Nu\nTostao Coffee and Bread. Bogotá, Bogotá\n$ 900", 900)]
+    public void NotificacionDeNu_LeidaDeUnaCaptura(string ocr, decimal esperado)
+    {
+        var resultado = InterpretadorTexto.Interpretar(ocr, Categorias, categoriaForzada: "Otros gastos", vieneDeCaptura: true);
+
+        Assert.True(resultado.Exito, resultado.Razon);
+        Assert.Equal(esperado, resultado.Monto);
+    }
+
+    /// <summary>
+    /// Una captura del centro de notificaciones trae varias transacciones
+    /// apiladas. Quedarse con la primera registraría la compra equivocada sin
+    /// que nadie se entere — mejor pedir que recorte.
+    /// </summary>
+    [Fact]
+    public void CapturaConVariasNotificaciones_PideQueLaRecorte()
+    {
+        var ocr = "Nu Hace 2 h\nTostao Coffee and Bread. Bogotá, Bogotá\n$ 6.600\n" +
+                  "Nu ayer, 6:50 p.m.\nDollarcity Nomad Salitre. Bogotá, Bogotá\n$ 22.500\n" +
+                  "Nu ayer, 12:16 p.m.\nZelo Group. Bogotá, Bogotá\n$ 3.400";
+
+        var resultado = InterpretadorTexto.Interpretar(ocr, Categorias, categoriaForzada: "Otros gastos", vieneDeCaptura: true);
+
+        Assert.False(resultado.Exito);
+        Assert.Contains("recórtala", resultado.Razon!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// La misma regla NO debe aplicar a los SMS: ahí un segundo monto suele ser
+    /// el saldo informado después del movimiento, y el primero sigue siendo el
+    /// correcto. Sin esta distinción, arreglar lo de Nu rompería Bancolombia.
+    /// </summary>
+    [Fact]
+    public void UnSmsConSaldoAdicional_SigueRegistrandoElPrimerMonto()
+    {
+        var sms = "Bancolombia: Pago por $45.000 a NEQUI. Saldo disponible $1.234.567";
+
+        var resultado = InterpretadorTexto.Interpretar(sms, Categorias, categoriaForzada: "Otros gastos");
+
+        Assert.True(resultado.Exito, resultado.Razon);
+        Assert.Equal(45_000m, resultado.Monto);
+    }
+
+    /// <summary>
     /// El saldo que el banco informa después del movimiento suele ser mucho
     /// más grande: tomar ese número en vez del de la compra registraría un
     /// gasto enorme e invisible. El primer monto del mensaje es el correcto.

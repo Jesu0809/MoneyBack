@@ -42,8 +42,16 @@ public static partial class InterpretadorTexto
     /// de esa coincidencia es impredecible. Si la persona configuró una
     /// categoría para sus SMS, esa manda.
     /// </param>
+    /// <param name="vieneDeCaptura">
+    /// El texto salió de leer una imagen, no de un mensaje. Una captura del
+    /// centro de notificaciones trae varias transacciones apiladas, y quedarse
+    /// con la primera registraría la compra equivocada sin avisar. En un SMS
+    /// eso no pasa: trae un solo movimiento, y si menciona el saldo va después
+    /// del monto, así que el primero es el correcto por convención.
+    /// </param>
     public static ResultadoInterpretacion Interpretar(
-        string? texto, IReadOnlyList<Categoria> categorias, string? categoriaPorDefecto = null, string? categoriaForzada = null)
+        string? texto, IReadOnlyList<Categoria> categorias, string? categoriaPorDefecto = null,
+        string? categoriaForzada = null, bool vieneDeCaptura = false)
     {
         if (string.IsNullOrWhiteSpace(texto)) return ResultadoInterpretacion.Fallo("No llegó ningún texto.");
         if (categorias.Count == 0) return ResultadoInterpretacion.Fallo("No tienes categorías activas todavía.");
@@ -66,6 +74,12 @@ public static partial class InterpretadorTexto
         {
             return ResultadoInterpretacion.Fallo(
                 $"No estoy seguro de cuál es el monto en \"{Recortar(texto)}\". Regístralo a mano en MoneyBack.");
+        }
+
+        if (vieneDeCaptura && RegexMontoConSimbolo().Matches(texto).Count > 1)
+        {
+            return ResultadoInterpretacion.Fallo(
+                "La captura tiene varias notificaciones y no sé cuál registrar. Recórtala para que quede una sola y compártela otra vez.");
         }
 
         var monto = (decimal?)detectado.Valor;

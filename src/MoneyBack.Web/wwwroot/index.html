@@ -17,13 +17,15 @@
          standalone) al agregarla a la pantalla de inicio — sin esto, Safari
          la sigue tratando como una pestaña normal y no entrega push. -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- black-translucent deja que la app pinte el área de la barra de estado
-         en vez de que iOS meta una franja blanca que no combina con el tema
-         oscuro. El costo es que el texto de la hora y la batería queda blanco
-         SIEMPRE, así que esa franja tiene que ser oscura también en modo claro
-         o la hora se vuelve ilegible — de eso se encarga la regla
-         .franja-barra-estado en app.css. -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- "default" junto con viewport-fit=cover, que es la combinación que sirve
+         en una app con tema claro y oscuro: el contenido llega hasta el borde,
+         así que el fondo lo pinta la app (siempre acorde al tema), y iOS elige
+         el color de la hora según la apariencia del sistema.
+         black-translucent no sirve acá: fuerza la hora a blanco siempre, lo que
+         obliga a una franja oscura que en modo claro se ve como una banda gris.
+         La franja blanca que aparecía antes era de instalaciones previas a
+         viewport-fit=cover, donde iOS reservaba el espacio y lo rellenaba él. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="MoneyBack" />
     <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="css/app.css" />

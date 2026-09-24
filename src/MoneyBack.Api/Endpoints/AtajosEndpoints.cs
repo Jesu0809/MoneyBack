@@ -168,7 +168,13 @@ public static class AtajosEndpoints
                 .Where(c => c.UsuarioId == usuarioId.Value && c.Activa)
                 .ToListAsync();
 
-            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaPorDefecto, categoriaForzada);
+            // El atajo de captura de pantalla lo manda para que, si la imagen
+            // trae varias notificaciones apiladas, se niegue en vez de
+            // registrar la primera que encuentre.
+            var vieneDeCaptura = request.Headers.TryGetValue("X-Origen", out var origen)
+                && origen.ToString().Equals("captura", StringComparison.OrdinalIgnoreCase);
+
+            var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaPorDefecto, categoriaForzada, vieneDeCaptura);
             if (!interpretacion.Exito)
             {
                 // 200 y no 400 a propósito: en Atajos, un código de error hace
