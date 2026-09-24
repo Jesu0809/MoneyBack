@@ -38,8 +38,9 @@
                     <strong>@sinClasificar.Count @(sinClasificar.Count == 1 ? "gasto sin clasificar" : "gastos sin clasificar")</strong>
                 </div>
                 <p class="muted" style="font-size:13px; margin:0">
-                    Entraron solos desde tu banco. Sabemos cuánto y dónde, pero no en qué categoría van —
-                    y mientras sigan así, tus reportes por categoría quedan incompletos.
+                    Entraron solos desde tu banco. Esto es lo que el banco informó de cada uno —
+                    dónde y cuándo fue — para que puedas reconocerlos. Mientras no tengan categoría,
+                    tus reportes quedan incompletos.
                 </p>
                 @foreach (var m in sinClasificar)
                 {
@@ -51,12 +52,23 @@
                     }
                     else
                     {
-                        <div class="row-between card-tap" style="padding:8px 0" @onclick="() => AbrirEdicion(m)">
-                            <div class="row" style="gap:8px">
-                                <Icon Name="pencil" Size="14" />
-                                <span style="font-weight:600">@(string.IsNullOrEmpty(m.Nota) ? "Sin detalle" : m.Nota)</span>
+                        <div class="row-between card-tap" style="padding:10px 0" @onclick="() => AbrirEdicion(m)">
+                            <div class="row" style="gap:10px">
+                                <div class="icon-bubble" style="background:var(--color-warning-soft)">
+                                    <Icon Name="alert-triangle" Size="15" />
+                                </div>
+                                <div>
+                                    <div style="font-weight:600">
+                                        @(string.IsNullOrEmpty(m.Nota) ? "El banco no dijo dónde" : m.Nota)
+                                    </div>
+                                    <div class="muted" style="font-size:12.5px">
+                                        @Formato.FechaHora(m.Fecha) · toca para clasificar
+                                    </div>
+                                </div>
                             </div>
-                            <span class="money" style="font-size:15px">@Formato.Pesos(m.Monto)</span>
+                            <span class="money" style="font-size:15px; color:var(--color-danger)">
+                                @Formato.Pesos(m.Monto)
+                            </span>
                         </div>
                     }
                 }

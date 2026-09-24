@@ -144,7 +144,7 @@ public static class AtajosEndpoints
             return Results.Ok(nombres);
         });
 
-        group.MapPost("/registrar-texto", async (HttpRequest request, string? categoriaPorDefecto, ApplicationDbContext db) =>
+        group.MapPost("/registrar-texto", async (HttpRequest request, string? categoriaPorDefecto, bool? avisarPorPush, ApplicationDbContext db, PushNotificationSender sender) =>
         {
             var usuarioId = await ValidarTokenAsync(request, db);
             if (usuarioId is null) return Results.Unauthorized();
@@ -208,12 +208,23 @@ public static class AtajosEndpoints
             var montoFormateado = interpretacion.Monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
             var verbo = categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso";
             var donde = comercio is null ? "" : $" en {comercio}";
+            var confirmacion = $"{verbo} de ${montoFormateado}{donde} · {categoria.Nombre}";
+
+            // La confirmación puede llegar como push de MoneyBack en vez de
+            // como notificación de la app Atajos. Suena a detalle, pero es lo
+            // que permite silenciar Atajos por completo: iOS no deja apagar su
+            // aviso de "ejecutando automatización", y como ese y el nuestro
+            // salen de la misma app, silenciar uno silenciaba los dos.
+            if (avisarPorPush == true)
+            {
+                await sender.EnviarATodosLosDispositivosAsync(usuarioId.Value, "Gasto registrado", confirmacion);
+            }
 
             // Texto plano, no JSON: el "Mostrar resultado" de Atajos enseña la
             // respuesta tal cual, así que con JSON el usuario vería llaves y
             // comillas. Así lee una frase limpia sin necesidad de agregar un
             // paso extra para sacar el campo del diccionario.
-            return Results.Text($"{verbo} de ${montoFormateado}{donde} · {categoria.Nombre}", "text/plain");
+            return Results.Text(confirmacion, "text/plain");
         });
     }
 
