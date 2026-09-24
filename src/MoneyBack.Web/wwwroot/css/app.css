@@ -62,6 +62,31 @@
 
 html { background: var(--color-bg); transition: background 200ms var(--ease-smooth); }
 
+/*
+  Franja detrás de la barra de estado del iPhone (solo visible con la app
+  instalada en la pantalla de inicio, que es cuando aplica viewport-fit=cover).
+
+  Va oscura en los dos temas a propósito: con apple-mobile-web-app-status-bar-style
+  en black-translucent, iOS dibuja la hora y la batería SIEMPRE en blanco, sin
+  forma de cambiarlo. Si esta franja siguiera el color del tema, en modo claro
+  quedaría blanco sobre blanco y no se leería la hora.
+
+  En modo oscuro el color es el mismo del fondo de la app, así que no se nota
+  la unión; en claro queda una banda oscura arriba, que es el precio de que la
+  hora se lea.
+*/
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  background: #17181a;
+  z-index: 100;
+  pointer-events: none;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
