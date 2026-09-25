@@ -254,6 +254,15 @@ public class InterpretadorTextoTests
     [InlineData("DAVIbank: Realizaste  transaccion en PWSCCO*BBC PUB ANDINO por 71,500 con tu tarjeta Clasica", "PWSCCO*BBC PUB ANDINO")]
     [InlineData("Nu\nTostao Coffee and Bread. Bogotá, Bogotá\n$ 6.600", "Tostao Coffee and Bread")]
     [InlineData("Dollarcity Nomad Salitre. Bogotá, Bogotá\n$ 22.500", "Dollarcity Nomad Salitre")]
+    // Las tres formas en que iOS puede entregar la MISMA notificación de Nu:
+    // con título o sin él, en varias líneas o aplanada en una sola. No se
+    // sabe cuál usa, así que las tres tienen que dar el mismo comercio.
+    [InlineData("Tostao Coffee and Bread. Bogotá, Bogotá\n$ 6.600", "Tostao Coffee and Bread")]
+    [InlineData("Nu Tostao Coffee and Bread. Bogotá, Bogotá $ 6.600", "Tostao Coffee and Bread")]
+    [InlineData("Tostao Coffee and Bread. Bogotá, Bogotá $ 6.600", "Tostao Coffee and Bread")]
+    [InlineData("Zelo Group. Bogotá, Bogotá\n$ 3.400", "Zelo Group")]
+    // Un comercio que empieza parecido a un banco no debe quedar mutilado.
+    [InlineData("Nuevo Mundo Cafe. Bogotá, Bogotá $ 9.000", "Nuevo Mundo Cafe")]
     public void SacaElNombreDelComercio(string texto, string esperado)
     {
         Assert.Equal(esperado, InterpretadorTexto.ExtraerComercio(texto));

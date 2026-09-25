@@ -199,11 +199,15 @@ public static partial class InterpretadorTexto
         if (entrePor.Success) return Limpiar(entrePor.Groups[1].Value);
 
         // Nu: el comercio abre el mensaje y la ciudad va después del punto.
-        // Se exige que el texto traiga varias líneas porque así llega el
-        // contenido de una notificación; lo que alguien escribe a mano
-        // ("15000 mercado") viene en una sola y no tiene comercio que sacar.
+        //
+        // Se acepta en dos formas porque no se sabe cómo entregará iOS el
+        // contenido de la notificación: puede venir en varias líneas
+        // (título / comercio / monto) o todo aplanado en una sola. Si viene
+        // en una, se exige que traiga "$" para distinguir el aviso de un
+        // banco de algo escrito a mano como "15000 mercado", donde no hay
+        // comercio que sacar.
         var lineas = texto.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        if (lineas.Length < 2) return null;
+        if (lineas.Length < 2 && !texto.Contains('$')) return null;
 
         foreach (var linea in lineas)
         {
@@ -222,9 +226,29 @@ public static partial class InterpretadorTexto
         return null;
     }
 
+    /// <summary>
+    /// Nombres de banco que pueden venir pegados al principio cuando iOS
+    /// aplana título y cuerpo de la notificación en una sola línea: sin esto
+    /// el comercio queda como "Nu Tostao Coffee and Bread".
+    /// </summary>
+    private static readonly string[] PrefijosDeBanco =
+        ["nu", "davibank", "davivienda", "bancolombia", "falabella", "nequi"];
+
     private static string Limpiar(string valor)
     {
         var limpio = valor.Trim().Trim('.', ',', ':', '-').Trim();
+
+        foreach (var banco in PrefijosDeBanco)
+        {
+            if (limpio.Length <= banco.Length + 1) continue;
+            if (!limpio.StartsWith(banco, StringComparison.OrdinalIgnoreCase)) continue;
+            // Solo si es palabra completa: "Nuevo Mundo" no empieza por "Nu".
+            if (!char.IsWhiteSpace(limpio[banco.Length]) && limpio[banco.Length] != ':') continue;
+
+            limpio = limpio[(banco.Length + 1)..].Trim().TrimStart(':').Trim();
+            break;
+        }
+
         return limpio.Length > 40 ? limpio[..40].Trim() : limpio;
     }
 
