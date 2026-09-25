@@ -26,7 +26,7 @@ public static class MovimientosDiaADiaEndpoints
                 .OrderByDescending(m => m.Fecha)
                 .Select(m => new MovimientoDiaADiaResponse(
                     m.Id, m.CategoriaId, m.Categoria.Nombre, m.Categoria.Icono, m.Categoria.Tipo,
-                    m.Monto, m.Fecha, m.Nota, m.RedondeoAplicado,
+                    m.Monto, m.Fecha, m.Nota, m.Comercio, m.RedondeoAplicado,
                     m.TarjetaCreditoId, m.TarjetaCredito != null ? m.TarjetaCredito.Nombre : null))
                 .ToListAsync();
 
@@ -117,7 +117,7 @@ public static class MovimientosDiaADiaEndpoints
 
             return Results.Created($"/api/movimientos-diaadia/{movimiento.Id}", new MovimientoDiaADiaResponse(
                 movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
-                movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado,
+                movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.Comercio, movimiento.RedondeoAplicado,
                 tarjeta?.Id, tarjeta?.Nombre));
         });
 
@@ -191,7 +191,7 @@ public static class MovimientosDiaADiaEndpoints
             return Results.Ok(new MovimientoActualizadoResponse(
                 new MovimientoDiaADiaResponse(
                     movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
-                    movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado,
+                    movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.Comercio, movimiento.RedondeoAplicado,
                     tarjeta?.Id, tarjeta?.Nombre),
                 comercioAprendido,
                 reclasificados));
@@ -213,6 +213,11 @@ public static class MovimientosDiaADiaEndpoints
     /// Guarda que este comercio va en esta categoría y arrastra los gastos
     /// anteriores del mismo sitio que seguían sin clasificar.
     ///
+    /// Se guía por el Comercio que informó el banco, nunca por la Nota: la
+    /// nota es texto libre, y aprender de ella significaba que corregir un
+    /// gasto anotado "almuerzo con Ana" creara un "comercio" con ese nombre.
+    /// Un movimiento escrito a mano no tiene comercio, así que no enseña nada.
+    ///
     /// Solo toca los que están sin clasificar: esos no tienen una decisión
     /// detrás que respetar, así que moverlos es completar lo que faltaba. Un
     /// gasto que la persona ya clasificó a mano se queda como está, aunque sea
@@ -222,9 +227,9 @@ public static class MovimientosDiaADiaEndpoints
     private static async Task<(string? Comercio, int Reclasificados)> AprenderComercioAsync(
         MovimientoDiaADia movimiento, Categoria categoria, int usuarioId, ApplicationDbContext db)
     {
-        if (string.IsNullOrWhiteSpace(movimiento.Nota)) return (null, 0);
+        if (string.IsNullOrWhiteSpace(movimiento.Comercio)) return (null, 0);
 
-        var clave = InterpretadorTexto.Normalizar(movimiento.Nota);
+        var clave = InterpretadorTexto.Normalizar(movimiento.Comercio);
         if (clave.Length < 3) return (null, 0);
 
         var existente = await db.ComerciosCategoria
@@ -250,19 +255,25 @@ public static class MovimientosDiaADiaEndpoints
             .Select(c => c.Id)
             .FirstOrDefaultAsync();
 
-        if (sinClasificar == 0) return (movimiento.Nota, 0);
+        if (sinClasificar == 0) return (movimiento.Comercio, 0);
 
+        // Se traen los pendientes y se comparan acá, no en SQL, porque la
+        // comparación tiene que ser la misma que produjo la llave: sin tildes
+        // y sin mayúsculas. De otro modo "Café Juan" y "Cafe Juan" apuntarían
+        // a lo mismo aprendido pero no se arrastrarían entre sí, y la persona
+        // vería unos moverse y otros no sin ninguna razón visible. Son los
+        // gastos sin clasificar de una sola cuenta: caben de sobra en memoria.
         var pendientes = await db.MovimientosDiaADia
             .Where(m => m.UsuarioId == usuarioId
                 && m.Id != movimiento.Id
                 && m.CategoriaId == sinClasificar
-                && m.Nota != null
-                && m.Nota.ToLower() == movimiento.Nota!.ToLower())
+                && m.Comercio != null)
             .ToListAsync();
 
-        foreach (var pendiente in pendientes) pendiente.CategoriaId = categoria.Id;
+        var delMismoSitio = pendientes.Where(m => InterpretadorTexto.Normalizar(m.Comercio!) == clave).ToList();
+        foreach (var pendiente in delMismoSitio) pendiente.CategoriaId = categoria.Id;
 
-        return (movimiento.Nota, pendientes.Count);
+        return (movimiento.Comercio, delMismoSitio.Count);
     }
 
     /// <summary>

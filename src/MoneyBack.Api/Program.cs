@@ -137,6 +137,7 @@ app.MapMetasEndpoints();
 app.MapSubsidiosEndpoints();
 app.MapCategoriasEndpoints();
 app.MapMovimientosDiaADiaEndpoints();
+app.MapComerciosAprendidosEndpoints();
 app.MapPresupuestosEndpoints();
 app.MapSuscripcionesEndpoints();
 app.MapDeudasEndpoints();

@@ -209,4 +209,126 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
         var movimientos = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!;
         Assert.Equal(13_500m, Assert.Single(movimientos).Monto);
     }
+
+    /// <summary>
+    /// Una nota escrita a mano no es un comercio. Antes se aprendía de la
+    /// nota, así que corregir un gasto anotado "almuerzo con Ana" creaba un
+    /// "sitio" con ese nombre y la app anunciaba haber aprendido algo que no
+    /// significa nada.
+    /// </summary>
+    [Fact]
+    public async Task UnGastoEscritoAMano_NoEnseniaNingunComercio()
+    {
+        var (cliente, _, usuarioId, sinClasificar, mercado) = await PrepararAsync();
+
+        var creado = await cliente.PostAsJsonAsync("/api/movimientos-diaadia",
+            new CrearMovimientoDiaADiaRequest(sinClasificar.Id, 30_000m, null, "almuerzo con Ana"));
+        var mov = (await creado.Content.ReadFromJsonAsync<MovimientoDiaADiaResponse>())!;
+
+        var respuesta = await cliente.PutAsJsonAsync($"/api/movimientos-diaadia/{mov.Id}",
+            new ActualizarMovimientoDiaADiaRequest(mercado.Id, mov.Monto, null, mov.Nota));
+        var resultado = (await respuesta.Content.ReadFromJsonAsync<MovimientoActualizadoResponse>())!;
+
+        Assert.Null(resultado.ComercioAprendido);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Empty(db.ComerciosCategoria.Where(c => c.UsuarioId == usuarioId));
+    }
+
+    /// <summary>
+    /// El banco escribe el mismo sitio con y sin tilde. Si el arrastre
+    /// distinguiera, la persona vería unos gastos moverse y otros quedarse,
+    /// sin ninguna diferencia visible entre ellos.
+    /// </summary>
+    [Fact]
+    public async Task ArrastraElMismoSitioAunqueElBancoLoEscribaConTildeYSin()
+    {
+        var (cliente, token, _, _, mercado) = await PrepararAsync();
+
+        await RegistrarPorAtajoAsync(_factory, token,
+            "DAVIbank: Realizaste  transaccion en CAFE JUAN por 13,500 con tu tarjeta Clasica");
+        await RegistrarPorAtajoAsync(_factory, token,
+            "DAVIbank: Realizaste  transaccion en CAFÉ JUAN por 9,200 con tu tarjeta Clasica");
+
+        var movimientos = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!;
+        var primero = movimientos.First();
+
+        var respuesta = await cliente.PutAsJsonAsync($"/api/movimientos-diaadia/{primero.Id}",
+            new ActualizarMovimientoDiaADiaRequest(mercado.Id, primero.Monto, null, primero.Nota));
+        var resultado = (await respuesta.Content.ReadFromJsonAsync<MovimientoActualizadoResponse>())!;
+
+        Assert.Equal(1, resultado.OtrosReclasificados);
+    }
+
+    /// <summary>
+    /// Si la persona cambia la nota del gasto, el sitio sigue siendo el que
+    /// dijo el banco: la nota es suya, el comercio es un dato.
+    /// </summary>
+    [Fact]
+    public async Task CambiarLaNotaNoLeQuitaAlGastoElSitioDondeOcurrio()
+    {
+        var (cliente, token, _, _, mercado) = await PrepararAsync();
+        const string sms = "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica";
+
+        await RegistrarPorAtajoAsync(_factory, token, sms);
+        var mov = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!.Single();
+
+        var respuesta = await cliente.PutAsJsonAsync($"/api/movimientos-diaadia/{mov.Id}",
+            new ActualizarMovimientoDiaADiaRequest(mercado.Id, mov.Monto, null, "las cervezas del viernes"));
+        var resultado = (await respuesta.Content.ReadFromJsonAsync<MovimientoActualizadoResponse>())!;
+
+        Assert.Contains("OXXO", resultado.ComercioAprendido!);
+
+        // Y lo aprendido funciona: la siguiente compra ahí entra clasificada.
+        var segunda = await RegistrarPorAtajoAsync(_factory, token, sms);
+        Assert.Contains("Mercado", segunda);
+    }
+
+    [Fact]
+    public async Task OlvidarUnSitio_HaceQueVuelvaAPreguntarSinBorrarLoYaRegistrado()
+    {
+        var (cliente, token, _, _, mercado) = await PrepararAsync();
+        const string sms = "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica";
+
+        await RegistrarPorAtajoAsync(_factory, token, sms);
+        var mov = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!.Single();
+        await cliente.PutAsJsonAsync($"/api/movimientos-diaadia/{mov.Id}",
+            new ActualizarMovimientoDiaADiaRequest(mercado.Id, mov.Monto, null, mov.Nota));
+
+        var aprendidos = (await cliente.GetFromJsonAsync<List<ComercioAprendidoResponse>>("/api/comercios-aprendidos"))!;
+        var oxxo = Assert.Single(aprendidos);
+        Assert.Equal("Mercado", oxxo.CategoriaNombre);
+
+        var borrado = await cliente.DeleteAsync($"/api/comercios-aprendidos/{oxxo.Id}");
+        borrado.EnsureSuccessStatusCode();
+
+        // Vuelve a preguntar...
+        var segunda = await RegistrarPorAtajoAsync(_factory, token, sms);
+        Assert.Contains(CategoriasPredefinidas.SinClasificar, segunda);
+
+        // ...pero el gasto que ya estaba clasificado se queda donde estaba.
+        var despues = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!;
+        Assert.Contains(despues, m => m.Id == mov.Id && m.CategoriaNombre == "Mercado");
+    }
+
+    [Fact]
+    public async Task NadieBorraLoAprendidoDeOtraCuenta()
+    {
+        var (clienteA, tokenA, _, _, mercadoA) = await PrepararAsync();
+        var (clienteB, _, _, _, _) = await PrepararAsync();
+
+        await RegistrarPorAtajoAsync(_factory, tokenA,
+            "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica");
+        var mov = (await clienteA.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!.Single();
+        await clienteA.PutAsJsonAsync($"/api/movimientos-diaadia/{mov.Id}",
+            new ActualizarMovimientoDiaADiaRequest(mercadoA.Id, mov.Monto, null, mov.Nota));
+
+        var deA = (await clienteA.GetFromJsonAsync<List<ComercioAprendidoResponse>>("/api/comercios-aprendidos"))!.Single();
+
+        var intento = await clienteB.DeleteAsync($"/api/comercios-aprendidos/{deA.Id}");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, intento.StatusCode);
+
+        Assert.Empty((await clienteB.GetFromJsonAsync<List<ComercioAprendidoResponse>>("/api/comercios-aprendidos"))!);
+    }
 }

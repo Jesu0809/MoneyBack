@@ -3,6 +3,17 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace MoneyBack.Api.Models.DiaADia;
 
+public class MovimientoDiaADiaConfiguration : IEntityTypeConfiguration<MovimientoDiaADia>
+{
+    public void Configure(EntityTypeBuilder<MovimientoDiaADia> builder)
+    {
+        // Mismo largo que la llave aprendida: si acá cupiera más, un comercio
+        // de nombre largo se guardaría completo en el movimiento pero recortado
+        // en lo aprendido, y dejarían de coincidir entre sí.
+        builder.Property(m => m.Comercio).HasMaxLength(60);
+    }
+}
+
 public class ComercioCategoriaConfiguration : IEntityTypeConfiguration<ComercioCategoria>
 {
     public void Configure(EntityTypeBuilder<ComercioCategoria> builder)

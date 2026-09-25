@@ -127,6 +127,19 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
     }
 
+    public async Task<List<ComercioAprendidoResponse>> ObtenerComerciosAprendidosAsync()
+    {
+        var response = await Api.GetAsync("api/comercios-aprendidos");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<ComercioAprendidoResponse>>() ?? [];
+    }
+
+    public async Task<bool> OlvidarComercioAprendidoAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/comercios-aprendidos/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<List<CategoriaResponse>> ObtenerCategoriasAsync()
     {
         var response = await Api.GetAsync("api/categorias");

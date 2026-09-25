@@ -20,6 +20,7 @@ public record MovimientoDiaADiaResponse(
     decimal Monto,
     DateTime Fecha,
     string? Nota,
+    string? Comercio,
     bool RedondeoAplicado,
     int? TarjetaCreditoId,
     string? TarjetaCreditoNombre);
@@ -60,3 +61,12 @@ public record PresupuestoResponse(
     decimal MontoGastado,
     int Mes,
     int Anio);
+
+/// <param name="Comercio">
+/// La llave normalizada (sin tildes ni mayúsculas) con la que se reconoce el
+/// sitio. Se muestra tal cual y no una versión "bonita": es exactamente lo que
+/// la app compara, así que verla así es lo que permite entender por qué un
+/// gasto entró donde entró.
+/// </param>
+public record ComercioAprendidoResponse(
+    int Id, string Comercio, string CategoriaNombre, string CategoriaIcono, DateTime FechaAprendido);

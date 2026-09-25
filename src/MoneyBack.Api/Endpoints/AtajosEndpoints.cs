@@ -227,7 +227,11 @@ public static class AtajosEndpoints
                 // Sin esto la lista del día a día muestra "Otros gastos /
                 // Otros gastos" y toca abrir la app del banco para recordar
                 // en qué se gastó.
-                Nota = comercio
+                Nota = comercio,
+                // La misma información, pero en el campo que nadie reescribe:
+                // así la app sigue sabiendo de qué sitio fue el gasto aunque
+                // la persona le cambie la nota.
+                Comercio = comercio
             };
             db.MovimientosDiaADia.Add(movimiento);
 

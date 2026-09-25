@@ -53,6 +53,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new HogarConfiguration());
         builder.ApplyConfiguration(new InvitacionHogarConfiguration());
         builder.ApplyConfiguration(new PresupuestoConfiguration());
+        builder.ApplyConfiguration(new MovimientoDiaADiaConfiguration());
         builder.ApplyConfiguration(new ComercioCategoriaConfiguration());
         builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());
         builder.ApplyConfiguration(new DeudaConfiguration());

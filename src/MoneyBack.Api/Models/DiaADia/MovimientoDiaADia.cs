@@ -25,6 +25,19 @@ public class MovimientoDiaADia
     public string? Nota { get; set; }
 
     /// <summary>
+    /// El comercio tal como lo informó el banco, cuando el movimiento entró
+    /// por el atajo. Vive aparte de la Nota a propósito: la nota es texto
+    /// libre que la persona puede reescribir ("almuerzo con Ana"), mientras
+    /// que esto es un dato del banco que no cambia. Separarlos es lo que
+    /// permite que la app aprenda dónde va cada comercio sin confundir una
+    /// anotación personal con el nombre de un sitio, y que seguir aprendiendo
+    /// funcione aunque la persona le cambie la nota al gasto.
+    ///
+    /// null = el movimiento se registró a mano.
+    /// </summary>
+    public string? Comercio { get; set; }
+
+    /// <summary>
     /// true si este gasto ya generó su aporte de redondeo automático a las
     /// metas del hogar (evita duplicar el aporte si el registro se vuelve
     /// a procesar).

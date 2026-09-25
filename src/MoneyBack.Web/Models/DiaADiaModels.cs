@@ -38,6 +38,7 @@ public record MovimientoDiaADiaResponse(
     decimal Monto,
     DateTime Fecha,
     string? Nota,
+    string? Comercio,
     bool RedondeoAplicado,
     int? TarjetaCreditoId,
     string? TarjetaCreditoNombre);
@@ -61,3 +62,6 @@ public record PresupuestoResponse(
     decimal MontoGastado,
     int Mes,
     int Anio);
+
+public record ComercioAprendidoResponse(
+    int Id, string Comercio, string CategoriaNombre, string CategoriaIcono, DateTime FechaAprendido);

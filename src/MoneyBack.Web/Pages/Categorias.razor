@@ -92,6 +92,37 @@
             </div>
         </div>
     }
+
+    @if (_comercios.Count > 0)
+    {
+        <div class="card">
+            <div class="stack">
+                <div class="label">Sitios que la app ya reconoce</div>
+                <p class="muted" style="font-size:13px; margin:0">
+                    Cada vez que corriges la categoría de un gasto que llegó de tu banco,
+                    la app guarda dónde va ese sitio y no vuelve a preguntar. Si alguno
+                    quedó mal, olvídalo y te preguntará de nuevo la próxima compra.
+                </p>
+                @foreach (var c in _comercios)
+                {
+                    <div class="row-between" style="padding:8px 0">
+                        <div class="row" style="gap:10px; min-width:0">
+                            <span style="font-size:18px">@c.CategoriaIcono</span>
+                            <div style="min-width:0">
+                                <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                                    @c.Comercio
+                                </div>
+                                <div class="muted" style="font-size:12.5px">entra como @c.CategoriaNombre</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" disabled="@(_olvidando == c.Id)" @onclick="() => Olvidar(c)">
+                            @if (_olvidando == c.Id) { <span class="spinner"></span> } else { <Icon Name="trash" Size="16" /> }
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -108,6 +139,8 @@
     private string? _error;
     private string? _mensajeSiembra;
     private List<CategoriaResponse> _categorias = [];
+    private List<ComercioAprendidoResponse> _comercios = [];
+    private int? _olvidando;
     private readonly FormModel _form = new();
 
     protected override async Task OnInitializedAsync()
@@ -118,8 +151,24 @@
     private async Task CargarAsync()
     {
         _cargando = true;
-        _categorias = await Api.ObtenerCategoriasAsync();
+        var categorias = Api.ObtenerCategoriasAsync();
+        var comercios = Api.ObtenerComerciosAprendidosAsync();
+        await Task.WhenAll(categorias, comercios);
+        _categorias = categorias.Result;
+        _comercios = comercios.Result;
         _cargando = false;
+    }
+
+    /// <summary>
+    /// Olvidar borra solo la regla, no los gastos que ya entraron con esa
+    /// categoría. Reescribirle el historial a alguien que solo pidió que la
+    /// app dejara de suponer sería pasarse de listo.
+    /// </summary>
+    private async Task Olvidar(ComercioAprendidoResponse comercio)
+    {
+        _olvidando = comercio.Id;
+        if (await Api.OlvidarComercioAprendidoAsync(comercio.Id)) _comercios.Remove(comercio);
+        _olvidando = null;
     }
 
     private async Task Crear()
