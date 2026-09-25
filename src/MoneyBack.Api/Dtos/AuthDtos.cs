@@ -19,3 +19,12 @@ public record CambiarPasswordRequest(string PasswordActual, string PasswordNueva
 public record RotarCodigoInvitacionRequest(string NuevoCodigo);
 
 public record UsuarioAdminResponse(int Id, string Nombre, string Email, DateTime FechaCreacion, IReadOnlyList<string> Roles);
+
+public record InvitacionAppResponse(
+    int Id, string Estado, DateTime CreadoEn, DateTime ExpiraEn, string? UsadaPorNombre);
+
+/// <param name="Token">
+/// En claro y una sola vez: de acá en adelante solo queda su hash, así que ni
+/// el servidor puede volver a armar el enlace.
+/// </param>
+public record InvitacionAppCreadaResponse(int Id, string Token, DateTime ExpiraEn);

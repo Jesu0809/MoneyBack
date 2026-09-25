@@ -127,6 +127,25 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
     }
 
+    public async Task<List<InvitacionAppResponse>> ObtenerInvitacionesAppAsync()
+    {
+        var response = await Api.GetAsync("api/invitaciones-app");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<InvitacionAppResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<InvitacionAppCreadaResponse>> CrearInvitacionAppAsync()
+    {
+        var response = await Api.PostAsync("api/invitaciones-app", null);
+        return await ApiResult<InvitacionAppCreadaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<InvitacionAppCreadaResponse>()!);
+    }
+
+    public async Task<bool> AnularInvitacionAppAsync(int id)
+    {
+        var response = await Api.DeleteAsync($"api/invitaciones-app/{id}");
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<List<ComercioAprendidoResponse>> ObtenerComerciosAprendidosAsync()
     {
         var response = await Api.GetAsync("api/comercios-aprendidos");

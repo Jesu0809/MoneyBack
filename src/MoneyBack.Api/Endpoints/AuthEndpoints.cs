@@ -35,16 +35,47 @@ public static class AuthEndpoints
                 return Results.ValidationProblem(errores);
             }
 
+            var codigo = request.CodigoInvitacion.Trim();
+            var hash = TokenService.HashearToken(codigo);
+            var ahora = DateTime.UtcNow;
+
             var codigoValido = await db.CodigosInvitacion
                 .Where(c => c.Activo)
-                .AnyAsync(c => c.CodigoHash == TokenService.HashearToken(request.CodigoInvitacion.Trim()));
+                .AnyAsync(c => c.CodigoHash == hash);
 
+            // Si no es el código general, puede ser el enlace personal que
+            // alguien le mandó. Se reserva ANTES de crear la cuenta: si se
+            // marcara después, dos personas abriendo el mismo enlace al mismo
+            // tiempo pasarían ambas la validación y entrarían las dos.
+            InvitacionApp? invitacionPersonal = null;
             if (!codigoValido)
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
+                invitacionPersonal = await db.InvitacionesApp.FirstOrDefaultAsync(i =>
+                    i.TokenHash == hash && !i.Anulada && i.UsadaEn == null && i.ExpiraEn > ahora);
+
+                if (invitacionPersonal is null)
                 {
-                    ["codigoInvitacion"] = ["El código de invitación no es válido."]
-                });
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["codigoInvitacion"] = ["Ese código o enlace no sirve. Puede que ya se haya usado o que haya vencido — pídele uno nuevo a quien te invitó."]
+                    });
+                }
+
+                invitacionPersonal.UsadaEn = ahora;
+
+                try
+                {
+                    await db.SaveChangesAsync();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    // Alguien más abrió el mismo enlace en este instante y lo
+                    // reservó primero.
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    {
+                        ["codigoInvitacion"] = ["Ese enlace acaba de usarse. Pídele uno nuevo a quien te invitó."]
+                    });
+                }
             }
 
             var usuario = new Usuario { UserName = request.Email, Email = request.Email, Nombre = request.Nombre };
@@ -52,10 +83,24 @@ public static class AuthEndpoints
 
             if (!resultado.Succeeded)
             {
+                // La cuenta no se creó, así que la invitación no se gastó:
+                // se devuelve para que la persona pueda reintentar con el
+                // mismo enlace en vez de tener que pedir otro.
+                if (invitacionPersonal is not null)
+                {
+                    invitacionPersonal.UsadaEn = null;
+                    await db.SaveChangesAsync();
+                }
+
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["password"] = resultado.Errors.Select(e => e.Description).ToArray()
                 });
+            }
+
+            if (invitacionPersonal is not null)
+            {
+                invitacionPersonal.UsadaPorUsuarioId = usuario.Id;
             }
 
             var yaHaySuperAdmin = await roleManager.RoleExistsAsync(Roles.SuperAdmin) &&

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -91,12 +92,19 @@ builder.Services.AddCors(options =>
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("auth", opciones =>
-    {
-        opciones.PermitLimit = 5;
-        opciones.Window = TimeSpan.FromMinutes(1);
-        opciones.QueueLimit = 0;
-    });
+    // Particionado por IP, no global. Sin la partición, los 5 intentos por
+    // minuto se reparten entre TODOS los usuarios de la app: seis personas
+    // entrando a la vez dejaban a la sexta bloqueada sin haber hecho nada
+    // raro, y un solo atacante podía cerrarle la puerta a todo el mundo
+    // gastándose la cuota. El límite es contra la fuerza bruta de UNA fuente.
+    options.AddPolicy("auth", contexto => RateLimitPartition.GetFixedWindowLimiter(
+        contexto.Connection.RemoteIpAddress?.ToString() ?? "desconocida",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
 });
 
 builder.Services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>();
@@ -138,6 +146,7 @@ app.MapSubsidiosEndpoints();
 app.MapCategoriasEndpoints();
 app.MapMovimientosDiaADiaEndpoints();
 app.MapComerciosAprendidosEndpoints();
+app.MapInvitacionesAppEndpoints();
 app.MapPresupuestosEndpoints();
 app.MapSuscripcionesEndpoints();
 app.MapDeudasEndpoints();

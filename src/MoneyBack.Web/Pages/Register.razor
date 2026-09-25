@@ -32,10 +32,23 @@
                         <label>Contraseña</label>
                         <InputText class="input" type="password" @bind-Value="_form.Password" placeholder="Mínimo 10 caracteres" />
                     </div>
-                    <div class="field">
-                        <label>Código de invitación</label>
-                        <InputText class="input" @bind-Value="_form.CodigoInvitacion" placeholder="El que te compartieron" />
-                    </div>
+                    @if (_vinoPorEnlace)
+                    {
+                        @* Ya trae la invitación en el enlace. Mostrar un campo
+                           lleno de un código que la persona no escribió solo
+                           invita a que lo borre o lo dañe. *@
+                        <div class="row" style="gap:8px">
+                            <Icon Name="check" Size="16" />
+                            <span class="muted" style="font-size:13.5px">Vienes con una invitación válida</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="field">
+                            <label>Código de invitación</label>
+                            <InputText class="input" @bind-Value="_form.CodigoInvitacion" placeholder="El que te compartieron" />
+                        </div>
+                    }
 
                     <AlertBox Mensaje="@_error" />
 
@@ -54,6 +67,24 @@
 </div>
 
 @code {
+    /// <summary>
+    /// El enlace que reparte la app trae la invitación acá. Que venga en la
+    /// URL y no haya que copiarla aparte es lo que convierte invitar a alguien
+    /// en mandar un mensaje, en vez de una conversación de tres pasos.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "invitacion")]
+    public string? InvitacionDelEnlace { get; set; }
+
+    private bool _vinoPorEnlace;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(InvitacionDelEnlace)) return;
+
+        _form.CodigoInvitacion = InvitacionDelEnlace;
+        _vinoPorEnlace = true;
+    }
+
     private readonly FormModel _form = new();
     private bool _cargando;
     private string? _error;

@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using System.Threading.RateLimiting;
 using MoneyBack.Api.Data;
 
 namespace MoneyBack.Api.Tests;
@@ -56,6 +59,15 @@ public class ApiFactory : WebApplicationFactory<Program>
             // (patrón do/while), leyendo/escribiendo la base de prueba en
             // paralelo con las aserciones de cada test.
             services.RemoveAll<IHostedService>();
+
+            // Todas las pruebas salen de la misma "IP", así que comparten la
+            // ventana del limitador: una suite que registra varias cuentas se
+            // bloquea a sí misma y falla con 429, no por lo que estaba
+            // probando. Se conserva el nombre "auth" porque los endpoints lo
+            // exigen con RequireRateLimiting, pero sin límite.
+            services.RemoveAll<IConfigureOptions<RateLimiterOptions>>();
+            services.Configure<RateLimiterOptions>(opciones =>
+                opciones.AddPolicy("auth", _ => RateLimitPartition.GetNoLimiter("pruebas")));
         });
     }
 }

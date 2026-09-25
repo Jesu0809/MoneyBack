@@ -240,6 +240,65 @@
         </div>
 
         <div class="card">
+            <div class="stack">
+                <div>
+                    <div style="font-weight:600">Invita a alguien a MoneyBack</div>
+                    <div class="muted" style="font-size:13px">
+                        Le mandas el enlace y se registra directo, sin pedirte ningún código.
+                        Sirve una sola vez y vence en 7 días.
+                    </div>
+                </div>
+
+                @if (_enlaceNuevo is not null)
+                {
+                    <div class="stack" style="gap:8px">
+                        <div class="field" style="margin:0">
+                            <label>Listo, cópialo y mándaselo</label>
+                            <div class="row" style="gap:8px">
+                                <input class="input" readonly value="@_enlaceNuevo" style="flex:1" />
+                                <button class="btn btn-secondary" type="button" @onclick="() => Copiar(_enlaceNuevo!)">Copiar</button>
+                            </div>
+                        </div>
+                        @* Solo se puede ver ahora: el servidor guarda el hash,
+                           no el enlace, así que ni él puede volver a armarlo. *@
+                        <span class="muted" style="font-size:12.5px">No lo vas a poder volver a ver. Si lo pierdes, genera otro.</span>
+                    </div>
+                }
+
+                @if (_invitaciones.Count > 0)
+                {
+                    <div class="divider"></div>
+                    @foreach (var inv in _invitaciones)
+                    {
+                        <div class="row-between" style="padding:6px 0">
+                            <div>
+                                <div style="font-weight:600; font-size:14px">
+                                    @(inv.UsadaPorNombre ?? $"Creada el {inv.CreadoEn.ToLocalTime():d MMM}")
+                                </div>
+                                <div class="muted" style="font-size:12.5px">
+                                    @(inv.Estado == "Pendiente" ? $"Vence el {inv.ExpiraEn.ToLocalTime():d MMM}" : inv.Estado)
+                                </div>
+                            </div>
+                            @if (inv.Estado == "Pendiente")
+                            {
+                                <button class="btn btn-ghost" disabled="@(_anulando == inv.Id)" @onclick="() => Anular(inv.Id)">
+                                    @if (_anulando == inv.Id) { <span class="spinner"></span> } else { <span class="muted" style="font-size:13px">Anular</span> }
+                                </button>
+                            }
+                        </div>
+                    }
+                }
+
+                <AlertBox Mensaje="@_errorInvitacion" />
+
+                <button class="btn btn-secondary btn-block" disabled="@_generandoInvitacion" @onclick="GenerarInvitacion">
+                    @if (_generandoInvitacion) { <span class="spinner"></span> } else { <Icon Name="plus" Size="17" /> }
+                    <span>Generar enlace de invitación</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="row-between">
                 <span class="muted">Correo</span>
                 <span>@_perfil?.Email</span>
@@ -306,6 +365,12 @@
     private const string EnlaceAtajoBancos = "https://www.icloud.com/shortcuts/744cf37baa914e91a860446c41563103";
 
 
+    private List<InvitacionAppResponse> _invitaciones = [];
+    private string? _enlaceNuevo;
+    private bool _generandoInvitacion;
+    private int? _anulando;
+    private string? _errorInvitacion;
+
     private List<TokenAtajoResponse> _tokens = [];
     private string? _tokenNuevo;
     private bool _generandoToken;
@@ -329,7 +394,11 @@
             _permisoDenegado = await Push.ObtenerEstadoPermisoAsync() == "denied";
         }
 
-        _tokens = await Api.ObtenerTokensAtajoAsync();
+        var tokens = Api.ObtenerTokensAtajoAsync();
+        var invitaciones = Api.ObtenerInvitacionesAppAsync();
+        await Task.WhenAll(tokens, invitaciones);
+        _tokens = tokens.Result;
+        _invitaciones = invitaciones.Result;
     }
 
     private async Task GenerarToken()
@@ -362,6 +431,43 @@
     {
         if (_tokenNuevo is null) return;
         await Copiar(_tokenNuevo);
+    }
+
+    private async Task GenerarInvitacion()
+    {
+        _errorInvitacion = null;
+        _generandoInvitacion = true;
+
+        var resultado = await Api.CrearInvitacionAppAsync();
+
+        if (resultado.Exito)
+        {
+            // El enlace se arma acá y no en el servidor: el API no sabe en qué
+            // dominio está montada la app, y adivinarlo produciría enlaces que
+            // no abren.
+            _enlaceNuevo = $"{Nav.BaseUri}register?invitacion={resultado.Valor!.Token}";
+            _invitaciones = await Api.ObtenerInvitacionesAppAsync();
+        }
+        else
+        {
+            _errorInvitacion = resultado.TodosLosErrores();
+        }
+
+        _generandoInvitacion = false;
+    }
+
+    private async Task Anular(int id)
+    {
+        _errorInvitacion = null;
+        _anulando = id;
+
+        if (await Api.AnularInvitacionAppAsync(id))
+        {
+            _invitaciones = await Api.ObtenerInvitacionesAppAsync();
+            _enlaceNuevo = null;
+        }
+
+        _anulando = null;
     }
 
     private async Task Copiar(string texto)

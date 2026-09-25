@@ -15,3 +15,8 @@ public record ActualizarPerfilRequest(string Nombre);
 public record ActualizarDiasPagoRequest(int? DiaPago1, int? DiaPago2);
 
 public record CambiarPasswordRequest(string PasswordActual, string PasswordNueva);
+
+public record InvitacionAppResponse(
+    int Id, string Estado, DateTime CreadoEn, DateTime ExpiraEn, string? UsadaPorNombre);
+
+public record InvitacionAppCreadaResponse(int Id, string Token, DateTime ExpiraEn);
