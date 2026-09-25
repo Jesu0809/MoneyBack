@@ -176,9 +176,9 @@ public static class MovimientosDiaADiaEndpoints
             // Corregir la categoría de un gasto con comercio es la persona
             // enseñando dónde va ese comercio. Se guarda para que el atajo no
             // vuelva a preguntar por el mismo sitio.
-            var reclasificados = categoriaAnterior != categoria.Id
+            var (comercioAprendido, reclasificados) = categoriaAnterior != categoria.Id
                 ? await AprenderComercioAsync(movimiento, categoria, usuarioId, db)
-                : 0;
+                : (null, 0);
 
             // El redondeo NO se recalcula a propósito. Ese aporte ya entró a la
             // meta del hogar y no guarda referencia al gasto que lo originó, así
@@ -193,6 +193,7 @@ public static class MovimientosDiaADiaEndpoints
                     movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
                     movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado,
                     tarjeta?.Id, tarjeta?.Nombre),
+                comercioAprendido,
                 reclasificados));
         });
 
@@ -218,13 +219,13 @@ public static class MovimientosDiaADiaEndpoints
     /// del mismo comercio — a veces se compra el mercado y a veces un regalo
     /// en el mismo lugar.
     /// </summary>
-    private static async Task<int> AprenderComercioAsync(
+    private static async Task<(string? Comercio, int Reclasificados)> AprenderComercioAsync(
         MovimientoDiaADia movimiento, Categoria categoria, int usuarioId, ApplicationDbContext db)
     {
-        if (string.IsNullOrWhiteSpace(movimiento.Nota)) return 0;
+        if (string.IsNullOrWhiteSpace(movimiento.Nota)) return (null, 0);
 
         var clave = InterpretadorTexto.Normalizar(movimiento.Nota);
-        if (clave.Length < 3) return 0;
+        if (clave.Length < 3) return (null, 0);
 
         var existente = await db.ComerciosCategoria
             .FirstOrDefaultAsync(c => c.UsuarioId == usuarioId && c.Comercio == clave);
@@ -249,7 +250,7 @@ public static class MovimientosDiaADiaEndpoints
             .Select(c => c.Id)
             .FirstOrDefaultAsync();
 
-        if (sinClasificar == 0) return 0;
+        if (sinClasificar == 0) return (movimiento.Nota, 0);
 
         var pendientes = await db.MovimientosDiaADia
             .Where(m => m.UsuarioId == usuarioId
@@ -261,7 +262,7 @@ public static class MovimientosDiaADiaEndpoints
 
         foreach (var pendiente in pendientes) pendiente.CategoriaId = categoria.Id;
 
-        return pendientes.Count;
+        return (movimiento.Nota, pendientes.Count);
     }
 
     /// <summary>

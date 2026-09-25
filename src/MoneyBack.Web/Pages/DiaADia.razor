@@ -592,13 +592,14 @@
     }
 
     /// <summary>
-    /// El API solo enseña cuando la categoría cambió y el gasto trae comercio,
-    /// así que un movimiento sin nota no genera aviso: prometer que aprendió
-    /// algo que no aprendió sería peor que quedarse callado.
+    /// Solo avisa si el API confirmó que guardó algo. Deducirlo de la nota
+    /// hacía que corregir únicamente el monto anunciara un aprendizaje que
+    /// nunca ocurrió, y un aviso que no corresponde a lo que pasó le enseña a
+    /// la persona a no creerle a ninguno.
     /// </summary>
     private static string? ArmarAvisoAprendizaje(MovimientoActualizadoResponse resultado)
     {
-        var comercio = resultado.Movimiento.Nota;
+        var comercio = resultado.ComercioAprendido;
         if (string.IsNullOrWhiteSpace(comercio)) return null;
 
         var aprendio = $"Listo: los próximos gastos en {comercio} entran como {resultado.Movimiento.CategoriaNombre}.";

@@ -18,24 +18,25 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
 
     public AprenderComercioTests(ApiFactory factory) => _factory = factory;
 
-    private async Task<(HttpClient Cliente, string Token, CategoriaResponse SinClasificar, CategoriaResponse Mercado)>
+    private async Task<(HttpClient Cliente, string Token, int UsuarioId, CategoriaResponse SinClasificar, CategoriaResponse Mercado)>
         PrepararAsync()
     {
-        var (cliente, _) = await _factory.CrearClienteAutenticadoAsync();
+        var (cliente, usuario) = await _factory.CrearClienteAutenticadoAsync();
         var sinClasificar = await cliente.CrearCategoriaAsync(CategoriasPredefinidas.SinClasificar, TipoCategoria.Gasto);
         var mercado = await cliente.CrearCategoriaAsync("Mercado", TipoCategoria.Gasto);
 
         var respuesta = await cliente.PostAsJsonAsync("/api/tokens-atajo", new CrearTokenAtajoRequest("pruebas"));
         var token = (await respuesta.Content.ReadFromJsonAsync<TokenAtajoCreadoResponse>())!.Token;
 
-        return (cliente, token, sinClasificar, mercado);
+        return (cliente, token, usuario.Id, sinClasificar, mercado);
     }
 
-    private static async Task<string> RegistrarPorAtajoAsync(ApiFactory factory, string token, string texto)
+    private static async Task<string> RegistrarPorAtajoAsync(
+        ApiFactory factory, string token, string texto, string? categoria = null)
     {
         var cliente = factory.CreateClient();
         cliente.DefaultRequestHeaders.Add("X-Atajo-Token", token);
-        cliente.DefaultRequestHeaders.Add("X-Categoria", CategoriasPredefinidas.SinClasificar);
+        cliente.DefaultRequestHeaders.Add("X-Categoria", categoria ?? CategoriasPredefinidas.SinClasificar);
 
         var respuesta = await cliente.PostAsync("/api/atajos/registrar-texto", new StringContent(texto));
         return await respuesta.Content.ReadAsStringAsync();
@@ -44,7 +45,7 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task CorregirUnGasto_HaceQueElMismoComercioEntreYaClasificado()
     {
-        var (cliente, token, _, mercado) = await PrepararAsync();
+        var (cliente, token, _, _, mercado) = await PrepararAsync();
         const string sms = "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica";
 
         // Primera compra: nadie sabe qué es OXXO, entra sin clasificar.
@@ -66,7 +67,7 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task AlCorregir_ArrastraLosAnterioresDelMismoComercioQueSeguianSinClasificar()
     {
-        var (cliente, token, _, mercado) = await PrepararAsync();
+        var (cliente, token, _, _, mercado) = await PrepararAsync();
         const string sms = "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica";
 
         // Tres compras en el mismo sitio antes de que nadie clasifique nada.
@@ -81,6 +82,7 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
 
         // Los otros dos se mueven solos: no tenían decisión que respetar.
         Assert.Equal(2, resultado.OtrosReclasificados);
+        Assert.Contains("OXXO", resultado.ComercioAprendido!);
 
         var despues = await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia");
         Assert.All(despues!, m => Assert.Equal("Mercado", m.CategoriaNombre));
@@ -94,7 +96,7 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task NoPisaLosGastosQueLaPersonaYaHabiaClasificado()
     {
-        var (cliente, token, _, mercado) = await PrepararAsync();
+        var (cliente, token, _, _, mercado) = await PrepararAsync();
         var ropa = await cliente.CrearCategoriaAsync("Ropa", TipoCategoria.Gasto);
         const string sms = "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica";
 
@@ -122,8 +124,8 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task LoAprendidoEsDeCadaPersona_NoSeCruzaEntreCuentas()
     {
-        var (clienteA, tokenA, _, mercadoA) = await PrepararAsync();
-        var (_, tokenB, _, _) = await PrepararAsync();
+        var (clienteA, tokenA, _, _, mercadoA) = await PrepararAsync();
+        var (_, tokenB, _, _, _) = await PrepararAsync();
         const string sms = "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica";
 
         await RegistrarPorAtajoAsync(_factory, tokenA, sms);
@@ -139,16 +141,72 @@ public class AprenderComercioTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task CambiarSoloElMonto_NoEnseniaNada()
     {
-        var (cliente, token, sinClasificar, _) = await PrepararAsync();
+        var (cliente, token, usuarioId, sinClasificar, _) = await PrepararAsync();
         await RegistrarPorAtajoAsync(_factory, token,
             "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica");
 
         var mov = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!.Single();
-        await cliente.PutAsJsonAsync($"/api/movimientos-diaadia/{mov.Id}",
+        var respuesta = await cliente.PutAsJsonAsync($"/api/movimientos-diaadia/{mov.Id}",
             new ActualizarMovimientoDiaADiaRequest(sinClasificar.Id, 99_000m, null, mov.Nota));
+
+        // Y tampoco debe decir que aprendió: la app muestra ese aviso tal cual.
+        var resultado = (await respuesta.Content.ReadFromJsonAsync<MovimientoActualizadoResponse>())!;
+        Assert.Null(resultado.ComercioAprendido);
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Empty(db.ComerciosCategoria.Where(c => c.Comercio.Contains("oxxo")));
+        Assert.Empty(db.ComerciosCategoria.Where(c => c.UsuarioId == usuarioId));
+    }
+
+    /// <summary>
+    /// Lo aprendido completa lo que no se sabe; no corrige lo que la persona
+    /// acaba de decidir. En el atajo del Botón de Acción la categoría la
+    /// escribe ella, y en el mismo supermercado de siempre a veces se compra
+    /// un regalo — pisarle esa elección en silencio sería peor que no saber
+    /// nada del comercio.
+    /// </summary>
+    [Fact]
+    public async Task LoAprendidoNoPisaLaCategoriaQueLaPersonaEscribioEnElAtajo()
+    {
+        var (cliente, token, _, _, mercado) = await PrepararAsync();
+        await cliente.CrearCategoriaAsync("Regalos", TipoCategoria.Gasto);
+        const string sms = "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica";
+
+        // Primero se enseña que OXXO es Mercado.
+        await RegistrarPorAtajoAsync(_factory, token, sms);
+        var mov = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!.Single();
+        await cliente.PutAsJsonAsync($"/api/movimientos-diaadia/{mov.Id}",
+            new ActualizarMovimientoDiaADiaRequest(mercado.Id, mov.Monto, null, mov.Nota));
+
+        // Ahora se registra el mismo comercio diciendo explícitamente Regalos.
+        var respuesta = await RegistrarPorAtajoAsync(_factory, token, sms, "Regalos");
+
+        Assert.Contains("Regalos", respuesta);
+        Assert.DoesNotContain("Mercado", respuesta);
+    }
+
+    /// <summary>
+    /// Quien se registró antes de que existiera "Sin clasificar" no la tiene,
+    /// y el atajo del banco la pide por nombre. Si eso fallara, cada compra se
+    /// perdería con un error que nadie ve hasta revisar la app — así que la
+    /// categoría se crea sola la primera vez.
+    /// </summary>
+    [Fact]
+    public async Task SiNoExisteSinClasificar_LaCreaEnVezDePerderElGasto()
+    {
+        var (cliente, usuario) = await _factory.CrearClienteAutenticadoAsync();
+        var respuestaToken = await cliente.PostAsJsonAsync("/api/tokens-atajo", new CrearTokenAtajoRequest("pruebas"));
+        var token = (await respuestaToken.Content.ReadFromJsonAsync<TokenAtajoCreadoResponse>())!.Token;
+
+        // La cuenta solo tiene una categoría cualquiera: ninguna "Sin clasificar".
+        await cliente.CrearCategoriaAsync("Mercado", TipoCategoria.Gasto);
+
+        var respuesta = await RegistrarPorAtajoAsync(_factory, token,
+            "DAVIbank: Realizaste  transaccion en OXXO CALLE 100 por 13,500 con tu tarjeta Clasica");
+
+        Assert.Contains(CategoriasPredefinidas.SinClasificar, respuesta);
+
+        var movimientos = (await cliente.GetFromJsonAsync<List<MovimientoDiaADiaResponse>>("/api/movimientos-diaadia"))!;
+        Assert.Equal(13_500m, Assert.Single(movimientos).Monto);
     }
 }

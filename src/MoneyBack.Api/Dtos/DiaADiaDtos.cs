@@ -24,13 +24,22 @@ public record MovimientoDiaADiaResponse(
     int? TarjetaCreditoId,
     string? TarjetaCreditoNombre);
 
+/// <param name="ComercioAprendido">
+/// El comercio cuya categoría quedó guardada, o null si esta edición no
+/// enseñó nada (no cambió la categoría, o el gasto no trae comercio). Se
+/// devuelve en vez de dejar que la app lo deduzca de la nota: deducirlo la
+/// llevaba a prometer que había aprendido incluso cuando solo se corrigió el
+/// monto, y un aviso que no corresponde a lo que pasó enseña a desconfiar de
+/// todos los demás.
+/// </param>
 /// <param name="OtrosReclasificados">
 /// Cuántos gastos anteriores del mismo comercio, que seguían sin clasificar,
 /// se movieron también. Se devuelve para poder decírselo a la persona: que la
 /// corrección haya servido para varios de una es lo que hace que valga la pena
 /// volver a corregir.
 /// </param>
-public record MovimientoActualizadoResponse(MovimientoDiaADiaResponse Movimiento, int OtrosReclasificados);
+public record MovimientoActualizadoResponse(
+    MovimientoDiaADiaResponse Movimiento, string? ComercioAprendido, int OtrosReclasificados);
 
 public record TotalPorCategoria(int CategoriaId, string CategoriaNombre, string CategoriaIcono, decimal Total);
 

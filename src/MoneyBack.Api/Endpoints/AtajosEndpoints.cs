@@ -174,6 +174,17 @@ public static class AtajosEndpoints
             var vieneDeCaptura = request.Headers.TryGetValue("X-Origen", out var origen)
                 && origen.ToString().Equals("captura", StringComparison.OrdinalIgnoreCase);
 
+            // El atajo del banco manda "Sin clasificar" como destino, y quien
+            // se registró antes de que esa categoría existiera no la tiene.
+            // Sin esto, cada compra respondería "No tienes una categoría
+            // llamada Sin clasificar" y el gasto se perdería — justo lo que el
+            // atajo venía a evitar, y sin forma de sospecharlo desde el
+            // teléfono. Se crea sola la primera vez que hace falta.
+            if (EsSinClasificar(categoriaForzada) || EsSinClasificar(categoriaPorDefecto))
+            {
+                categorias = await AsegurarSinClasificarAsync(usuarioId.Value, categorias, db);
+            }
+
             var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaPorDefecto, categoriaForzada, vieneDeCaptura);
             if (!interpretacion.Exito)
             {
@@ -187,10 +198,18 @@ public static class AtajosEndpoints
             var categoria = interpretacion.Categoria!;
             var comercio = InterpretadorTexto.ExtraerComercio(texto);
 
-            // Si esta persona ya dijo alguna vez dónde va este comercio, esa
-            // decisión gana sobre la categoría por defecto del atajo. Así el
-            // gasto entra clasificado y no vuelve a pedir atención.
-            if (comercio is not null)
+            // Si esta persona ya dijo alguna vez dónde va este comercio, se
+            // usa esa decisión. Pero SOLO cuando lo que hay es "Sin
+            // clasificar": esa categoría significa literalmente "no sé", y
+            // completarla es justo para lo que sirve haber aprendido.
+            //
+            // Cuando la categoría sí fue elegida —el atajo del Botón de Acción
+            // manda en X-Categoria lo que la persona escribió— manda ella,
+            // aunque el comercio ya tenga historia. Lo contrario sería que la
+            // app le corrija en silencio lo que acaba de decidir: si alguien
+            // marca como Regalos una compra en el mismo supermercado de
+            // siempre, es porque esta vez fue un regalo.
+            if (comercio is not null && categoria.Nombre == CategoriasPredefinidas.SinClasificar)
             {
                 var clave = InterpretadorTexto.Normalizar(comercio);
                 var aprendido = await db.ComerciosCategoria
@@ -199,6 +218,7 @@ public static class AtajosEndpoints
 
                 if (aprendido is not null && aprendido.Categoria.Activa) categoria = aprendido.Categoria;
             }
+
             var movimiento = new MovimientoDiaADia
             {
                 UsuarioId = usuarioId.Value,
@@ -239,6 +259,38 @@ public static class AtajosEndpoints
             // paso extra para sacar el campo del diccionario.
             return Results.Text(confirmacion, "text/plain");
         });
+    }
+
+    private static bool EsSinClasificar(string? nombre) =>
+        string.Equals(nombre?.Trim(), CategoriasPredefinidas.SinClasificar, StringComparison.OrdinalIgnoreCase);
+
+    private static async Task<List<Categoria>> AsegurarSinClasificarAsync(
+        int usuarioId, List<Categoria> categorias, ApplicationDbContext db)
+    {
+        if (categorias.Any(c => EsSinClasificar(c.Nombre))) return categorias;
+
+        // Puede existir pero archivada: reactivarla respeta lo que ya hubiera
+        // guardado en ella en vez de crear una segunda con el mismo nombre.
+        var archivada = await db.Categorias
+            .FirstOrDefaultAsync(c => c.UsuarioId == usuarioId && c.Nombre == CategoriasPredefinidas.SinClasificar);
+
+        if (archivada is not null)
+        {
+            archivada.Activa = true;
+            await db.SaveChangesAsync();
+            categorias.Add(archivada);
+            return categorias;
+        }
+
+        var (nombre, tipo, icono) = CategoriasPredefinidas.Definiciones
+            .First(d => d.Nombre == CategoriasPredefinidas.SinClasificar);
+
+        var nueva = new Categoria { UsuarioId = usuarioId, Nombre = nombre, Tipo = tipo, Icono = icono, Activa = true };
+        db.Categorias.Add(nueva);
+        await db.SaveChangesAsync();
+
+        categorias.Add(nueva);
+        return categorias;
     }
 
     private static async Task<string> LeerTextoDelCuerpoAsync(HttpRequest request)
