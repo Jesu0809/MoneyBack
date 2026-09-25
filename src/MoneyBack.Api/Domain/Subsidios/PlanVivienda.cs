@@ -34,8 +34,15 @@ public static class PlanVivienda
         bool afiliadoCaja,
         bool viveEnBogota,
         decimal cesantias,
-        decimal ahorroActual)
+        decimal ahorroActual,
+        bool esRenovacionUrbana = false)
     {
+        // En zonas de renovación urbana el tope VIS sube a 175 SMMLV. Importa
+        // en Bogotá, donde buena parte de los proyectos nuevos están en esas
+        // zonas: son casi cuarenta millones más de margen para seguir siendo
+        // VIS, es decir, para no perder los subsidios.
+        if (esRenovacionUrbana) tipoTope = TipoTopeVis.RenovacionUrbana;
+
         var topeVis = TopesVis.TopeEnPesos(tipoTope, smmlv);
         var topeVip = TopesVis.TopeEnPesos(TipoTopeVis.Vip, smmlv);
 
@@ -53,7 +60,15 @@ public static class PlanVivienda
         var disponibleParaInicial = ahorroActual + cesantias;
 
         var opciones = CalcularOpciones(
-            valorVivienda, ingresoMensual, esVis, esVip, ingresoEnSmmlv, totalSubsidios, disponibleParaInicial);
+            valorVivienda, ingresoMensual, esVis, esVip, ingresoEnSmmlv, totalSubsidios,
+            disponibleParaInicial, smmlv);
+
+        // Si la vivienda pasa el tope, lo más útil que se puede decir no es
+        // "no aplica": es cuánto cuesta esa decisión y hasta dónde podrían
+        // buscar sin perder las ayudas. Eso cambia en qué proyectos miran.
+        var comparacion = (esVis || esVip)
+            ? null
+            : CompararConLaMejorVis(topeVis, ingresoMensual, smmlv, tipoTope, afiliadoCaja, viveEnBogota, cesantias, ahorroActual);
 
         return new PlanVivienda_Resultado(
             ValorVivienda: valorVivienda,
@@ -67,7 +82,27 @@ public static class PlanVivienda
             AhorroActual: ahorroActual,
             Cesantias: cesantias,
             DisponibleParaCuotaInicial: disponibleParaInicial,
+            SiFueraVis: comparacion,
             DatosVigentesDesde: ParametrosVivienda.VigenteDesde);
+    }
+
+    /// <summary>
+    /// Arma el plan de la vivienda más cara que todavía sería VIS, para poder
+    /// poner los dos lado a lado. Una No VIS no es "imposible", es otra
+    /// decisión — y verla contra la alternativa es lo que permite tomarla.
+    /// </summary>
+    private static ComparacionVis CompararConLaMejorVis(
+        decimal topeVis, decimal ingresoMensual, decimal smmlv, TipoTopeVis tipoTope,
+        bool afiliadoCaja, bool viveEnBogota, decimal cesantias, decimal ahorroActual)
+    {
+        var plan = Calcular(topeVis, ingresoMensual, smmlv, tipoTope, afiliadoCaja, viveEnBogota, cesantias, ahorroActual);
+        var mejor = plan.Opciones.OrderBy(o => o.CuotaMensual).First();
+
+        return new ComparacionVis(
+            ValorMaximoVis: topeVis,
+            SubsidiosQuePerdieron: plan.TotalSubsidiosSeguros,
+            CuotaMensual: mejor.CuotaMensual,
+            IngresoMinimoRequerido: mejor.IngresoMinimoRequerido);
     }
 
     private static List<AyudaDisponible> CalcularAyudas(
@@ -152,7 +187,7 @@ public static class PlanVivienda
 
     private static List<OpcionCredito> CalcularOpciones(
         decimal valorVivienda, decimal ingresoMensual, bool esVis, bool esVip,
-        decimal ingresoEnSmmlv, decimal subsidios, decimal disponibleParaInicial)
+        decimal ingresoEnSmmlv, decimal subsidios, decimal disponibleParaInicial, decimal smmlv)
     {
         var opciones = new List<OpcionCredito>();
         var esSocial = esVis || esVip;
@@ -160,6 +195,14 @@ public static class PlanVivienda
         var plazo = esSocial ? ParametrosVivienda.PlazoMesesVis : ParametrosVivienda.PlazoMesesNoVis;
         var cobertura = esSocial
             ? (esVip ? ParametrosVivienda.CoberturaTasaVip : ParametrosVivienda.CoberturaTasaVis)
+            : 0m;
+
+        // Una No VIS no se queda sin nada: el FRECH No VIS son 42 SMMLV
+        // repartidos en 84 meses contra los intereses, para primera vivienda
+        // nueva de hasta 500 SMMLV. Es un monto fijo mensual, no un descuento
+        // en la tasa, así que se resta de la cuota.
+        var frechMensual = !esSocial && valorVivienda <= ParametrosVivienda.FrechNoVisTopeViviendaSmmlv * smmlv
+            ? ParametrosVivienda.FrechNoVisTotalSmmlv * smmlv / ParametrosVivienda.MesesCoberturaTasa
             : 0m;
 
         if (esSocial)
@@ -174,7 +217,7 @@ public static class PlanVivienda
                 // nadie va a ver en la vida real.
                 aplicaTasaSocial ? 0m : cobertura,
                 valorVivienda, ParametrosVivienda.FinanciacionFnaVis, subsidios,
-                ingresoMensual, disponibleParaInicial, plazo,
+                ingresoMensual, disponibleParaInicial, plazo, 0m,
                 aplicaTasaSocial
                     ? "Tasa Social del 7% para hogares de hasta 2 salarios mínimos, con cupos limitados. El FNA financia el 100% de la VIS a afiliados que compran su primera vivienda, así que puede no hacer falta cuota inicial."
                     : "El FNA financia el 100% de la vivienda VIS/VIP a afiliados que compran la primera, así que puede no hacer falta cuota inicial."));
@@ -182,7 +225,7 @@ public static class PlanVivienda
             opciones.Add(Armar(
                 "Banco", ParametrosVivienda.TasaBancoMinima, cobertura,
                 valorVivienda, ParametrosVivienda.FinanciacionBancoVis, subsidios,
-                ingresoMensual, disponibleParaInicial, plazo,
+                ingresoMensual, disponibleParaInicial, plazo, 0m,
                 $"Con la mejor tasa del mercado; el rango va de {ParametrosVivienda.TasaBancoMinima * 100:N1}% a {ParametrosVivienda.TasaBancoMaxima * 100:N1}%, así que cotizar en varios bancos cambia la cuota. Financian hasta el 80% de una VIS."));
         }
         else
@@ -190,13 +233,13 @@ public static class PlanVivienda
             opciones.Add(Armar(
                 "FNA", ParametrosVivienda.TasaFnaNoVis, 0m,
                 valorVivienda, ParametrosVivienda.FinanciacionBancoNoVis, subsidios,
-                ingresoMensual, disponibleParaInicial, plazo,
+                ingresoMensual, disponibleParaInicial, plazo, frechMensual,
                 "Para vivienda No VIS el FNA suele tener la tasa más baja del mercado, pero financia hasta el 70%."));
 
             opciones.Add(Armar(
                 "Banco", ParametrosVivienda.TasaBancoMinima, 0m,
                 valorVivienda, ParametrosVivienda.FinanciacionBancoNoVis, subsidios,
-                ingresoMensual, disponibleParaInicial, plazo,
+                ingresoMensual, disponibleParaInicial, plazo, frechMensual,
                 $"El rango del mercado va de {ParametrosVivienda.TasaBancoMinima * 100:N1}% a {ParametrosVivienda.TasaBancoMaxima * 100:N1}%."));
         }
 
@@ -206,7 +249,7 @@ public static class PlanVivienda
     private static OpcionCredito Armar(
         string entidad, decimal tasaEa, decimal cobertura, decimal valorVivienda,
         decimal proporcionFinanciable, decimal subsidios, decimal ingresoMensual,
-        decimal disponibleParaInicial, int plazoMeses, string nota)
+        decimal disponibleParaInicial, int plazoMeses, decimal frechMensual, string nota)
     {
         var maximoFinanciable = valorVivienda * proporcionFinanciable;
         var cuotaInicialNecesaria = Math.Max(0, valorVivienda - maximoFinanciable - subsidios);
@@ -217,8 +260,12 @@ public static class PlanVivienda
         // Dos cuotas, y las dos se muestran. La cobertura dura 84 meses y
         // después la cuota sube: enseñar solo la barata sería mentir por
         // omisión justo en el número con el que alguien firma.
-        var cuotaConCobertura = CuotaMensual(aFinanciar, tasaConCobertura, plazoMeses);
         var cuotaPlena = CuotaMensual(aFinanciar, tasaEa, plazoMeses);
+
+        // El FRECH No VIS se resta como monto fijo; el de VIS bajó la tasa más
+        // arriba. Nunca por debajo de cero: el subsidio cubre intereses, no
+        // regala capital.
+        var cuotaConCobertura = Math.Max(0, CuotaMensual(aFinanciar, tasaConCobertura, plazoMeses) - frechMensual);
 
         var proporcion = ingresoMensual > 0 ? cuotaConCobertura / ingresoMensual : 0;
         var proporcionPlena = ingresoMensual > 0 ? cuotaPlena / ingresoMensual : 0;
@@ -233,6 +280,10 @@ public static class PlanVivienda
             CuotaInicialNecesaria: Math.Round(cuotaInicialNecesaria),
             CuotaMensual: Math.Round(cuotaConCobertura),
             CuotaDespuesDeLaCobertura: Math.Round(cuotaPlena),
+            // El número más accionable de todos: cuánto tendrían que ganar
+            // entre los dos para que se lo aprueben. "No te alcanza" no dice
+            // qué hacer; "les faltan ochocientos mil al mes" sí.
+            IngresoMinimoRequerido: Math.Round(cuotaConCobertura / ParametrosVivienda.ProporcionMaximaDelIngreso),
             ProporcionDelIngreso: Math.Round(proporcion, 3),
             CabeEnElIngreso: proporcion <= ParametrosVivienda.ProporcionMaximaDelIngreso,
             CabeCuandoSubaLaCuota: proporcionPlena <= ParametrosVivienda.ProporcionMaximaDelIngreso,
@@ -270,6 +321,7 @@ public record OpcionCredito(
     decimal CuotaInicialNecesaria,
     decimal CuotaMensual,
     decimal CuotaDespuesDeLaCobertura,
+    decimal IngresoMinimoRequerido,
     decimal ProporcionDelIngreso,
     bool CabeEnElIngreso,
     bool CabeCuandoSubaLaCuota,
@@ -288,4 +340,15 @@ public record PlanVivienda_Resultado(
     decimal AhorroActual,
     decimal Cesantias,
     decimal DisponibleParaCuotaInicial,
+    ComparacionVis? SiFueraVis,
     DateOnly DatosVigentesDesde);
+
+/// <param name="SubsidiosQuePerdieron">
+/// Cuánto dejan sobre la mesa por elegir una vivienda que pasa el tope. Es la
+/// cifra que de verdad decide en qué proyectos vale la pena mirar.
+/// </param>
+public record ComparacionVis(
+    decimal ValorMaximoVis,
+    decimal SubsidiosQuePerdieron,
+    decimal CuotaMensual,
+    decimal IngresoMinimoRequerido);

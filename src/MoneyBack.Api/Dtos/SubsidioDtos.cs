@@ -57,4 +57,11 @@ public record PlanViviendaRequest(
     decimal IngresoCombinadoMensual,
     bool AfiliadoCajaCompensacion,
     bool ViveEnBogota = false,
-    decimal Cesantias = 0);
+    decimal Cesantias = 0,
+    /// <summary>
+    /// En zonas de renovación urbana el tope VIS sube de 150 a 175 SMMLV.
+    /// Importa en Bogotá, donde buena parte de los proyectos nuevos están en
+    /// esas zonas: son casi cuarenta millones más de margen para seguir
+    /// siendo VIS, es decir, para no quedarse sin subsidios.
+    /// </summary>
+    bool EsRenovacionUrbana = false);

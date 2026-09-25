@@ -31,7 +31,8 @@ public record PlanViviendaRequest(
     decimal IngresoCombinadoMensual,
     bool AfiliadoCajaCompensacion,
     bool ViveEnBogota,
-    decimal Cesantias);
+    decimal Cesantias,
+    bool EsRenovacionUrbana);
 
 public record AyudaDisponible(string Nombre, decimal Monto, bool EsSeguro, string Detalle);
 
@@ -45,6 +46,7 @@ public record OpcionCredito(
     decimal CuotaInicialNecesaria,
     decimal CuotaMensual,
     decimal CuotaDespuesDeLaCobertura,
+    decimal IngresoMinimoRequerido,
     decimal ProporcionDelIngreso,
     bool CabeEnElIngreso,
     bool CabeCuandoSubaLaCuota,
@@ -63,4 +65,11 @@ public record PlanViviendaResponse(
     decimal AhorroActual,
     decimal Cesantias,
     decimal DisponibleParaCuotaInicial,
+    ComparacionVis? SiFueraVis,
     DateOnly DatosVigentesDesde);
+
+public record ComparacionVis(
+    decimal ValorMaximoVis,
+    decimal SubsidiosQuePerdieron,
+    decimal CuotaMensual,
+    decimal IngresoMinimoRequerido);

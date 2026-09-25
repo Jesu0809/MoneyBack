@@ -68,6 +68,16 @@
                         </button>
                     </div>
 
+                    <div class="switch-row">
+                        <div>
+                            <div style="font-weight:600">¿El proyecto es de renovación urbana?</div>
+                            <div class="muted">En esas zonas el tope VIS sube de 150 a 175 salarios mínimos. Suele decirlo la ficha del proyecto.</div>
+                        </div>
+                        <button type="button" class="switch @(_form.EsRenovacionUrbana ? "on" : "")" @onclick="() => _form.EsRenovacionUrbana = !_form.EsRenovacionUrbana">
+                            <div class="knob"></div>
+                        </button>
+                    </div>
+
                     <div class="field">
                         <label>¿Cuánto tienen en cesantías? (opcional)</label>
                         <InputNumber class="input" @bind-Value="_form.Cesantias" placeholder="0" />
@@ -104,6 +114,38 @@
                     </span>
                 </div>
             </div>
+
+            @if (_plan.SiFueraVis is { } vis)
+            {
+                @* Ante una vivienda que pasa el tope, "no aplica" no dice qué
+                   hacer. Lo que cambia la búsqueda es ver cuánto cuesta esa
+                   decisión y hasta dónde pueden estirar sin perder las ayudas. *@
+                <div class="card" style="border-left:3px solid var(--color-warning)">
+                    <div class="stack">
+                        <div class="row" style="gap:8px">
+                            <Icon Name="alert-triangle" Size="17" />
+                            <strong>Qué se están perdiendo</strong>
+                        </div>
+                        <div class="row-between">
+                            <span class="muted">Ayudas que dejan sobre la mesa</span>
+                            <span class="money money-md">@Formato.Pesos(vis.SubsidiosQuePerdieron)</span>
+                        </div>
+                        <div class="row-between">
+                            <span class="muted">Hasta cuánto pueden buscar sin perderlas</span>
+                            <span style="font-weight:650">@Formato.Pesos(vis.ValorMaximoVis)</span>
+                        </div>
+                        <div class="row-between">
+                            <span class="muted">Cuota si compraran a ese precio</span>
+                            <span class="money money-md">@Formato.Pesos(vis.CuotaMensual)</span>
+                        </div>
+                        <p class="muted" style="font-size:13px; margin:0">
+                            Con una vivienda a @Formato.Pesos(vis.ValorMaximoVis) les bastaría con ganar
+                            @Formato.Pesos(vis.IngresoMinimoRequerido) entre los dos. Vale la pena mirar
+                            proyectos por debajo de ese tope antes de decidir.
+                        </p>
+                    </div>
+                </div>
+            }
 
             <div class="card">
                 <div class="stack">
@@ -180,6 +222,11 @@
                             <span class="muted" style="font-size:12.5px">Ya tienen la cuota inicial ahorrada.</span>
                         }
 
+                        <div class="row-between">
+                            <span class="muted">Ingreso necesario entre los dos</span>
+                            <span style="font-weight:650">@Formato.Pesos(opcion.IngresoMinimoRequerido)</span>
+                        </div>
+
                         <div class="divider"></div>
 
                         <AlertBox Tipo="@(opcion.CabeEnElIngreso ? "accent" : "danger")"
@@ -234,7 +281,7 @@
 
         return opcion.CabeEnElIngreso
             ? $"La cuota se lleva el {porcentaje} de lo que entra al mes. Las entidades aprueban hasta un 30%, así que va holgado."
-            : $"La cuota se lleva el {porcentaje} de lo que entra al mes. Las entidades aprueban hasta un 30%, así que con este ingreso no se lo aprobarían.";
+            : $"La cuota se lleva el {porcentaje} de lo que entra al mes y las entidades aprueban hasta un 30%. Para que se lo aprueben tendrían que ganar {Formato.Pesos(opcion.IngresoMinimoRequerido)} entre los dos.";
     }
 
     private async Task Calcular()
@@ -246,7 +293,7 @@
 
         var resultado = await Api.CalcularPlanViviendaAsync(_hogar.Id, new PlanViviendaRequest(
             _form.ValorVivienda ?? 0, _form.IngresoCombinadoMensual ?? 0,
-            _form.AfiliadoCaja, _form.ViveEnBogota, _form.Cesantias ?? 0));
+            _form.AfiliadoCaja, _form.ViveEnBogota, _form.Cesantias ?? 0, _form.EsRenovacionUrbana));
 
         if (resultado.Exito) _plan = resultado.Valor;
         else _error = resultado.TodosLosErrores();
@@ -261,5 +308,6 @@
         public bool AfiliadoCaja { get; set; } = true;
         public bool ViveEnBogota { get; set; }
         public decimal? Cesantias { get; set; }
+        public bool EsRenovacionUrbana { get; set; }
     }
 }

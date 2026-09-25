@@ -19,9 +19,9 @@ public class PlanViviendaTests
 
     private static PlanVivienda_Resultado Calcular(
         decimal valorVivienda, decimal ingreso, bool afiliadoCaja = true,
-        decimal ahorro = 0, bool bogota = false, decimal cesantias = 0) =>
+        decimal ahorro = 0, bool bogota = false, decimal cesantias = 0, bool renovacion = false) =>
         PlanVivienda.Calcular(valorVivienda, ingreso, Smmlv, TipoTopeVis.Decreto1467,
-            afiliadoCaja, bogota, cesantias, ahorro);
+            afiliadoCaja, bogota, cesantias, ahorro, renovacion);
 
     [Fact]
     public void UnaViviendaBajoElTopeEsVis_YUnaPorEncimaNoLoEs()
@@ -277,4 +277,85 @@ public class PlanViviendaTests
 
     private static AyudaDisponible Caja(PlanVivienda_Resultado plan) =>
         plan.Ayudas.Single(s => s.Nombre == "Subsidio de caja de compensación");
+
+    /// <summary>
+    /// En renovación urbana el tope VIS sube de 150 a 175 SMMLV. La misma
+    /// vivienda pasa de quedarse sin nada a tener todos los subsidios, que es
+    /// una diferencia de decenas de millones — y en Bogotá buena parte de los
+    /// proyectos nuevos están en esas zonas.
+    /// </summary>
+    [Fact]
+    public void EnRenovacionUrbanaElTopeVisSubeYLaMismaViviendaSiCalifica()
+    {
+        var valor = 160m * Smmlv;
+
+        Assert.Equal("No VIS", Calcular(valor, 3m * Smmlv).Clasificacion);
+        Assert.Equal("VIS", Calcular(valor, 3m * Smmlv, renovacion: true).Clasificacion);
+
+        Assert.True(Calcular(valor, 3m * Smmlv, renovacion: true).TotalSubsidiosSeguros > 0);
+    }
+
+    /// <summary>
+    /// Una No VIS no se queda sin nada: el FRECH No VIS cubre 42 SMMLV de
+    /// intereses en 84 meses. Antes esta herramienta le daba cero ayudas, y
+    /// eso no es cierto.
+    /// </summary>
+    [Fact]
+    public void UnaNoVisRecibeElFrechNoVisYEsoLeBajaLaCuota()
+    {
+        var plan = Calcular(200m * Smmlv, 15_000_000m);
+        var fna = plan.Opciones.Single(o => o.Entidad == "FNA");
+
+        var subsidioMensual = ParametrosVivienda.FrechNoVisTotalSmmlv * Smmlv / ParametrosVivienda.MesesCoberturaTasa;
+        Assert.Equal(Math.Round(fna.CuotaDespuesDeLaCobertura - subsidioMensual), fna.CuotaMensual);
+    }
+
+    [Fact]
+    public void UnaViviendaPorEncimaDelTopeDelFrechNoVisNoLoRecibe()
+    {
+        var plan = Calcular(600m * Smmlv, 40_000_000m);
+        var fna = plan.Opciones.Single(o => o.Entidad == "FNA");
+
+        Assert.Equal(fna.CuotaDespuesDeLaCobertura, fna.CuotaMensual);
+    }
+
+    /// <summary>
+    /// "No te alcanza" no dice qué hacer. "Les faltan ochocientos mil al mes"
+    /// sí: se puede buscar más barato, sumar un codeudor, o esperar.
+    /// </summary>
+    [Fact]
+    public void DiceCuantoTendrianQueGanarParaQueSeLoAprueben()
+    {
+        var plan = Calcular(200m * Smmlv, 3_000_000m);
+
+        foreach (var opcion in plan.Opciones)
+        {
+            Assert.True(opcion.IngresoMinimoRequerido > 3_000_000m);
+
+            // Con ese ingreso exacto, la cuota daría justo el 30%.
+            Assert.Equal(0.30m, Math.Round(opcion.CuotaMensual / opcion.IngresoMinimoRequerido, 2));
+        }
+    }
+
+    /// <summary>
+    /// Ante una vivienda que pasa el tope, lo útil no es "no aplica": es
+    /// cuánto cuesta esa decisión y hasta dónde podrían buscar sin perder las
+    /// ayudas. Eso cambia en qué proyectos miran.
+    /// </summary>
+    [Fact]
+    public void SiLaViviendaPasaElTope_SeMuestraQueSePierdeYHastaDondeBuscar()
+    {
+        var plan = Calcular(200m * Smmlv, 4m * Smmlv, bogota: true);
+
+        var comparacion = Assert.IsType<ComparacionVis>(plan.SiFueraVis);
+        Assert.Equal(150m * Smmlv, comparacion.ValorMaximoVis);
+        Assert.True(comparacion.SubsidiosQuePerdieron > 0);
+        Assert.True(comparacion.CuotaMensual < plan.Opciones.Min(o => o.CuotaMensual));
+    }
+
+    [Fact]
+    public void SiLaViviendaYaEsVis_NoHayNadaQueComparar()
+    {
+        Assert.Null(Calcular(100m * Smmlv, 3m * Smmlv).SiFueraVis);
+    }
 }

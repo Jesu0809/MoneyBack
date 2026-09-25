@@ -79,6 +79,19 @@ public static class ParametrosVivienda
     public const decimal MiCasaYaSisbenAltoSmmlv = 20m;
 
     /// <summary>
+    /// FRECH No VIS: para vivienda nueva que pasa el tope VIS, el Gobierno
+    /// cubre 42 SMMLV repartidos en 84 meses, aplicados a los intereses. No
+    /// es un descuento en la tasa como el de VIS, es un monto fijo mensual,
+    /// así que se modela distinto.
+    ///
+    /// Aplica a primera vivienda, urbana y nueva, de hasta 500 SMMLV, y no se
+    /// postula: lo tramita el banco con el crédito. Antes esta herramienta le
+    /// daba cero ayudas a una No VIS, y eso no es cierto.
+    /// </summary>
+    public const decimal FrechNoVisTotalSmmlv = 42m;
+    public const decimal FrechNoVisTopeViviendaSmmlv = 500m;
+
+    /// <summary>
     /// Puntos porcentuales que el Gobierno cubre de la tasa durante los
     /// primeros 84 meses del crédito.
     /// </summary>
