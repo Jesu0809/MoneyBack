@@ -32,7 +32,8 @@ public record PlanViviendaRequest(
     bool AfiliadoCajaCompensacion,
     bool ViveEnBogota,
     decimal Cesantias,
-    bool EsRenovacionUrbana);
+    bool EsRenovacionUrbana,
+    int? AnioEscrituracion);
 
 public record AyudaDisponible(string Nombre, decimal Monto, bool EsSeguro, string Detalle);
 
@@ -59,6 +60,7 @@ public record PlanViviendaResponse(
     decimal TopeVis,
     decimal TopeVip,
     decimal IngresoEnSmmlv,
+    int AnioEscrituracion,
     List<AyudaDisponible> Ayudas,
     decimal TotalSubsidiosSeguros,
     List<OpcionCredito> Opciones,

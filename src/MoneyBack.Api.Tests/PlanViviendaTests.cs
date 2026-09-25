@@ -19,9 +19,10 @@ public class PlanViviendaTests
 
     private static PlanVivienda_Resultado Calcular(
         decimal valorVivienda, decimal ingreso, bool afiliadoCaja = true,
-        decimal ahorro = 0, bool bogota = false, decimal cesantias = 0, bool renovacion = false) =>
+        decimal ahorro = 0, bool bogota = false, decimal cesantias = 0, bool renovacion = false,
+        int? escrituracion = null) =>
         PlanVivienda.Calcular(valorVivienda, ingreso, Smmlv, TipoTopeVis.Decreto1467,
-            afiliadoCaja, bogota, cesantias, ahorro, renovacion);
+            afiliadoCaja, bogota, cesantias, ahorro, renovacion, escrituracion);
 
     [Fact]
     public void UnaViviendaBajoElTopeEsVis_YUnaPorEncimaNoLoEs()
@@ -357,5 +358,34 @@ public class PlanViviendaTests
     public void SiLaViviendaYaEsVis_NoHayNadaQueComparar()
     {
         Assert.Null(Calcular(100m * Smmlv, 3m * Smmlv).SiFueraVis);
+    }
+
+    /// <summary>
+    /// El tope se mide al escriturar, no al firmar la promesa. Un proyecto
+    /// sobre planos que entrega en tres años se compara contra el tope de
+    /// entonces — es lo que explica que existan VIS de trescientos y pico de
+    /// millones, y comparar contra el tope de hoy descartaba proyectos que sí
+    /// califican.
+    /// </summary>
+    [Fact]
+    public void ElTopeSeMideEnElAnioDeEscrituracion_NoHoy()
+    {
+        var valor = 165m * Smmlv;
+        var dentroDeTresAnios = DateTime.UtcNow.Year + 3;
+
+        Assert.Equal("No VIS", Calcular(valor, 4m * Smmlv).Clasificacion);
+        Assert.Equal("VIS", Calcular(valor, 4m * Smmlv, escrituracion: dentroDeTresAnios).Clasificacion);
+    }
+
+    [Fact]
+    public void UnaEscrituracionEnElPasadoNoEncogeElTope()
+    {
+        // Nadie escritura hacia atrás, pero un año viejo escrito por error no
+        // debe volver No VIS algo que sí califica hoy.
+        var valor = 140m * Smmlv;
+
+        Assert.Equal(
+            Calcular(valor, 4m * Smmlv).TopeVis,
+            Calcular(valor, 4m * Smmlv, escrituracion: 2020).TopeVis);
     }
 }

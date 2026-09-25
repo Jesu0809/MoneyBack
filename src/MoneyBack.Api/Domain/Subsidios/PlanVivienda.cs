@@ -35,7 +35,8 @@ public static class PlanVivienda
         bool viveEnBogota,
         decimal cesantias,
         decimal ahorroActual,
-        bool esRenovacionUrbana = false)
+        bool esRenovacionUrbana = false,
+        int? anioEscrituracion = null)
     {
         // En zonas de renovación urbana el tope VIS sube a 175 SMMLV. Importa
         // en Bogotá, donde buena parte de los proyectos nuevos están en esas
@@ -43,8 +44,17 @@ public static class PlanVivienda
         // VIS, es decir, para no perder los subsidios.
         if (esRenovacionUrbana) tipoTope = TipoTopeVis.RenovacionUrbana;
 
-        var topeVis = TopesVis.TopeEnPesos(tipoTope, smmlv);
-        var topeVip = TopesVis.TopeEnPesos(TipoTopeVis.Vip, smmlv);
+        // El tope se mide a la fecha de escrituración. Un proyecto sobre
+        // planos que entrega en 2029 se compara contra el tope de 2029, no
+        // contra el de hoy: por eso existen VIS de trescientos y pico de
+        // millones, y por eso comparar contra el tope actual descartaba
+        // proyectos que sí califican.
+        var aniosPorDelante = Math.Max(0, (anioEscrituracion ?? DateTime.UtcNow.Year) - DateTime.UtcNow.Year);
+        var smmlvAlEscriturar = smmlv * (decimal)Math.Pow(
+            1 + (double)ParametrosVivienda.CrecimientoAnualSmmlvEstimado, aniosPorDelante);
+
+        var topeVis = TopesVis.TopeEnPesos(tipoTope, smmlvAlEscriturar);
+        var topeVip = TopesVis.TopeEnPesos(TipoTopeVis.Vip, smmlvAlEscriturar);
 
         var esVip = valorVivienda <= topeVip;
         var esVis = valorVivienda <= topeVis;
@@ -76,6 +86,7 @@ public static class PlanVivienda
             TopeVis: topeVis,
             TopeVip: topeVip,
             IngresoEnSmmlv: Math.Round(ingresoEnSmmlv, 1),
+            AnioEscrituracion: anioEscrituracion ?? DateTime.UtcNow.Year,
             Ayudas: ayudas,
             TotalSubsidiosSeguros: totalSubsidios,
             Opciones: opciones,
@@ -334,6 +345,7 @@ public record PlanVivienda_Resultado(
     decimal TopeVis,
     decimal TopeVip,
     decimal IngresoEnSmmlv,
+    int AnioEscrituracion,
     List<AyudaDisponible> Ayudas,
     decimal TotalSubsidiosSeguros,
     List<OpcionCredito> Opciones,

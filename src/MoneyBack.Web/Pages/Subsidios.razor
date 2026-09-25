@@ -79,6 +79,15 @@
                     </div>
 
                     <div class="field">
+                        <label>¿En qué año escrituran?</label>
+                        <InputNumber class="input" @bind-Value="_form.AnioEscrituracion" placeholder="@DateTime.Now.Year.ToString()" />
+                        <span class="muted">
+                            El tope VIS se mide el día que firman la escritura, no hoy. Por eso un proyecto
+                            sobre planos que entrega en unos años puede costar más y seguir siendo VIS.
+                        </span>
+                    </div>
+
+                    <div class="field">
                         <label>¿Cuánto tienen en cesantías? (opcional)</label>
                         <InputNumber class="input" @bind-Value="_form.Cesantias" placeholder="0" />
                         <span class="muted">Se pueden retirar para comprar vivienda, así que cuentan para la cuota inicial.</span>
@@ -103,6 +112,10 @@
                         <span class="pill @(_plan.Clasificacion == "No VIS" ? "pill-danger" : "")">@_plan.Clasificacion</span>
                     </div>
                     <span class="muted" style="font-size:13px">
+                        @if (_plan.AnioEscrituracion > DateTime.Now.Year)
+                        {
+                            <text>Tope proyectado a @_plan.AnioEscrituracion, que es cuando se mide. </text>
+                        }
                         @if (_plan.Clasificacion == "No VIS")
                         {
                             @($"Está por encima del tope VIS de su ciudad ({Formato.Pesos(_plan.TopeVis)}), así que no aplica a subsidios de vivienda.")
@@ -293,7 +306,8 @@
 
         var resultado = await Api.CalcularPlanViviendaAsync(_hogar.Id, new PlanViviendaRequest(
             _form.ValorVivienda ?? 0, _form.IngresoCombinadoMensual ?? 0,
-            _form.AfiliadoCaja, _form.ViveEnBogota, _form.Cesantias ?? 0, _form.EsRenovacionUrbana));
+            _form.AfiliadoCaja, _form.ViveEnBogota, _form.Cesantias ?? 0,
+            _form.EsRenovacionUrbana, _form.AnioEscrituracion));
 
         if (resultado.Exito) _plan = resultado.Valor;
         else _error = resultado.TodosLosErrores();
@@ -309,5 +323,6 @@
         public bool ViveEnBogota { get; set; }
         public decimal? Cesantias { get; set; }
         public bool EsRenovacionUrbana { get; set; }
+        public int? AnioEscrituracion { get; set; }
     }
 }

@@ -64,4 +64,12 @@ public record PlanViviendaRequest(
     /// esas zonas: son casi cuarenta millones más de margen para seguir
     /// siendo VIS, es decir, para no quedarse sin subsidios.
     /// </summary>
-    bool EsRenovacionUrbana = false);
+    bool EsRenovacionUrbana = false,
+    /// <summary>
+    /// Año en que se firma la escritura. El tope VIS se mide en esa fecha,
+    /// no hoy, así que un proyecto sobre planos que entrega en 2029 se
+    /// compara contra el tope de 2029. Sin esto, la app descartaba como "No
+    /// VIS" proyectos que sí califican, que es justo lo que pasa con los
+    /// proyectos nuevos del norte de Bogotá.
+    /// </summary>
+    int? AnioEscrituracion = null);

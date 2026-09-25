@@ -64,7 +64,8 @@ public static class SubsidiosEndpoints
                 request.ViveEnBogota,
                 Math.Max(0, request.Cesantias),
                 ahorroActual,
-                request.EsRenovacionUrbana);
+                request.EsRenovacionUrbana,
+                request.AnioEscrituracion);
 
             return Results.Ok(plan);
         }).RequireAuthorization();

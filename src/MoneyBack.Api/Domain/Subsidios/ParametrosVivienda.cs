@@ -122,6 +122,23 @@ public static class ParametrosVivienda
     /// justamente el plazo largo lo que permite que un hogar de dos salarios
     /// mínimos pague una vivienda.
     /// </summary>
+    /// <summary>
+    /// Cuánto se asume que sube el salario mínimo cada año, para proyectar el
+    /// tope VIS hacia adelante.
+    ///
+    /// El tope se mide a la fecha de escrituración, no a la de la promesa de
+    /// compra, así que un proyecto sobre planos que entrega en 2029 se compara
+    /// contra el tope de 2029. Esto es lo que explica que existan "VIS de $340
+    /// millones": no están violando nada, están apuntando a un tope futuro.
+    ///
+    /// 8% es deliberadamente conservador —2026 subió 23,7%, pero eso fue
+    /// atípico— porque los dos errores no cuestan lo mismo. Quedarse corto
+    /// hace que la app diga "no califica" sobre algo que sí; pasarse hace que
+    /// alguien compre contando con cien millones en subsidios que nunca van a
+    /// llegar. El segundo error arruina una compra.
+    /// </summary>
+    public const decimal CrecimientoAnualSmmlvEstimado = 0.08m;
+
     public const int PlazoMesesVis = 360;
     public const int PlazoMesesNoVis = 240;
 }
