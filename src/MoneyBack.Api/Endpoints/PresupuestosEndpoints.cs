@@ -17,9 +17,16 @@ public static class PresupuestosEndpoints
         {
             var usuarioId = principal.GetUsuarioId();
 
+            // El tope vigente de cada categoría: el de este mes si se definió
+            // uno, y si no, el último que se haya puesto. Un tope es una
+            // intención ("no quiero gastar más de esto en comida"), no un dato
+            // de un mes; obligar a redefinirlo cada 30 días haría que casi
+            // nadie tuviera topes en marzo, y sin topes no hay avisos.
             var presupuestos = await db.Presupuestos
                 .Include(p => p.Categoria)
-                .Where(p => p.UsuarioId == usuarioId && p.Mes == mes && p.Anio == anio)
+                .Where(p => p.UsuarioId == usuarioId && (p.Anio < anio || (p.Anio == anio && p.Mes <= mes)))
+                .GroupBy(p => p.CategoriaId)
+                .Select(g => g.OrderByDescending(p => p.Anio).ThenByDescending(p => p.Mes).First())
                 .ToListAsync();
 
             var inicioMes = new DateTime(anio, mes, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -33,7 +40,8 @@ public static class PresupuestosEndpoints
 
             var respuesta = presupuestos.Select(p => new PresupuestoResponse(
                 p.Id, p.CategoriaId, p.Categoria.Nombre, p.Categoria.Icono, p.MontoLimite,
-                gastosDelMes.GetValueOrDefault(p.CategoriaId), p.Mes, p.Anio));
+                gastosDelMes.GetValueOrDefault(p.CategoriaId), mes, anio,
+                Heredado: p.Mes != mes || p.Anio != anio));
 
             return Results.Ok(respuesta);
         });

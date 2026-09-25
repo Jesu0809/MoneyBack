@@ -1,0 +1,120 @@
+@page "/bienvenida"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Tus topes · MoneyBack</PageTitle>
+
+@*
+    Se pregunta acá, recién registrado, y no "cuando haga falta". Un tope que
+    hay que ir a crear después no lo crea nadie, y sin topes los avisos —que
+    son lo único que habla cuando el atajo registra solo— se quedan mudos
+    para siempre. Este es el único momento en que la persona está dispuesta a
+    contestar preguntas sobre su plata.
+
+    Y se puede saltar sin culpa: obligar a estimar cinco cifras antes de ver
+    la app es una forma segura de que cierre la app.
+*@
+
+<div class="stack">
+    <div>
+        <h2>¿Cuánto esperas gastar al mes?</h2>
+        <p class="muted">
+            Un estimado basta. Con esto te avisamos cuando vayas en el 80% y cuando te pases,
+            sin que tengas que estar mirando. Lo puedes cambiar cuando quieras.
+        </p>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="stack">
+                @foreach (var cat in _categorias)
+                {
+                    <div class="field" style="margin:0">
+                        <label>@cat.Icono @cat.Nombre</label>
+                        <input class="input" type="number" inputmode="numeric" placeholder="Sin tope"
+                               value="@(_topes.TryGetValue(cat.Id, out var puesto) ? puesto.ToString() : "")"
+                               @onchange="e => Anotar(cat.Id, e.Value?.ToString())" />
+                    </div>
+                }
+
+                <AlertBox Mensaje="@_error" />
+
+                <button class="btn btn-primary btn-block" disabled="@(_guardando || _topes.Count == 0)" @onclick="Guardar">
+                    @if (_guardando) { <span class="spinner"></span> }
+                    <span>@(_topes.Count == 0 ? "Escribe al menos uno" : $"Guardar {_topes.Count} {(_topes.Count == 1 ? "tope" : "topes")}")</span>
+                </button>
+
+                <button class="btn btn-ghost btn-block" disabled="@_guardando" @onclick="Saltar">
+                    Ahora no
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Solo las que casi todo el mundo gasta todos los meses. Preguntar por
+    /// las doce categorías convierte esto en un formulario largo, y un
+    /// formulario largo recién registrado se salta entero.
+    /// </summary>
+    private static readonly string[] Habituales = ["Mercado", "Comida", "Transporte", "Servicios", "Entretenimiento"];
+
+    private bool _cargando = true;
+    private bool _guardando;
+    private string? _error;
+    private List<CategoriaResponse> _categorias = [];
+    private readonly Dictionary<int, decimal> _topes = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var todas = await Api.ObtenerCategoriasAsync();
+
+        _categorias = todas
+            .Where(c => c.Tipo == TipoCategoria.Gasto && c.Activa && Habituales.Contains(c.Nombre))
+            .OrderBy(c => Array.IndexOf(Habituales, c.Nombre))
+            .ToList();
+
+        // Si la cuenta no tiene ninguna de las habituales, no hay nada
+        // sensato que preguntar: mejor dejarla entrar.
+        if (_categorias.Count == 0) Nav.NavigateTo("/diaadia", replace: true);
+
+        _cargando = false;
+    }
+
+    private void Anotar(int categoriaId, string? valor)
+    {
+        if (decimal.TryParse(valor, out var monto) && monto > 0) _topes[categoriaId] = monto;
+        else _topes.Remove(categoriaId);
+    }
+
+    private async Task Guardar()
+    {
+        _error = null;
+        _guardando = true;
+
+        var hoy = DateTime.Now;
+        foreach (var (categoriaId, monto) in _topes)
+        {
+            var resultado = await Api.GuardarPresupuestoAsync(
+                new GuardarPresupuestoRequest(categoriaId, monto, hoy.Month, hoy.Year));
+
+            if (!resultado.Exito)
+            {
+                _error = resultado.TodosLosErrores();
+                _guardando = false;
+                return;
+            }
+        }
+
+        Nav.NavigateTo("/diaadia", replace: true);
+    }
+
+    private void Saltar() => Nav.NavigateTo("/diaadia", replace: true);
+}

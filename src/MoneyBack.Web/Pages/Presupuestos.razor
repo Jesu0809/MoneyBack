@@ -87,6 +87,13 @@
                             <span class="muted">@Formato.Pesos(p.MontoGastado) gastado</span>
                             <span class="muted">de @Formato.Pesos(p.MontoLimite)</span>
                         </div>
+                        @if (p.Heredado)
+                        {
+                            @* El tope sigue rigiendo aunque se haya puesto otro mes.
+                               Decirlo evita que alguien piense que este mes no tiene
+                               tope y se sorprenda con el aviso. *@
+                            <span class="muted" style="font-size:12.5px">Viene del tope que pusiste antes · guarda uno nuevo para cambiarlo solo este mes</span>
+                        }
                     </div>
                 </div>
             }

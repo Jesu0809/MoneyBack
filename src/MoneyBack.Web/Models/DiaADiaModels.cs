@@ -61,7 +61,8 @@ public record PresupuestoResponse(
     decimal MontoLimite,
     decimal MontoGastado,
     int Mes,
-    int Anio);
+    int Anio,
+    bool Heredado = false);
 
 public record ComercioAprendidoResponse(
     int Id, string Comercio, string CategoriaNombre, string CategoriaIcono, DateTime FechaAprendido);

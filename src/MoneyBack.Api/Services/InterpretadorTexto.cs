@@ -106,7 +106,7 @@ public static partial class InterpretadorTexto
 
         if (categoria is null)
         {
-            var ejemplo = monto.Value.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
+            var ejemplo = Formato.Numero(monto.Value);
             return ResultadoInterpretacion.Fallo($"Entendí el monto pero no a qué categoría va. Escribe el nombre de una de tus categorías, por ejemplo \"{ejemplo} {categorias[0].Nombre.ToLowerInvariant()}\".");
         }
 

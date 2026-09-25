@@ -60,7 +60,8 @@ public record PresupuestoResponse(
     decimal MontoLimite,
     decimal MontoGastado,
     int Mes,
-    int Anio);
+    int Anio,
+    bool Heredado = false);
 
 /// <param name="Comercio">
 /// La llave normalizada (sin tildes ni mayúsculas) con la que se reconoce el

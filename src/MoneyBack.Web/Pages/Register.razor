@@ -68,7 +68,11 @@
 
         if (resultado.Exito)
         {
-            Nav.NavigateTo("/", forceLoad: false);
+            // A poner sus topes, no al inicio. Es el único momento en que
+            // alguien está dispuesto a contestar preguntas sobre su plata, y
+            // sin topes los avisos —lo único que habla cuando el atajo
+            // registra solo— nunca suenan.
+            Nav.NavigateTo("/bienvenida", forceLoad: false);
         }
         else
         {

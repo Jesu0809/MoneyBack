@@ -113,7 +113,7 @@ public static class AtajosEndpoints
             // El servidor corre en cultura invariante, así que {monto:N0} salía
             // como "1,500" (formato gringo). Este texto lo lee el usuario en el
             // "Mostrar resultado" del Atajo, así que se formatea en es-CO.
-            var montoFormateado = monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
+            var montoFormateado = Formato.Numero(monto);
             return Results.Ok(new { mensaje = $"{(categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso")} de ${montoFormateado} en {categoria.Nombre} registrado." });
         });
     }
@@ -242,7 +242,15 @@ public static class AtajosEndpoints
 
             await db.SaveChangesAsync();
 
-            var montoFormateado = interpretacion.Monto.ToString("N0", CultureInfo.GetCultureInfo("es-CO"));
+            // El aviso de tope importa más acá que en ningún otro lado: el
+            // gasto entró sin que nadie lo registrara a mano, así que esta
+            // notificación es la única ocasión en que la persona se entera.
+            if (categoria.Tipo == TipoCategoria.Gasto)
+            {
+                await AlertasPresupuestoService.RevisarAsync(usuarioId.Value, categoria.Id, db, sender);
+            }
+
+            var montoFormateado = Formato.Numero(interpretacion.Monto);
             var verbo = categoria.Tipo == TipoCategoria.Gasto ? "Gasto" : "Ingreso";
             var donde = comercio is null ? "" : $" en {comercio}";
             var confirmacion = $"{verbo} de ${montoFormateado}{donde} · {categoria.Nombre}";

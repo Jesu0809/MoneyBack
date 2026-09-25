@@ -56,7 +56,7 @@ public static class MovimientosDiaADiaEndpoints
             return Results.Ok(new ResumenDiaADiaResponse(totalIngresos, totalGastos, totalIngresos - totalGastos, gastosPorCategoria));
         });
 
-        group.MapPost("/", async (CrearMovimientoDiaADiaRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        group.MapPost("/", async (CrearMovimientoDiaADiaRequest request, ClaimsPrincipal principal, ApplicationDbContext db, PushNotificationSender sender) =>
         {
             if (request.Monto <= 0)
             {
@@ -115,13 +115,20 @@ public static class MovimientosDiaADiaEndpoints
 
             await db.SaveChangesAsync();
 
+            // Después de guardar, nunca antes: avisar de un tope por un gasto
+            // que no alcanzó a registrarse sería mentira.
+            if (categoria.Tipo == TipoCategoria.Gasto)
+            {
+                await AlertasPresupuestoService.RevisarAsync(usuarioId, categoria.Id, db, sender);
+            }
+
             return Results.Created($"/api/movimientos-diaadia/{movimiento.Id}", new MovimientoDiaADiaResponse(
                 movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
                 movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.Comercio, movimiento.RedondeoAplicado,
                 tarjeta?.Id, tarjeta?.Nombre));
         });
 
-        group.MapPut("/{id:int}", async (int id, ActualizarMovimientoDiaADiaRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        group.MapPut("/{id:int}", async (int id, ActualizarMovimientoDiaADiaRequest request, ClaimsPrincipal principal, ApplicationDbContext db, PushNotificationSender sender) =>
         {
             if (request.Monto <= 0)
             {
@@ -187,6 +194,14 @@ public static class MovimientosDiaADiaEndpoints
             // corrigió una categoría sorprendería a la pareja más de lo que
             // ayudaría. Corregir el gasto deja el aporte donde está.
             await db.SaveChangesAsync();
+
+            // La categoría nueva acaba de recibir este monto y puede haber
+            // cruzado su tope. La anterior bajó, y de eso no hay nada que
+            // avisar: nadie necesita saber que dejó de estar en problemas.
+            if (categoriaAnterior != categoria.Id && categoria.Tipo == TipoCategoria.Gasto)
+            {
+                await AlertasPresupuestoService.RevisarAsync(usuarioId, categoria.Id, db, sender);
+            }
 
             return Results.Ok(new MovimientoActualizadoResponse(
                 new MovimientoDiaADiaResponse(
