@@ -29,18 +29,25 @@ public record SimulacionSubsidiosResponse(
 public record PlanViviendaRequest(
     decimal ValorVivienda,
     decimal IngresoCombinadoMensual,
-    bool AfiliadoCajaCompensacion);
+    bool AfiliadoCajaCompensacion,
+    bool ViveEnBogota,
+    decimal Cesantias);
 
 public record AyudaDisponible(string Nombre, decimal Monto, bool EsSeguro, string Detalle);
 
 public record OpcionCredito(
     string Entidad,
     decimal TasaEfectivaAnual,
+    decimal TasaConCobertura,
+    bool TieneCobertura,
+    int PlazoMeses,
     decimal MontoAFinanciar,
     decimal CuotaInicialNecesaria,
     decimal CuotaMensual,
+    decimal CuotaDespuesDeLaCobertura,
     decimal ProporcionDelIngreso,
     bool CabeEnElIngreso,
+    bool CabeCuandoSubaLaCuota,
     decimal LeFaltaParaLaCuotaInicial,
     string Nota);
 
@@ -50,8 +57,10 @@ public record PlanViviendaResponse(
     decimal TopeVis,
     decimal TopeVip,
     decimal IngresoEnSmmlv,
-    List<AyudaDisponible> Subsidios,
+    List<AyudaDisponible> Ayudas,
     decimal TotalSubsidiosSeguros,
     List<OpcionCredito> Opciones,
     decimal AhorroActual,
+    decimal Cesantias,
+    decimal DisponibleParaCuotaInicial,
     DateOnly DatosVigentesDesde);

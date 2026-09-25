@@ -45,6 +45,31 @@ public static class ParametrosVivienda
     public const decimal SubsidioCajaHasta4Smmlv = 20m;
 
     /// <summary>
+    /// Concurrencia: un hogar de hasta 2 SMMLV puede sumar el subsidio de su
+    /// caja con Mi Casa Ya, hasta 50 SMMLV entre los dos. Es la pieza que
+    /// vuelve alcanzable lo que parecía imposible, y la que faltaba: contando
+    /// solo la caja, dos salarios mínimos no llegaban a nada.
+    ///
+    /// El orden importa y hay que decirlo: primero se aprueba el de la caja,
+    /// y con ese ya aprobado y sin aplicar se pide el del Gobierno.
+    /// </summary>
+    public const decimal TopeConcurrenciaSmmlv = 50m;
+    public const decimal IngresoMaximoConcurrenciaSmmlv = 2m;
+
+    /// <summary>
+    /// Subsidio distrital de Bogotá ("Mi Casa en Bogotá"), para hogares de
+    /// hasta 4 SMMLV: de 10 a 30 SMMLV según el caso. Se toma el piso del
+    /// rango para no prometer de más — que la cifra real sea mayor es una
+    /// buena sorpresa; al revés sería un problema.
+    ///
+    /// Otras ciudades tienen sus propios programas; acá solo está el de
+    /// Bogotá porque es el único del que hay cifras verificadas.
+    /// </summary>
+    public const decimal SubsidioDistritalBogotaMinimoSmmlv = 10m;
+    public const decimal SubsidioDistritalBogotaMaximoSmmlv = 30m;
+    public const decimal IngresoMaximoDistritalBogotaSmmlv = 4m;
+
+    /// <summary>
     /// Mi Casa Ya sigue existiendo en el papel y los montos son estos, pero en
     /// 2026 quedan pocos cupos remanentes. Se informa con esa advertencia
     /// pegada: prometer treinta millones que no van a llegar cambiaría la
@@ -78,5 +103,12 @@ public static class ParametrosVivienda
     /// </summary>
     public const decimal ProporcionMaximaDelIngreso = 0.30m;
 
-    public const int PlazoMesesTipico = 240;
+    /// <summary>
+    /// Los créditos VIS llegan a 30 años. Calcular a 20 —como se hacía antes—
+    /// inflaba la cuota y hacía ver como imposible algo que no lo es: es
+    /// justamente el plazo largo lo que permite que un hogar de dos salarios
+    /// mínimos pague una vivienda.
+    /// </summary>
+    public const int PlazoMesesVis = 360;
+    public const int PlazoMesesNoVis = 240;
 }

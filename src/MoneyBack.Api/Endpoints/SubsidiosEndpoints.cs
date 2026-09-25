@@ -61,6 +61,8 @@ public static class SubsidiosEndpoints
                 smmlv,
                 tipoTope,
                 request.AfiliadoCajaCompensacion,
+                request.ViveEnBogota,
+                Math.Max(0, request.Cesantias),
                 ahorroActual);
 
             return Results.Ok(plan);

@@ -18,8 +18,10 @@ public class PlanViviendaTests
     private const decimal Smmlv = 1_750_905m;
 
     private static PlanVivienda_Resultado Calcular(
-        decimal valorVivienda, decimal ingreso, bool afiliadoCaja = true, decimal ahorro = 0) =>
-        PlanVivienda.Calcular(valorVivienda, ingreso, Smmlv, TipoTopeVis.Decreto1467, afiliadoCaja, ahorro);
+        decimal valorVivienda, decimal ingreso, bool afiliadoCaja = true,
+        decimal ahorro = 0, bool bogota = false, decimal cesantias = 0) =>
+        PlanVivienda.Calcular(valorVivienda, ingreso, Smmlv, TipoTopeVis.Decreto1467,
+            afiliadoCaja, bogota, cesantias, ahorro);
 
     [Fact]
     public void UnaViviendaBajoElTopeEsVis_YUnaPorEncimaNoLoEs()
@@ -46,21 +48,125 @@ public class PlanViviendaTests
     }
 
     /// <summary>
-    /// Mi Casa Ya aparece pero no suma. En 2026 quedan cupos remanentes, y
-    /// contar treinta millones que no van a llegar llevaría a alguien a
-    /// comprometerse con una cuota inicial que no puede pagar.
+    /// Por encima de 2 SMMLV no hay concurrencia, así que Mi Casa Ya se
+    /// informa pero no se suma: quedan pocos cupos y contar veinte millones
+    /// que no van a llegar llevaría a alguien a comprometerse con una cuota
+    /// inicial que no puede pagar.
     /// </summary>
     [Fact]
-    public void MiCasaYaSeInformaPeroNoSeCuentaComoPlataSegura()
+    public void SinConcurrencia_MiCasaYaSeInformaPeroNoSeCuentaComoSeguro()
     {
-        var plan = Calcular(100m * Smmlv, 2m * Smmlv);
+        var plan = Calcular(100m * Smmlv, 3m * Smmlv);
 
-        var miCasaYa = plan.Subsidios.Single(s => s.Nombre == "Mi Casa Ya");
+        var miCasaYa = plan.Ayudas.Single(s => s.Nombre == "Mi Casa Ya");
         Assert.True(miCasaYa.Monto > 0);
         Assert.False(miCasaYa.EsSeguro);
-
-        // El total seguro es solo el de la caja.
         Assert.Equal(Caja(plan).Monto, plan.TotalSubsidiosSeguros);
+    }
+
+    /// <summary>
+    /// Hasta 2 SMMLV el subsidio de la caja se puede sumar con Mi Casa Ya
+    /// hasta 50 salarios mínimos. Esta es la pieza que faltaba: sin ella, un
+    /// hogar de dos mínimos recibía un "imposible" que contradice lo que pasa
+    /// en la realidad.
+    /// </summary>
+    [Fact]
+    public void HastaDosSalariosMinimos_LaCajaYMiCasaYaSeSuman()
+    {
+        var plan = Calcular(90m * Smmlv, 2m * Smmlv);
+
+        var concurrencia = plan.Ayudas.Single(a => a.Nombre.StartsWith("Mi Casa Ya (en concurrencia)"));
+        Assert.True(concurrencia.EsSeguro);
+
+        Assert.Equal(ParametrosVivienda.TopeConcurrenciaSmmlv * Smmlv, plan.TotalSubsidiosSeguros);
+    }
+
+    /// <summary>
+    /// El caso que motivó reconstruir todo esto: dos salarios mínimos
+    /// comprando una VIP en Bogotá. La versión anterior decía que era
+    /// imposible por banco y por FNA, y en la calle hay gente haciéndolo.
+    /// </summary>
+    [Fact]
+    public void DosSalariosMinimosEnBogotaSiAlcanzanParaUnaVip()
+    {
+        var plan = Calcular(90m * Smmlv, 2m * Smmlv, bogota: true);
+
+        Assert.Equal("VIP", plan.Clasificacion);
+
+        // Concurrencia (50 SMMLV) + distrital de Bogotá (10 SMMLV).
+        Assert.Equal(60m * Smmlv, plan.TotalSubsidiosSeguros);
+
+        Assert.All(plan.Opciones, o => Assert.True(o.CabeEnElIngreso,
+            $"{o.Entidad}: cuota {o.CuotaMensual:N0} = {o.ProporcionDelIngreso:P0} del ingreso"));
+    }
+
+    /// <summary>
+    /// La cobertura no es un adorno en una lista: baja la cuota de verdad.
+    /// Antes se mostraba como "ayuda" y nunca se aplicaba, que es justo lo
+    /// que hacía ver imposible lo que no lo es.
+    /// </summary>
+    [Fact]
+    public void LaCoberturaALaTasaBajaLaCuotaDeVerdad()
+    {
+        var plan = Calcular(120m * Smmlv, 5m * Smmlv);
+        var banco = plan.Opciones.Single(o => o.Entidad == "Banco");
+
+        Assert.True(banco.TieneCobertura);
+        Assert.True(banco.TasaConCobertura < banco.TasaEfectivaAnual);
+        Assert.True(banco.CuotaMensual < banco.CuotaDespuesDeLaCobertura);
+    }
+
+    /// <summary>
+    /// Y se dice cuánto sube después, porque sube. Enseñar solo la cuota
+    /// barata sería mentir por omisión justo en el número con el que alguien
+    /// firma una deuda de treinta años.
+    /// </summary>
+    [Fact]
+    public void SeAvisaSiLaCuotaDejaDeCaberCuandoSeAcabaLaCobertura()
+    {
+        // Ingreso elegido a propósito entre las dos cuotas: la subsidiada
+        // cabe en el 30%, la plena no.
+        var plan = Calcular(150m * Smmlv, 5_500_000m);
+        var banco = plan.Opciones.Single(o => o.Entidad == "Banco");
+
+        Assert.True(banco.CuotaDespuesDeLaCobertura > banco.CuotaMensual);
+        Assert.NotEqual(banco.CabeEnElIngreso, banco.CabeCuandoSubaLaCuota);
+    }
+
+    [Fact]
+    public void LasCesantiasCuentanParaLaCuotaInicial()
+    {
+        var sinCesantias = Calcular(200m * Smmlv, 15_000_000m);
+        var conCesantias = Calcular(200m * Smmlv, 15_000_000m, cesantias: 20_000_000m);
+
+        Assert.Equal(
+            sinCesantias.Opciones.First().LeFaltaParaLaCuotaInicial - 20_000_000m,
+            conCesantias.Opciones.First().LeFaltaParaLaCuotaInicial);
+    }
+
+    /// <summary>
+    /// Los créditos VIS llegan a 30 años. Calcularlos a 20 —como se hacía
+    /// antes— inflaba la cuota y volvía imposible en el papel algo que en la
+    /// realidad la gente está pagando.
+    /// </summary>
+    [Fact]
+    public void LaViviendaSocialSeCalculaATreintaAnios()
+    {
+        Assert.All(Calcular(90m * Smmlv, 3_000_000m).Opciones, o => Assert.Equal(360, o.PlazoMeses));
+        Assert.All(Calcular(200m * Smmlv, 15_000_000m).Opciones, o => Assert.Equal(240, o.PlazoMeses));
+    }
+
+    [Fact]
+    public void EnBogotaSeSumaElSubsidioDistrital()
+    {
+        var enBogota = Calcular(100m * Smmlv, 3m * Smmlv, bogota: true);
+        var fuera = Calcular(100m * Smmlv, 3m * Smmlv, bogota: false);
+
+        Assert.True(enBogota.TotalSubsidiosSeguros > fuera.TotalSubsidiosSeguros);
+
+        // A quien no está en Bogotá se le dice que averigüe el de su ciudad,
+        // en vez de dejarlo creyendo que no existe.
+        Assert.Contains(fuera.Ayudas, a => a.Nombre.Contains("su ciudad"));
     }
 
     [Fact]
@@ -69,7 +175,8 @@ public class PlanViviendaTests
         var plan = Calcular(100m * Smmlv, 2m * Smmlv, afiliadoCaja: false);
 
         Assert.Equal(0m, plan.TotalSubsidiosSeguros);
-        Assert.Contains("caja de compensación", Caja(plan).Detalle);
+        Assert.False(Caja(plan).EsSeguro);
+        Assert.Contains("cotiza a una caja", Caja(plan).Detalle);
     }
 
     [Fact]
@@ -78,7 +185,7 @@ public class PlanViviendaTests
         var plan = Calcular(200m * Smmlv, 10m * Smmlv);
 
         Assert.Equal(0m, plan.TotalSubsidiosSeguros);
-        Assert.All(plan.Subsidios, s => Assert.False(s.EsSeguro));
+        Assert.All(plan.Ayudas, s => Assert.False(s.EsSeguro));
     }
 
     /// <summary>
@@ -89,10 +196,13 @@ public class PlanViviendaTests
     public void DiceSiLaCuotaCabeEnElIngreso()
     {
         var holgado = Calcular(90m * Smmlv, 12_000_000m);
-        var apretado = Calcular(90m * Smmlv, 1_500_000m);
+
+        // Una No VIS cara con un ingreso bajo: acá no hay subsidio, ni
+        // cobertura, ni plazo de 30 años que lo salve.
+        var imposible = Calcular(200m * Smmlv, 3_000_000m);
 
         Assert.All(holgado.Opciones, o => Assert.True(o.CabeEnElIngreso));
-        Assert.All(apretado.Opciones, o => Assert.False(o.CabeEnElIngreso));
+        Assert.All(imposible.Opciones, o => Assert.False(o.CabeEnElIngreso));
     }
 
     [Fact]
@@ -166,5 +276,5 @@ public class PlanViviendaTests
     }
 
     private static AyudaDisponible Caja(PlanVivienda_Resultado plan) =>
-        plan.Subsidios.Single(s => s.Nombre == "Subsidio de caja de compensación");
+        plan.Ayudas.Single(s => s.Nombre == "Subsidio de caja de compensación");
 }

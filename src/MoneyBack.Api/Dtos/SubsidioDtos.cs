@@ -42,7 +42,19 @@ public record SimulacionSubsidiosResponse(
 /// más grande a la que se puede aspirar de verdad —Mi Casa Ya quedó casi sin
 /// cupos— y cambia el resultado en decenas de millones.
 /// </param>
+/// <param name="ViveEnBogota">
+/// Bogotá tiene su propio subsidio que se suma a los demás. Se pregunta
+/// aparte del hogar porque el tope VIS cubre cinco ciudades, pero el subsidio
+/// distrital del que hay cifras verificadas es solo el de Bogotá.
+/// </param>
+/// <param name="Cesantias">
+/// Se pueden retirar para comprar vivienda, así que para la cuota inicial
+/// cuentan igual que el ahorro. Para muchos hogares SON la cuota inicial, y
+/// dejarlas fuera hacía ver inalcanzable algo que ya tenían reunido.
+/// </param>
 public record PlanViviendaRequest(
     decimal ValorVivienda,
     decimal IngresoCombinadoMensual,
-    bool AfiliadoCajaCompensacion);
+    bool AfiliadoCajaCompensacion,
+    bool ViveEnBogota = false,
+    decimal Cesantias = 0);

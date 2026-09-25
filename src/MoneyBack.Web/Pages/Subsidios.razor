@@ -51,11 +51,27 @@
                     <div class="switch-row">
                         <div>
                             <div style="font-weight:600">¿Alguno cotiza a una caja de compensación?</div>
-                            <div class="muted">Compensar, Colsubsidio, Cafam… Hoy es la ayuda más grande a la que se puede aspirar.</div>
+                            <div class="muted">Compensar, Colsubsidio, Cafam… Es la ayuda más grande y la puerta de entrada a las demás.</div>
                         </div>
                         <button type="button" class="switch @(_form.AfiliadoCaja ? "on" : "")" @onclick="() => _form.AfiliadoCaja = !_form.AfiliadoCaja">
                             <div class="knob"></div>
                         </button>
+                    </div>
+
+                    <div class="switch-row">
+                        <div>
+                            <div style="font-weight:600">¿Viven en Bogotá?</div>
+                            <div class="muted">Bogotá tiene un subsidio propio que se suma a los demás.</div>
+                        </div>
+                        <button type="button" class="switch @(_form.ViveEnBogota ? "on" : "")" @onclick="() => _form.ViveEnBogota = !_form.ViveEnBogota">
+                            <div class="knob"></div>
+                        </button>
+                    </div>
+
+                    <div class="field">
+                        <label>¿Cuánto tienen en cesantías? (opcional)</label>
+                        <InputNumber class="input" @bind-Value="_form.Cesantias" placeholder="0" />
+                        <span class="muted">Se pueden retirar para comprar vivienda, así que cuentan para la cuota inicial.</span>
                     </div>
 
                     <AlertBox Mensaje="@_error" />
@@ -92,7 +108,7 @@
             <div class="card">
                 <div class="stack">
                     <div class="label">Ayudas</div>
-                    @foreach (var ayuda in _plan.Subsidios)
+                    @foreach (var ayuda in _plan.Ayudas)
                     {
                         <div style="padding:8px 0">
                             <div class="row-between">
@@ -122,13 +138,27 @@
                     <div class="stack">
                         <div class="row-between">
                             <span style="font-weight:650">@opcion.Entidad</span>
-                            <span class="pill">@($"{opcion.TasaEfectivaAnual * 100:N2}% E.A.")</span>
+                            <span class="pill">@($"{opcion.TasaConCobertura * 100:N2}% E.A. · {opcion.PlazoMeses / 12} años")</span>
                         </div>
 
                         <div class="row-between">
                             <span class="muted">Cuota mensual</span>
                             <span class="money money-md">@Formato.Pesos(opcion.CuotaMensual)</span>
                         </div>
+
+                        @if (opcion.TieneCobertura)
+                        {
+                            @* La cobertura dura 7 años y después la cuota sube.
+                               Mostrar solo la barata sería mentir por omisión
+                               justo en el número con el que alguien firma. *@
+                            <div class="row-between">
+                                <span class="muted">Cuota a partir del año 8</span>
+                                <span class="@(opcion.CabeCuandoSubaLaCuota ? "muted" : "")"
+                                      style="@(opcion.CabeCuandoSubaLaCuota ? "" : "color:var(--color-danger); font-weight:600")">
+                                    @Formato.Pesos(opcion.CuotaDespuesDeLaCobertura)
+                                </span>
+                            </div>
+                        }
                         <div class="row-between">
                             <span class="muted">Piden prestado</span>
                             <span>@Formato.Pesos(opcion.MontoAFinanciar)</span>
@@ -141,7 +171,7 @@
                         @if (opcion.LeFaltaParaLaCuotaInicial > 0)
                         {
                             <span class="muted" style="font-size:12.5px">
-                                Llevan @Formato.Pesos(_plan.AhorroActual) ahorrados, así que les faltarían
+                                Entre lo ahorrado y las cesantías tienen @Formato.Pesos(_plan.DisponibleParaCuotaInicial), así que les faltarían
                                 <strong>@Formato.Pesos(opcion.LeFaltaParaLaCuotaInicial)</strong>.
                             </span>
                         }
@@ -154,6 +184,12 @@
 
                         <AlertBox Tipo="@(opcion.CabeEnElIngreso ? "accent" : "danger")"
                                   Mensaje="@Veredicto(opcion)" />
+
+                        @if (opcion.CabeEnElIngreso && !opcion.CabeCuandoSubaLaCuota)
+                        {
+                            <AlertBox Tipo="warning"
+                                      Mensaje="Ojo: cuando se acabe la cobertura, en 7 años, la cuota pasa del 30% de lo que ganan hoy. Les tendría que haber subido el ingreso para entonces." />
+                        }
 
                         <span class="muted" style="font-size:12.5px">@opcion.Nota</span>
                     </div>
@@ -209,7 +245,8 @@
         _plan = null;
 
         var resultado = await Api.CalcularPlanViviendaAsync(_hogar.Id, new PlanViviendaRequest(
-            _form.ValorVivienda ?? 0, _form.IngresoCombinadoMensual ?? 0, _form.AfiliadoCaja));
+            _form.ValorVivienda ?? 0, _form.IngresoCombinadoMensual ?? 0,
+            _form.AfiliadoCaja, _form.ViveEnBogota, _form.Cesantias ?? 0));
 
         if (resultado.Exito) _plan = resultado.Valor;
         else _error = resultado.TodosLosErrores();
@@ -222,5 +259,7 @@
         public decimal? ValorVivienda { get; set; }
         public decimal? IngresoCombinadoMensual { get; set; }
         public bool AfiliadoCaja { get; set; } = true;
+        public bool ViveEnBogota { get; set; }
+        public decimal? Cesantias { get; set; }
     }
 }
