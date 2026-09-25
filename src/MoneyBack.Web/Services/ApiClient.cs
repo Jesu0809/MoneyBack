@@ -181,10 +181,10 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await ApiResult<MovimientoDiaADiaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<MovimientoDiaADiaResponse>()!);
     }
 
-    public async Task<ApiResult<MovimientoDiaADiaResponse>> ActualizarMovimientoDiaADiaAsync(int id, ActualizarMovimientoDiaADiaRequest request)
+    public async Task<ApiResult<MovimientoActualizadoResponse>> ActualizarMovimientoDiaADiaAsync(int id, ActualizarMovimientoDiaADiaRequest request)
     {
         var response = await Api.PutAsJsonAsync($"api/movimientos-diaadia/{id}", request);
-        return await ApiResult<MovimientoDiaADiaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<MovimientoDiaADiaResponse>()!);
+        return await ApiResult<MovimientoActualizadoResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<MovimientoActualizadoResponse>()!);
     }
 
     public async Task<bool> EliminarMovimientoDiaADiaAsync(int id)

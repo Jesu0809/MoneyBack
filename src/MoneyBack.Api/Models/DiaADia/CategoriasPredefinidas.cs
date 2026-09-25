@@ -3,6 +3,13 @@ namespace MoneyBack.Api.Models.DiaADia;
 public static class CategoriasPredefinidas
 {
     /// <summary>
+    /// Nombre de la categoría donde caen los gastos que entran por el atajo
+    /// sin que se sepa a qué corresponden. Se referencia desde el código que
+    /// reclasifica, así que vive acá y no suelto como texto.
+    /// </summary>
+    public const string SinClasificar = "Sin clasificar";
+
+    /// <summary>
     /// (Nombre, Tipo, Icono) de cada categoría básica. Se usa tanto para
     /// sembrar cuentas nuevas al registrarse como para que cuentas ya
     /// existentes puedan agregar las que les falten desde /categorias.
@@ -24,7 +31,7 @@ public static class CategoriasPredefinidas
         // qué fue — y la app la resalta para que se note que falta decidir.
         // Es la que usa el atajo de SMS y notificaciones, donde el banco da
         // el nombre del comercio pero no la categoría.
-        ("Sin clasificar", TipoCategoria.Gasto, "❓"),
+        (SinClasificar, TipoCategoria.Gasto, "❓"),
         ("Salario", TipoCategoria.Ingreso, "💼"),
         ("Bonos", TipoCategoria.Ingreso, "🎁"),
         ("Otros ingresos", TipoCategoria.Ingreso, "💰"),

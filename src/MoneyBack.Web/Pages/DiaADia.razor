@@ -28,6 +28,16 @@
         </div>
     </div>
 
+    @if (_avisoAprendizaje is not null)
+    {
+        <div class="card" style="border-left:3px solid var(--color-success)">
+            <div class="row" style="gap:8px">
+                <Icon Name="check" Size="17" />
+                <span style="font-size:13.5px">@_avisoAprendizaje</span>
+            </div>
+        </div>
+    }
+
     @{ var sinClasificar = _movimientos.Where(m => m.CategoriaNombre == CategoriaSinClasificar).ToList(); }
     @if (sinClasificar.Count > 0)
     {
@@ -352,6 +362,13 @@
     private int? _editandoId;
     private bool _guardandoEdicion;
     private string? _errorEdicion;
+
+    /// <summary>
+    /// Confirma que la corrección quedó guardada para ese comercio. Se muestra
+    /// porque clasificar a mano solo se repite si se nota que sirve de algo:
+    /// sin este aviso, el aprendizaje es invisible y parece que no pasó nada.
+    /// </summary>
+    private string? _avisoAprendizaje;
     private readonly EdicionMovimientoModel _editForm = new();
     private ResumenDiaADiaResponse? _resumen;
     private ResumenDiaADiaResponse? _saldoAcumulado;
@@ -533,6 +550,7 @@
     private void AbrirEdicion(MovimientoDiaADiaResponse mov)
     {
         _errorEdicion = null;
+        _avisoAprendizaje = null;
         _editandoId = mov.Id;
         _editForm.CategoriaId = mov.CategoriaId;
         _editForm.Monto = mov.Monto;
@@ -560,6 +578,7 @@
 
         if (resultado.Exito)
         {
+            _avisoAprendizaje = ArmarAvisoAprendizaje(resultado.Valor!);
             _editandoId = null;
             _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
             await CargarMesAsync();
@@ -570,6 +589,25 @@
         }
 
         _guardandoEdicion = false;
+    }
+
+    /// <summary>
+    /// El API solo enseña cuando la categoría cambió y el gasto trae comercio,
+    /// así que un movimiento sin nota no genera aviso: prometer que aprendió
+    /// algo que no aprendió sería peor que quedarse callado.
+    /// </summary>
+    private static string? ArmarAvisoAprendizaje(MovimientoActualizadoResponse resultado)
+    {
+        var comercio = resultado.Movimiento.Nota;
+        if (string.IsNullOrWhiteSpace(comercio)) return null;
+
+        var aprendio = $"Listo: los próximos gastos en {comercio} entran como {resultado.Movimiento.CategoriaNombre}.";
+
+        return resultado.OtrosReclasificados == 0
+            ? aprendio
+            : resultado.OtrosReclasificados == 1
+                ? $"{aprendio} También moví 1 gasto anterior del mismo sitio."
+                : $"{aprendio} También moví {resultado.OtrosReclasificados} gastos anteriores del mismo sitio.";
     }
 
 

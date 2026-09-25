@@ -28,6 +28,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<Categoria> Categorias => Set<Categoria>();
     public DbSet<MovimientoDiaADia> MovimientosDiaADia => Set<MovimientoDiaADia>();
     public DbSet<Presupuesto> Presupuestos => Set<Presupuesto>();
+    public DbSet<ComercioCategoria> ComerciosCategoria => Set<ComercioCategoria>();
     public DbSet<Suscripcion> Suscripciones => Set<Suscripcion>();
     public DbSet<ConfirmacionCobro> ConfirmacionesCobro => Set<ConfirmacionCobro>();
     public DbSet<Deuda> Deudas => Set<Deuda>();
@@ -52,6 +53,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new HogarConfiguration());
         builder.ApplyConfiguration(new InvitacionHogarConfiguration());
         builder.ApplyConfiguration(new PresupuestoConfiguration());
+        builder.ApplyConfiguration(new ComercioCategoriaConfiguration());
         builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());
         builder.ApplyConfiguration(new DeudaConfiguration());
         builder.ApplyConfiguration(new SuscripcionPushConfiguration());

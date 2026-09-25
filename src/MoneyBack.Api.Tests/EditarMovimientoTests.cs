@@ -29,7 +29,7 @@ public class EditarMovimientoTests : IClassFixture<ApiFactory>
             new ActualizarMovimientoDiaADiaRequest(mercado.Id, 50_000m, null, null));
         respuesta.EnsureSuccessStatusCode();
 
-        var actualizado = (await respuesta.Content.ReadFromJsonAsync<MovimientoDiaADiaResponse>())!;
+        var actualizado = (await respuesta.Content.ReadFromJsonAsync<MovimientoActualizadoResponse>())!.Movimiento;
         Assert.Equal("Mercado", actualizado.CategoriaNombre);
 
         // El total no cambia: solo se movió de categoría.

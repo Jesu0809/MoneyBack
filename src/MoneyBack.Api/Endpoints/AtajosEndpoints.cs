@@ -186,6 +186,19 @@ public static class AtajosEndpoints
 
             var categoria = interpretacion.Categoria!;
             var comercio = InterpretadorTexto.ExtraerComercio(texto);
+
+            // Si esta persona ya dijo alguna vez dónde va este comercio, esa
+            // decisión gana sobre la categoría por defecto del atajo. Así el
+            // gasto entra clasificado y no vuelve a pedir atención.
+            if (comercio is not null)
+            {
+                var clave = InterpretadorTexto.Normalizar(comercio);
+                var aprendido = await db.ComerciosCategoria
+                    .Include(c => c.Categoria)
+                    .FirstOrDefaultAsync(c => c.UsuarioId == usuarioId.Value && c.Comercio == clave);
+
+                if (aprendido is not null && aprendido.Categoria.Activa) categoria = aprendido.Categoria;
+            }
             var movimiento = new MovimientoDiaADia
             {
                 UsuarioId = usuarioId.Value,

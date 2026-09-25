@@ -165,11 +165,20 @@ public static class MovimientosDiaADiaEndpoints
                 }
             }
 
+            var categoriaAnterior = movimiento.CategoriaId;
+
             movimiento.CategoriaId = categoria.Id;
             movimiento.Monto = request.Monto;
             movimiento.Nota = request.Nota;
             movimiento.TarjetaCreditoId = tarjeta?.Id;
             if (request.Fecha is not null) movimiento.Fecha = request.Fecha.Value;
+
+            // Corregir la categoría de un gasto con comercio es la persona
+            // enseñando dónde va ese comercio. Se guarda para que el atajo no
+            // vuelva a preguntar por el mismo sitio.
+            var reclasificados = categoriaAnterior != categoria.Id
+                ? await AprenderComercioAsync(movimiento, categoria, usuarioId, db)
+                : 0;
 
             // El redondeo NO se recalcula a propósito. Ese aporte ya entró a la
             // meta del hogar y no guarda referencia al gasto que lo originó, así
@@ -179,10 +188,12 @@ public static class MovimientosDiaADiaEndpoints
             // ayudaría. Corregir el gasto deja el aporte donde está.
             await db.SaveChangesAsync();
 
-            return Results.Ok(new MovimientoDiaADiaResponse(
-                movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
-                movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado,
-                tarjeta?.Id, tarjeta?.Nombre));
+            return Results.Ok(new MovimientoActualizadoResponse(
+                new MovimientoDiaADiaResponse(
+                    movimiento.Id, categoria.Id, categoria.Nombre, categoria.Icono, categoria.Tipo,
+                    movimiento.Monto, movimiento.Fecha, movimiento.Nota, movimiento.RedondeoAplicado,
+                    tarjeta?.Id, tarjeta?.Nombre),
+                reclasificados));
         });
 
         group.MapDelete("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
@@ -195,6 +206,62 @@ public static class MovimientosDiaADiaEndpoints
             await db.SaveChangesAsync();
             return Results.NoContent();
         });
+    }
+
+    /// <summary>
+    /// Guarda que este comercio va en esta categoría y arrastra los gastos
+    /// anteriores del mismo sitio que seguían sin clasificar.
+    ///
+    /// Solo toca los que están sin clasificar: esos no tienen una decisión
+    /// detrás que respetar, así que moverlos es completar lo que faltaba. Un
+    /// gasto que la persona ya clasificó a mano se queda como está, aunque sea
+    /// del mismo comercio — a veces se compra el mercado y a veces un regalo
+    /// en el mismo lugar.
+    /// </summary>
+    private static async Task<int> AprenderComercioAsync(
+        MovimientoDiaADia movimiento, Categoria categoria, int usuarioId, ApplicationDbContext db)
+    {
+        if (string.IsNullOrWhiteSpace(movimiento.Nota)) return 0;
+
+        var clave = InterpretadorTexto.Normalizar(movimiento.Nota);
+        if (clave.Length < 3) return 0;
+
+        var existente = await db.ComerciosCategoria
+            .FirstOrDefaultAsync(c => c.UsuarioId == usuarioId && c.Comercio == clave);
+
+        if (existente is null)
+        {
+            db.ComerciosCategoria.Add(new ComercioCategoria
+            {
+                UsuarioId = usuarioId,
+                Comercio = clave,
+                CategoriaId = categoria.Id
+            });
+        }
+        else
+        {
+            existente.CategoriaId = categoria.Id;
+            existente.FechaAprendido = DateTime.UtcNow;
+        }
+
+        var sinClasificar = await db.Categorias
+            .Where(c => c.UsuarioId == usuarioId && c.Nombre == CategoriasPredefinidas.SinClasificar)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync();
+
+        if (sinClasificar == 0) return 0;
+
+        var pendientes = await db.MovimientosDiaADia
+            .Where(m => m.UsuarioId == usuarioId
+                && m.Id != movimiento.Id
+                && m.CategoriaId == sinClasificar
+                && m.Nota != null
+                && m.Nota.ToLower() == movimiento.Nota!.ToLower())
+            .ToListAsync();
+
+        foreach (var pendiente in pendientes) pendiente.CategoriaId = categoria.Id;
+
+        return pendientes.Count;
     }
 
     /// <summary>
