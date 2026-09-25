@@ -68,7 +68,14 @@ public record PlanViviendaResponse(
     decimal Cesantias,
     decimal DisponibleParaCuotaInicial,
     ComparacionVis? SiFueraVis,
+    TechoDeCompra Techo,
+    AlertaUmbral? Umbral,
     DateOnly DatosVigentesDesde);
+
+public record TechoDeCompra(decimal PrecioMaximo, bool LimitadoPorElTopeVis, decimal CuotaEstimada);
+
+public record AlertaUmbral(
+    decimal IngresoDelUmbral, decimal SeExcedenPor, decimal SubsidiosSiEstuvieranDebajo);
 
 public record ComparacionVis(
     decimal ValorMaximoVis,

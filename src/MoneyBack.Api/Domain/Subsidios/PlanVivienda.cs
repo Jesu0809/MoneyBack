@@ -80,6 +80,9 @@ public static class PlanVivienda
             ? null
             : CompararConLaMejorVis(topeVis, ingresoMensual, smmlv, tipoTope, afiliadoCaja, viveEnBogota, cesantias, ahorroActual);
 
+        var techo = CalcularTecho(ingresoMensual, totalSubsidios, disponibleParaInicial, topeVis, esVis || esVip);
+        var umbral = RevisarUmbral(ingresoMensual, ingresoEnSmmlv, smmlv, afiliadoCaja, viveEnBogota, esVis || esVip);
+
         return new PlanVivienda_Resultado(
             ValorVivienda: valorVivienda,
             Clasificacion: esVip ? "VIP" : esVis ? "VIS" : "No VIS",
@@ -94,6 +97,8 @@ public static class PlanVivienda
             Cesantias: cesantias,
             DisponibleParaCuotaInicial: disponibleParaInicial,
             SiFueraVis: comparacion,
+            Techo: techo,
+            Umbral: umbral,
             DatosVigentesDesde: ParametrosVivienda.VigenteDesde);
     }
 
@@ -114,6 +119,70 @@ public static class PlanVivienda
             SubsidiosQuePerdieron: plan.TotalSubsidiosSeguros,
             CuotaMensual: mejor.CuotaMensual,
             IngresoMinimoRequerido: mejor.IngresoMinimoRequerido);
+    }
+
+    /// <summary>
+    /// Hasta cuánto pueden comprar. Se calcula con la vía más favorable —el
+    /// FNA en VIS, que financia el 100%— porque el techo que importa es el
+    /// mejor alcanzable, no el promedio.
+    /// </summary>
+    private static TechoDeCompra CalcularTecho(
+        decimal ingresoMensual, decimal subsidios, decimal disponibleParaInicial,
+        decimal topeVis, bool esSocial)
+    {
+        var tasa = esSocial ? ParametrosVivienda.TasaFnaVis - ParametrosVivienda.CoberturaTasaVis
+                            : ParametrosVivienda.TasaFnaNoVis;
+        var plazo = esSocial ? ParametrosVivienda.PlazoMesesVis : ParametrosVivienda.PlazoMesesNoVis;
+        var financia = esSocial ? ParametrosVivienda.FinanciacionFnaVis : ParametrosVivienda.FinanciacionBancoNoVis;
+
+        var maximo = CalculadoraCapacidad.PrecioMaximo(
+            ingresoMensual, tasa, plazo, subsidios, disponibleParaInicial, financia);
+
+        // Pasarse del tope VIS no "compra más casa": cuesta los subsidios, y
+        // la plata que entra por crédito nunca alcanza a reponerlos. Por eso
+        // el techo útil se corta ahí y se dice por qué.
+        var limitadoPorElTope = maximo > topeVis;
+
+        return new TechoDeCompra(
+            PrecioMaximo: limitadoPorElTope ? Math.Floor(topeVis) : maximo,
+            LimitadoPorElTopeVis: limitadoPorElTope,
+            CuotaEstimada: Math.Round(ingresoMensual * ParametrosVivienda.ProporcionMaximaDelIngreso));
+    }
+
+    /// <summary>
+    /// Avisa cuando el ingreso está apenas por encima de un umbral que vale
+    /// mucha plata.
+    ///
+    /// El salto de los 2 SMMLV es brutal: por debajo, la caja da 30 salarios
+    /// mínimos y se le puede sumar Mi Casa Ya; por encima, la caja baja a 20 y
+    /// la concurrencia desaparece. Son 30 salarios mínimos de diferencia por
+    /// ganar un peso de más. Nadie puede tomar una buena decisión sin saber
+    /// que ese escalón existe.
+    /// </summary>
+    private static AlertaUmbral? RevisarUmbral(
+        decimal ingresoMensual, decimal ingresoEnSmmlv, decimal smmlv,
+        bool afiliadoCaja, bool viveEnBogota, bool esSocial)
+    {
+        if (!esSocial || !afiliadoCaja) return null;
+        if (ingresoEnSmmlv <= ParametrosVivienda.IngresoMaximoConcurrenciaSmmlv) return null;
+
+        // Solo tiene sentido avisar si está cerca; a cuatro salarios mínimos
+        // el dato es ruido.
+        const decimal margenParaAvisar = 0.35m;
+        var exceso = ingresoEnSmmlv - ParametrosVivienda.IngresoMaximoConcurrenciaSmmlv;
+        if (exceso > margenParaAvisar) return null;
+
+        var ingresoDelUmbral = ParametrosVivienda.IngresoMaximoConcurrenciaSmmlv * smmlv;
+
+        var conConcurrencia = ParametrosVivienda.TopeConcurrenciaSmmlv
+            + (viveEnBogota ? ParametrosVivienda.SubsidioDistritalBogotaMinimoSmmlv : 0m);
+        var sinConcurrencia = ParametrosVivienda.SubsidioCajaHasta4Smmlv
+            + (viveEnBogota ? ParametrosVivienda.SubsidioDistritalBogotaMinimoSmmlv : 0m);
+
+        return new AlertaUmbral(
+            IngresoDelUmbral: Math.Floor(ingresoDelUmbral),
+            SeExcedenPor: Math.Ceiling(ingresoMensual - ingresoDelUmbral),
+            SubsidiosSiEstuvieranDebajo: (conConcurrencia - sinConcurrencia) * smmlv);
     }
 
     private static List<AyudaDisponible> CalcularAyudas(
@@ -353,7 +422,24 @@ public record PlanVivienda_Resultado(
     decimal Cesantias,
     decimal DisponibleParaCuotaInicial,
     ComparacionVis? SiFueraVis,
+    TechoDeCompra Techo,
+    AlertaUmbral? Umbral,
     DateOnly DatosVigentesDesde);
+
+public record TechoDeCompra(
+    decimal PrecioMaximo,
+    bool LimitadoPorElTopeVis,
+    decimal CuotaEstimada);
+
+/// <param name="SubsidiosSiEstuvieranDebajo">
+/// Cuánto más recibirían si el ingreso del hogar quedara bajo el umbral. Es
+/// la cifra que convierte un escalón invisible de la norma en algo que se
+/// puede tener en cuenta al decidir.
+/// </param>
+public record AlertaUmbral(
+    decimal IngresoDelUmbral,
+    decimal SeExcedenPor,
+    decimal SubsidiosSiEstuvieranDebajo);
 
 /// <param name="SubsidiosQuePerdieron">
 /// Cuánto dejan sobre la mesa por elegir una vivienda que pasa el tope. Es la

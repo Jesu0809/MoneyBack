@@ -388,4 +388,101 @@ public class PlanViviendaTests
             Calcular(valor, 4m * Smmlv).TopeVis,
             Calcular(valor, 4m * Smmlv, escrituracion: 2020).TopeVis);
     }
+
+    // --- El techo de compra: la pregunta al revés ---
+
+    /// <summary>
+    /// Preguntando de a un proyecto uno se entera de que no alcanza después
+    /// de haberse ilusionado. El techo permite filtrar antes de mirar.
+    /// </summary>
+    [Fact]
+    public void DiceHastaCuantoPuedenComprar_YEseTechoCrecePorCadaAyuda()
+    {
+        var solos = Calcular(100m * Smmlv, 4_000_000m, afiliadoCaja: false);
+        var conCaja = Calcular(100m * Smmlv, 4_000_000m, afiliadoCaja: true);
+        var conTodo = Calcular(100m * Smmlv, 4_000_000m, afiliadoCaja: true, bogota: true, cesantias: 10_000_000m);
+
+        Assert.True(solos.Techo.PrecioMaximo < conCaja.Techo.PrecioMaximo);
+        Assert.True(conCaja.Techo.PrecioMaximo < conTodo.Techo.PrecioMaximo);
+    }
+
+    /// <summary>
+    /// Pasarse del tope no compra más casa: cuesta los subsidios, y el
+    /// crédito extra nunca alcanza a reponerlos. Por eso el techo se corta
+    /// ahí y se dice que fue por eso.
+    /// </summary>
+    [Fact]
+    public void ElTechoSeCortaEnElTopeVis_YSeDiceQueFuePorEso()
+    {
+        var plan = Calcular(100m * Smmlv, 30_000_000m, bogota: true);
+
+        Assert.True(plan.Techo.LimitadoPorElTopeVis);
+        Assert.Equal(Math.Floor(plan.TopeVis), plan.Techo.PrecioMaximo);
+    }
+
+    [Fact]
+    public void ConIngresoBajoElTechoLoMarcaElIngreso_NoElTope()
+    {
+        var plan = Calcular(100m * Smmlv, 2_000_000m);
+
+        Assert.False(plan.Techo.LimitadoPorElTopeVis);
+        Assert.True(plan.Techo.PrecioMaximo < plan.TopeVis);
+    }
+
+    /// <summary>
+    /// Ida y vuelta: una vivienda al precio del techo tiene que caber en el
+    /// ingreso. Si no cerrara, el techo estaría mintiendo.
+    /// </summary>
+    [Fact]
+    public void UnaViviendaAlPrecioDelTechoSiCabeEnElIngreso()
+    {
+        const decimal ingreso = 5_000_000m;
+        var techo = Calcular(100m * Smmlv, ingreso, bogota: true).Techo.PrecioMaximo;
+
+        var alLimite = Calcular(techo, ingreso, bogota: true);
+        Assert.Contains(alLimite.Opciones, o => o.CabeEnElIngreso);
+    }
+
+    // --- El escalón de los 2 SMMLV ---
+
+    /// <summary>
+    /// Por debajo de 2 SMMLV la caja da 30 salarios mínimos y se le suma Mi
+    /// Casa Ya; por encima, la caja baja a 20 y la concurrencia desaparece.
+    /// Treinta salarios mínimos de diferencia por ganar un peso de más: nadie
+    /// puede decidir bien sin saber que ese escalón existe.
+    /// </summary>
+    [Fact]
+    public void AvisaCuandoElIngresoEstaJustoPorEncimaDelUmbralDeConcurrencia()
+    {
+        var ingreso = 2.1m * Smmlv;
+        var plan = Calcular(100m * Smmlv, ingreso, bogota: true);
+
+        var umbral = Assert.IsType<AlertaUmbral>(plan.Umbral);
+        Assert.Equal(Math.Floor(2m * Smmlv), umbral.IngresoDelUmbral);
+        Assert.Equal(Math.Ceiling(ingreso - 2m * Smmlv), umbral.SeExcedenPor);
+        Assert.Equal(30m * Smmlv, umbral.SubsidiosSiEstuvieranDebajo);
+    }
+
+    [Fact]
+    public void NoAvisaDelUmbralSiYaEstanDebajo()
+    {
+        Assert.Null(Calcular(100m * Smmlv, 1.8m * Smmlv, bogota: true).Umbral);
+    }
+
+    /// <summary>
+    /// A cuatro salarios mínimos el dato es ruido: el umbral está lejos y no
+    /// hay nada que hacer con esa información.
+    /// </summary>
+    [Fact]
+    public void NoAvisaDelUmbralSiEstanDemasiadoLejos()
+    {
+        Assert.Null(Calcular(100m * Smmlv, 4m * Smmlv, bogota: true).Umbral);
+    }
+
+    [Fact]
+    public void ElAvisoDelUmbralCuentaLoQueRealmenteGanarian()
+    {
+        // Sin caja no hay concurrencia que perder, así que no hay nada que avisar.
+        Assert.Null(Calcular(100m * Smmlv, 2.1m * Smmlv, afiliadoCaja: false).Umbral);
+    }
 }

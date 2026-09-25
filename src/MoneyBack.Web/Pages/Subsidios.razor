@@ -105,7 +105,52 @@
 
         @if (_plan is not null)
         {
-            <div class="card page-enter">
+            @* El techo va de primero porque es lo que se usa para buscar.
+               Preguntando de a un proyecto uno se entera de que no alcanza
+               después de haberse ilusionado. *@
+            <div class="hero-balance page-enter">
+                <div class="stack" style="gap:10px">
+                    <span class="label">Hasta cuánto pueden comprar</span>
+                    <AnimatedMoney Valor="_plan.Techo.PrecioMaximo" Class="money money-lg" />
+                    <div class="divider"></div>
+                    <div class="row-between">
+                        <span class="muted">Con una cuota de hasta</span>
+                        <span style="font-weight:650">@Formato.Pesos(_plan.Techo.CuotaEstimada)</span>
+                    </div>
+                    @if (_plan.Techo.LimitadoPorElTopeVis)
+                    {
+                        <span class="muted" style="font-size:12.5px">
+                            El ingreso les daría para más, pero pasar del tope VIS cuesta todos los
+                            subsidios y el crédito extra nunca alcanza a reponerlos.
+                        </span>
+                    }
+                </div>
+            </div>
+
+            @if (_plan.Umbral is { } umbral)
+            {
+                @* El escalón de los 2 salarios mínimos es brutal y es
+                   invisible: nadie puede decidir bien sin saber que existe. *@
+                <div class="card" style="border-left:3px solid var(--color-warning)">
+                    <div class="stack">
+                        <div class="row" style="gap:8px">
+                            <Icon Name="alert-triangle" Size="17" />
+                            <strong>Están muy cerca de un escalón importante</strong>
+                        </div>
+                        <p style="margin:0; font-size:13.5px">
+                            Si el ingreso del hogar fuera de @Formato.Pesos(umbral.IngresoDelUmbral) o menos,
+                            podrían sumar el subsidio de la caja con Mi Casa Ya. Eso son
+                            <strong>@Formato.Pesos(umbral.SubsidiosSiEstuvieranDebajo) más</strong> en ayudas.
+                        </p>
+                        <p class="muted" style="margin:0; font-size:13px">
+                            Se pasan por @Formato.Pesos(umbral.SeExcedenPor) al mes. Vale la pena confirmar con la caja
+                            cómo cuentan el ingreso del hogar en su caso antes de postularse.
+                        </p>
+                    </div>
+                </div>
+            }
+
+            <div class="card">
                 <div class="stack">
                     <div class="row-between">
                         <span class="muted">Esta vivienda es</span>
