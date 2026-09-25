@@ -2,14 +2,25 @@
 @attribute [Authorize]
 @inject ApiClient Api
 
-<PageTitle>Simulador de subsidios · MoneyBack</PageTitle>
+<PageTitle>¿Cómo pagamos esta vivienda? · MoneyBack</PageTitle>
+
+@*
+    Esta pantalla reemplazó a un simulador que le pedía a la persona el monto
+    de su subsidio y se lo devolvía sumado — le preguntaba justo la respuesta
+    que debía darle, y por eso se sentía vacío.
+
+    Acá solo se pregunta lo que la app no puede saber: cuánto vale la vivienda
+    que están mirando, cuánto entra al mes, y si cotizan a una caja. Todo lo
+    demás —el tope VIS, los subsidios, las tasas, la cuota, cuánto llevan
+    ahorrado— lo pone la app.
+*@
 
 <div class="stack">
     <div class="row" style="gap:12px">
-        <div class="icon-bubble icon-bubble-accent icon-bubble-lg"><Icon Name="calculator" Size="22" /></div>
+        <div class="icon-bubble icon-bubble-accent icon-bubble-lg"><Icon Name="home" Size="22" /></div>
         <div>
-            <h2>Simulador de subsidios</h2>
-            <p class="muted">Calcula si tu vivienda es VIS/VIP y súmale lo que ya sepas de tu caja de compensación.</p>
+            <h2>¿Cómo pagamos esta vivienda?</h2>
+            <p class="muted">Dinos cuánto cuesta la que están mirando y te decimos con qué crédito alcanza, cuánto sería la cuota y qué ayudas les corresponden.</p>
         </div>
     </div>
 
@@ -20,95 +31,154 @@
     else if (_hogar is null)
     {
         <div class="card">
-            <p class="muted">Primero vincula tu hogar en <a href="/hogar">Hogar</a> para poder simular subsidios (el tope VIS depende de la ubicación de tu hogar).</p>
+            <p class="muted">Primero vincula tu hogar en <a href="/hogar">Hogar</a>: el tope VIS depende de dónde están buscando, y lo que ya llevan ahorrado sale de sus metas.</p>
         </div>
     }
     else
     {
         <div class="card">
-            <EditForm Model="_form" OnValidSubmit="Simular">
+            <EditForm Model="_form" OnValidSubmit="Calcular">
                 <div class="stack">
                     <div class="field">
-                        <label>Ingreso combinado mensual</label>
-                        <InputNumber class="input" @bind-Value="_form.IngresoCombinadoMensual" placeholder="3000000" />
+                        <label>¿Cuánto cuesta la vivienda?</label>
+                        <InputNumber class="input" @bind-Value="_form.ValorVivienda" placeholder="200000000" />
                     </div>
                     <div class="field">
-                        <label>Valor de la vivienda que estás evaluando</label>
-                        <InputNumber class="input" @bind-Value="_form.ValorVivienda" placeholder="200000000" />
+                        <label>¿Cuánto entra al mes entre los dos?</label>
+                        <InputNumber class="input" @bind-Value="_form.IngresoCombinadoMensual" placeholder="5000000" />
                     </div>
 
                     <div class="switch-row">
-                        <div style="font-weight:600">¿Es vivienda VIP (90 SMMLV)?</div>
-                        <button type="button" class="switch @(_form.EsVip ? "on" : "")" @onclick="() => _form.EsVip = !_form.EsVip">
+                        <div>
+                            <div style="font-weight:600">¿Alguno cotiza a una caja de compensación?</div>
+                            <div class="muted">Compensar, Colsubsidio, Cafam… Hoy es la ayuda más grande a la que se puede aspirar.</div>
+                        </div>
+                        <button type="button" class="switch @(_form.AfiliadoCaja ? "on" : "")" @onclick="() => _form.AfiliadoCaja = !_form.AfiliadoCaja">
                             <div class="knob"></div>
                         </button>
                     </div>
 
-                    <div class="field">
-                        <label>Subsidio de caja de compensación (opcional)</label>
-                        <InputNumber class="input" @bind-Value="_form.MontoSubsidioCajaCompensacion" placeholder="0" />
-                        <span class="muted">Consulta el monto exacto en el portal transaccional de tu caja — no lo calculamos por ti.</span>
-                    </div>
-
                     <AlertBox Mensaje="@_error" />
 
-                    <button class="btn btn-primary btn-block" type="submit" disabled="@_simulando">
-                        @if (_simulando) { <span class="spinner"></span> }
-                        <span>Simular</span>
+                    <button class="btn btn-primary btn-block" type="submit" disabled="@_calculando">
+                        @if (_calculando) { <span class="spinner"></span> }
+                        <span>Ver cómo la pagaríamos</span>
                     </button>
                 </div>
             </EditForm>
         </div>
 
-        @if (_resultado is not null)
+        @if (_plan is not null)
         {
             <div class="card page-enter">
                 <div class="stack">
-                    <div class="label">Resultado</div>
-
                     <div class="row-between">
-                        <span class="muted">Tope VIS aplicable</span>
-                        <span style="font-weight:650">@Formato.Pesos(_resultado.TopeVisPesos)</span>
+                        <span class="muted">Esta vivienda es</span>
+                        <span class="pill @(_plan.Clasificacion == "No VIS" ? "pill-danger" : "")">@_plan.Clasificacion</span>
                     </div>
-                    <div class="row-between">
-                        <span class="muted">¿Es VIS?</span>
-                        <span class="pill @(_resultado.EsVis ? "" : "pill-danger")">@(_resultado.EsVis ? "Sí" : "No")</span>
-                    </div>
+                    <span class="muted" style="font-size:13px">
+                        @if (_plan.Clasificacion == "No VIS")
+                        {
+                            @($"Está por encima del tope VIS de su ciudad ({Formato.Pesos(_plan.TopeVis)}), así que no aplica a subsidios de vivienda.")
+                        }
+                        else
+                        {
+                            @($"Está dentro del tope VIS de su ciudad ({Formato.Pesos(_plan.TopeVis)}), así que sí aplica a subsidios.")
+                        }
+                    </span>
+                </div>
+            </div>
 
-                    <div class="divider"></div>
-
-                    <AlertBox Mensaje="@_resultado.NotaProgramaGobierno" Tipo="@(_resultado.EsVis ? "warning" : "danger")" />
-
-                    @if (_resultado.MontoSubsidioCajaCompensacion > 0)
+            <div class="card">
+                <div class="stack">
+                    <div class="label">Ayudas</div>
+                    @foreach (var ayuda in _plan.Subsidios)
                     {
-                        <div class="row-between">
-                            <span>Caja de compensación</span>
-                            <span class="money money-md">@Formato.Pesos(_resultado.MontoSubsidioCajaCompensacion)</span>
+                        <div style="padding:8px 0">
+                            <div class="row-between">
+                                <span style="font-weight:600">@ayuda.Nombre</span>
+                                @if (ayuda.Monto > 0)
+                                {
+                                    <span class="money money-md @(ayuda.EsSeguro ? "" : "muted")">@Formato.Pesos(ayuda.Monto)</span>
+                                }
+                            </div>
+                            <div class="muted" style="font-size:12.5px">@ayuda.Detalle</div>
                         </div>
                     }
-
-                    <div class="divider"></div>
-                    <div class="row-between">
-                        <span style="font-weight:650">Total estimado</span>
-                        <AnimatedMoney Valor="_resultado.TotalSubsidiosEstimado" Class="money money-lg" />
-                    </div>
-
-                    @if (_resultado.MetaApartamento is { SuperaTopeVis: true } meta)
+                    @if (_plan.TotalSubsidiosSeguros > 0)
                     {
-                        <AlertBox Tipo="warning" Mensaje="@($"\"{meta.Nombre}\" tiene una meta de {Formato.Pesos(meta.MontoObjetivo)}, que supera el tope VIS aplicable ({Formato.Pesos(_resultado.TopeVisPesos)}). Mi Casa Ya no aplicaría a esa vivienda.")" />
+                        <div class="divider"></div>
+                        <div class="row-between">
+                            <span style="font-weight:650">Con lo que pueden contar</span>
+                            <AnimatedMoney Valor="_plan.TotalSubsidiosSeguros" Class="money money-lg" />
+                        </div>
                     }
                 </div>
             </div>
+
+            @foreach (var opcion in _plan.Opciones)
+            {
+                <div class="card" style="border-left:3px solid @(opcion.CabeEnElIngreso ? "var(--color-success)" : "var(--color-danger)")">
+                    <div class="stack">
+                        <div class="row-between">
+                            <span style="font-weight:650">@opcion.Entidad</span>
+                            <span class="pill">@($"{opcion.TasaEfectivaAnual * 100:N2}% E.A.")</span>
+                        </div>
+
+                        <div class="row-between">
+                            <span class="muted">Cuota mensual</span>
+                            <span class="money money-md">@Formato.Pesos(opcion.CuotaMensual)</span>
+                        </div>
+                        <div class="row-between">
+                            <span class="muted">Piden prestado</span>
+                            <span>@Formato.Pesos(opcion.MontoAFinanciar)</span>
+                        </div>
+                        <div class="row-between">
+                            <span class="muted">Cuota inicial</span>
+                            <span>@Formato.Pesos(opcion.CuotaInicialNecesaria)</span>
+                        </div>
+
+                        @if (opcion.LeFaltaParaLaCuotaInicial > 0)
+                        {
+                            <span class="muted" style="font-size:12.5px">
+                                Llevan @Formato.Pesos(_plan.AhorroActual) ahorrados, así que les faltarían
+                                <strong>@Formato.Pesos(opcion.LeFaltaParaLaCuotaInicial)</strong>.
+                            </span>
+                        }
+                        else if (opcion.CuotaInicialNecesaria > 0)
+                        {
+                            <span class="muted" style="font-size:12.5px">Ya tienen la cuota inicial ahorrada.</span>
+                        }
+
+                        <div class="divider"></div>
+
+                        <AlertBox Tipo="@(opcion.CabeEnElIngreso ? "accent" : "danger")"
+                                  Mensaje="@Veredicto(opcion)" />
+
+                        <span class="muted" style="font-size:12.5px">@opcion.Nota</span>
+                    </div>
+                </div>
+            }
+
+            @*
+                La fecha de los datos se muestra siempre. Son cifras que cambian
+                —las tasas cada mes, los subsidios cada enero— y alguien puede
+                decidir una compra de cien millones creyéndoles.
+            *@
+            <p class="muted" style="font-size:12px; text-align:center">
+                Tasas y montos de subsidio vigentes a @_plan.DatosVigentesDesde.ToString("MMMM 'de' yyyy").
+                Son estimados para orientarse: la cifra final la da cada entidad.
+            </p>
         }
     }
 </div>
 
 @code {
     private bool _cargandoHogar = true;
-    private bool _simulando;
+    private bool _calculando;
     private string? _error;
     private HogarResponse? _hogar;
-    private SimulacionSubsidiosResponse? _resultado;
+    private PlanViviendaResponse? _plan;
     private readonly FormModel _form = new();
 
     protected override async Task OnInitializedAsync()
@@ -117,34 +187,40 @@
         _cargandoHogar = false;
     }
 
-    private async Task Simular()
+    /// <summary>
+    /// La respuesta a "¿me alcanza?", en una frase. El 30% no es un criterio
+    /// inventado: es el que usan las entidades para aprobar, así que decirlo
+    /// en esos términos es decirle a la persona si se lo van a aprobar.
+    /// </summary>
+    private static string Veredicto(OpcionCredito opcion)
+    {
+        var porcentaje = $"{opcion.ProporcionDelIngreso * 100:N0}%";
+
+        return opcion.CabeEnElIngreso
+            ? $"La cuota se lleva el {porcentaje} de lo que entra al mes. Las entidades aprueban hasta un 30%, así que va holgado."
+            : $"La cuota se lleva el {porcentaje} de lo que entra al mes. Las entidades aprueban hasta un 30%, así que con este ingreso no se lo aprobarían.";
+    }
+
+    private async Task Calcular()
     {
         if (_hogar is null) return;
         _error = null;
-        _simulando = true;
-        _resultado = null;
+        _calculando = true;
+        _plan = null;
 
-        var resultado = await Api.SimularSubsidiosAsync(_hogar.Id, new SimularSubsidiosRequest(
-            _form.IngresoCombinadoMensual ?? 0, _form.ValorVivienda ?? 0, _form.EsVip,
-            _form.MontoSubsidioCajaCompensacion ?? 0));
+        var resultado = await Api.CalcularPlanViviendaAsync(_hogar.Id, new PlanViviendaRequest(
+            _form.ValorVivienda ?? 0, _form.IngresoCombinadoMensual ?? 0, _form.AfiliadoCaja));
 
-        if (resultado.Exito)
-        {
-            _resultado = resultado.Valor;
-        }
-        else
-        {
-            _error = resultado.TodosLosErrores();
-        }
+        if (resultado.Exito) _plan = resultado.Valor;
+        else _error = resultado.TodosLosErrores();
 
-        _simulando = false;
+        _calculando = false;
     }
 
     private class FormModel
     {
-        public decimal? IngresoCombinadoMensual { get; set; }
         public decimal? ValorVivienda { get; set; }
-        public bool EsVip { get; set; }
-        public decimal? MontoSubsidioCajaCompensacion { get; set; }
+        public decimal? IngresoCombinadoMensual { get; set; }
+        public bool AfiliadoCaja { get; set; } = true;
     }
 }

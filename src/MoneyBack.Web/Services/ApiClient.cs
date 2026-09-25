@@ -100,6 +100,12 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<ApiResult<PlanViviendaResponse>> CalcularPlanViviendaAsync(int hogarId, PlanViviendaRequest request)
+    {
+        var response = await Api.PostAsJsonAsync($"api/hogares/{hogarId}/plan-vivienda", request);
+        return await ApiResult<PlanViviendaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<PlanViviendaResponse>()!);
+    }
+
     public async Task<ApiResult<SimulacionSubsidiosResponse>> SimularSubsidiosAsync(int hogarId, SimularSubsidiosRequest request)
     {
         var response = await Api.PostAsJsonAsync($"api/hogares/{hogarId}/subsidios/simular", request);

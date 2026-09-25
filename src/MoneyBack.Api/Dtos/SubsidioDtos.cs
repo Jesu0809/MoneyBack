@@ -36,3 +36,13 @@ public record SimulacionSubsidiosResponse(
     decimal MontoSubsidioCajaCompensacion,
     decimal TotalSubsidiosEstimado,
     AlertaMetaApartamento? MetaApartamento);
+
+/// <param name="AfiliadoCajaCompensacion">
+/// Si alguno de los dos cotiza a una caja. Se pregunta porque hoy es la ayuda
+/// más grande a la que se puede aspirar de verdad —Mi Casa Ya quedó casi sin
+/// cupos— y cambia el resultado en decenas de millones.
+/// </param>
+public record PlanViviendaRequest(
+    decimal ValorVivienda,
+    decimal IngresoCombinadoMensual,
+    bool AfiliadoCajaCompensacion);
