@@ -11,6 +11,14 @@ public class MovimientoDiaADiaConfiguration : IEntityTypeConfiguration<Movimient
         // de nombre largo se guardaría completo en el movimiento pero recortado
         // en lo aprendido, y dejarían de coincidir entre sí.
         builder.Property(m => m.Comercio).HasMaxLength(60);
+
+        // Esta es la tabla que crece para siempre: cada gasto, todos los días,
+        // y ahora sin que nadie los escriba porque los mete el atajo. Casi
+        // todas las consultas de la app son "los movimientos de esta persona
+        // entre estas dos fechas", y con índices sueltos por columna Postgres
+        // tiene que traer todos los del usuario y filtrar por fecha después.
+        // Con el índice compuesto lee solo el rango que necesita.
+        builder.HasIndex(m => new { m.UsuarioId, m.Fecha });
     }
 }
 

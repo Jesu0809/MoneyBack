@@ -5,6 +5,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+
+    <!--
+      La app solo se usa en español y formatea pesos en es-CO. Por defecto
+      Blazor baja el paquete de datos de idioma "no_CJK" (217 KB comprimido);
+      EFIGS cubre español de sobra y pesa 141 KB. Son 76 KB menos en la
+      primera carga, que en un celular con datos es la diferencia entre que
+      la app abra rápido o se quede pensando.
+    -->
+    <BlazorIcuDataFileName>icudt_EFIGS.dat</BlazorIcuDataFileName>
   </PropertyGroup>
 
   <ItemGroup>
