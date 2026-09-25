@@ -299,8 +299,11 @@
     /// Igual que el otro, no puede llevar un token real — un enlace de iCloud
     /// guarda el atajo completo y quien lo instale escribiría en esa cuenta.
     /// Vacío = no se muestra el botón.
+    ///
+    /// Verificada descargándola: sin token real, los dos disparadores viajan
+    /// dentro del enlace y los encabezados apuntan a donde deben.
     /// </summary>
-    private const string EnlaceAtajoBancos = "";
+    private const string EnlaceAtajoBancos = "https://www.icloud.com/shortcuts/744cf37baa914e91a860446c41563103";
 
 
     private List<TokenAtajoResponse> _tokens = [];
