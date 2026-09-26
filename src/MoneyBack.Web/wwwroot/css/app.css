@@ -594,7 +594,12 @@ h1:focus { outline: none; }
 
 .fullscreen-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 20px 8px;
+  /* El modal es position:fixed con inset:0, así que cubre TAMBIÉN la franja
+     del reloj y la isla dinámica. Sin reservar ese alto, el header —que es
+     donde viven la X y el selector Gasto/Ingreso— quedaba dibujado debajo
+     del reloj: invisible sobre el fondo oscuro y sin forma de tocarlo. El
+     cuerpo y el pie ya respetaban el borde de abajo; faltaba el de arriba. */
+  padding: calc(14px + env(safe-area-inset-top)) 20px 8px;
   flex-shrink: 0;
 }
 
@@ -607,7 +612,9 @@ h1:focus { outline: none; }
 .amount-entry {
   display: flex; align-items: baseline; justify-content: center;
   gap: 4px;
-  padding: 28px 0 10px;
+  /* 28px arriba sobraban: con el header ya visible empujaban la cuadrícula
+     de categorías fuera de la primera pantalla en teléfonos con isla. */
+  padding: 14px 0 6px;
 }
 .amount-entry .currency { font-size: 28px; font-weight: 650; color: var(--color-text-muted); }
 .amount-entry input {

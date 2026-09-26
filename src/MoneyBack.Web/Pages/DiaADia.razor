@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using Microsoft.AspNetCore.WebUtilities
 @inject ApiClient Api
+@inject IJSRuntime JS
 @inject UiOverlayService UiOverlay
 @inject NavigationManager Nav
 @implements IDisposable
@@ -458,6 +459,8 @@
         _movimientos = await Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
         _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
         _cargando = false;
+
+        await ActualizarGloboAsync();
     }
 
     private async Task CargarAnioAsync()
@@ -564,6 +567,33 @@
     {
         _editandoId = null;
         _errorEdicion = null;
+    }
+
+    /// <summary>
+    /// Pone el globo del ícono con los gastos que faltan por clasificar.
+    ///
+    /// Es lo más cerca que puede estar una PWA de la isla dinámica: las Live
+    /// Activities necesitan ActivityKit y eso es solo para apps nativas. El
+    /// globo sí existe en iOS desde la 16.4 y cumple la misma función — ver
+    /// que hay algo pendiente sin abrir nada.
+    ///
+    /// Solo se usa para esto. Es el único número de la app que representa
+    /// algo que la persona tiene que hacer; ponerle globo a cualquier otra
+    /// cosa la entrenaría a ignorarlo.
+    /// </summary>
+    private async Task ActualizarGloboAsync()
+    {
+        try
+        {
+            var pendientes = _movimientos.Count(m => m.CategoriaNombre == CategoriaSinClasificar);
+            var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/interop.js");
+            await modulo.InvokeVoidAsync("marcarPendientes", pendientes);
+        }
+        catch
+        {
+            // El globo es un extra. Si el navegador no lo soporta o el
+            // módulo no carga, la pantalla tiene que seguir funcionando.
+        }
     }
 
     private async Task GuardarEdicion()

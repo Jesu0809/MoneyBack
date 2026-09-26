@@ -106,3 +106,29 @@ export async function desuscribirseNotificaciones() {
         return null;
     }
 }
+
+// --- Globo en el ícono de la app ---
+// La isla dinámica está fuera del alcance de una PWA: las Live Activities
+// exigen ActivityKit, que solo existe en apps nativas. Pero el globo rojo
+// sobre el ícono sí funciona en iOS 16.4+ cuando la app está en la pantalla
+// de inicio, y sirve para lo mismo que uno querría de la isla: ver que hay
+// algo pendiente sin abrir nada.
+//
+// Se usa para los gastos sin clasificar. Es el único número de la app que
+// representa algo que la persona tiene que hacer; ponerle un globo a
+// cualquier otra cosa sería entrenarla a ignorarlo.
+export async function marcarPendientes(cantidad) {
+    try {
+        if (!("setAppBadge" in navigator)) return false;
+
+        if (cantidad > 0) await navigator.setAppBadge(cantidad);
+        else await navigator.clearAppBadge();
+
+        return true;
+    } catch {
+        // En iOS falla si no se ha concedido permiso de notificaciones, y
+        // en escritorio si la app no está instalada. Ninguno de los dos es
+        // un problema que valga la pena mostrarle a nadie.
+        return false;
+    }
+}
