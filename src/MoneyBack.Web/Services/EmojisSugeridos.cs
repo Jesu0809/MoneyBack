@@ -32,7 +32,10 @@ public static class EmojisSugeridos
     /// </summary>
     private static readonly Dictionary<string, string[]> Sinonimos = new()
     {
-        ["colombia"] = ["🇨🇴"],
+        ["ciudad"] = ["🏙️"], ["bogota"] = ["🏙️"], ["medellin"] = ["🏙️"], ["cali"] = ["🏙️"],
+        ["cartagena"] = ["🏖️"], ["barranquilla"] = ["🏖️"], ["santamarta"] = ["🏖️"], ["playa"] = ["🏖️"],
+        ["finca"] = ["🌄"], ["campo"] = ["🌄"], ["pueblo"] = ["🏘️"],
+        ["gaseosa"] = ["🥤"], ["coca"] = ["🥤"], ["refresco"] = ["🥤"], ["jugo"] = ["🧃"], ["cerveza"] = ["🍺"], ["cafe"] = ["☕"], ["tinto"] = ["☕"],
         ["computador"] = ["💻"], ["portatil"] = ["💻"], ["celular"] = ["📱"],
         ["lavadora"] = ["🧺"], ["nevera"] = ["🧊"], ["estufa"] = ["🍳"], ["licuadora"] = ["🥤"],
         ["matricula"] = ["🎓"], ["semestre"] = ["🎓"], ["universidad"] = ["🎓"], ["estudio"] = ["📚"],
@@ -58,13 +61,16 @@ public static class EmojisSugeridos
 
     private static (string, string[])[] ConstruirIndice()
     {
-        var indice = new (string, string[])[EmojisDatos.Entradas.Length];
+        // Las banderas van primero: cuando alguien escribe el nombre de un
+        // país quiere la bandera, no un emoji que por casualidad comparta
+        // alguna letra.
+        var todas = EmojisBanderas.Entradas.Concat(EmojisDatos.Entradas).ToArray();
+        var indice = new (string, string[])[todas.Length];
 
-        for (var i = 0; i < EmojisDatos.Entradas.Length; i++)
+        for (var i = 0; i < todas.Length; i++)
         {
-            var entrada = EmojisDatos.Entradas[i];
-            var corte = entrada.IndexOf('|');
-            indice[i] = (entrada[..corte], entrada[(corte + 1)..].Split(' '));
+            var corte = todas[i].IndexOf('|');
+            indice[i] = (todas[i][..corte], todas[i][(corte + 1)..].Split(' '));
         }
 
         return indice;
@@ -89,7 +95,15 @@ public static class EmojisSugeridos
         // parcial contra las anotaciones de Unicode.
         foreach (var termino in terminos)
         {
-            if (!Sinonimos.TryGetValue(termino, out var propios)) continue;
+            if (!Sinonimos.TryGetValue(termino, out var propios))
+            {
+                // "cuotainicial" debe encontrar lo mismo que "cuota".
+                var clave = Sinonimos.Keys.FirstOrDefault(k =>
+                    k.Length >= 4 && termino.Contains(k, StringComparison.Ordinal));
+                if (clave is null) continue;
+                propios = Sinonimos[clave];
+            }
+
             foreach (var emoji in propios)
             {
                 if (!elegidos.Contains(emoji)) elegidos.Add(emoji);
@@ -98,7 +112,11 @@ public static class EmojisSugeridos
 
         if (elegidos.Count < cuantos && terminos.Length > 0)
         {
-            foreach (var emoji in Buscar(terminos, cuantos))
+            // El rescate por palabra contenida solo corre si no hubo NADA:
+            // ni sinónimo ni coincidencia directa. Si ya hay algo bueno,
+            // añadirlo solo mete ruido — "Cartagena" traía naipes por
+            // "carta" y "gaseosa" traía baños por "aseo".
+            foreach (var emoji in Buscar(terminos, cuantos, permitirRescate: elegidos.Count == 0))
             {
                 if (elegidos.Count >= cuantos) break;
                 if (!elegidos.Contains(emoji)) elegidos.Add(emoji);
@@ -114,7 +132,7 @@ public static class EmojisSugeridos
         return [.. elegidos.Take(cuantos)];
     }
 
-    private static List<string> Buscar(string[] terminos, int cuantos)
+    private static List<string> Buscar(string[] terminos, int cuantos, bool permitirRescate)
     {
         var puntuados = new List<(string Emoji, int Puntos)>();
 
@@ -135,6 +153,26 @@ public static class EmojisSugeridos
             }
 
             if (puntos > 0) puntuados.Add((emoji, puntos));
+        }
+
+        // Solo si no hubo nada directo se intenta al revés: ver si alguna
+        // palabra conocida está DENTRO de lo que escribieron. Sirve para
+        // "cuotainicial", pero es ruidoso —"bogota" contiene "gota",
+        // "cartagena" contiene "carta"— así que va de último recurso y con
+        // palabras de cinco letras para arriba.
+        if (permitirRescate && puntuados.Count == 0)
+        {
+            foreach (var (emoji, palabras) in Indice)
+            {
+                foreach (var termino in terminos)
+                {
+                    if (palabras.Any(p => p.Length >= 5 && termino.Contains(p, StringComparison.Ordinal)))
+                    {
+                        puntuados.Add((emoji, 1));
+                        break;
+                    }
+                }
+            }
         }
 
         return puntuados
