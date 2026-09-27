@@ -32,6 +32,49 @@ public static class EmojisSugeridos
     /// </summary>
     private static readonly Dictionary<string, string[]> Sinonimos = new()
     {
+
+        // --- Plata y banco ---
+        ["plata"] = ["💰"], ["billete"] = ["💵"], ["efectivo"] = ["💵"], ["moneda"] = ["🪙"],
+        ["nomina"] = ["💵"], ["quincena"] = ["💵"], ["prima"] = ["🎁"], ["cesantias"] = ["🏦"],
+        ["pension"] = ["👴"], ["inversion"] = ["📈"], ["bolsa"] = ["📈"], ["cripto"] = ["🪙"],
+        ["bitcoin"] = ["🪙"], ["dolar"] = ["💵"], ["euro"] = ["💶"], ["impuesto"] = ["🧾"],
+        ["dian"] = ["🧾"], ["factura"] = ["🧾"], ["recibo"] = ["🧾"], ["multa"] = ["🚨"],
+        // --- Música y salidas ---
+        ["concierto"] = ["🎤"], ["festival"] = ["🎪"], ["musica"] = ["🎵"], ["guitarra"] = ["🎸"],
+        ["fiesta"] = ["🎉"], ["rumba"] = ["🎉"], ["parche"] = ["🎉"], ["salida"] = ["🎉"],
+        ["cine"] = ["🎬"], ["teatro"] = ["🎭"], ["museo"] = ["🖼️"], ["bar"] = ["🍻"],
+        ["discoteca"] = ["🪩"], ["karaoke"] = ["🎤"], ["cumpleanos"] = ["🎂"], ["aguinaldo"] = ["🎁"],
+        // --- Colombianismos ---
+        ["chimba"] = ["🔥"], ["bacano"] = ["😎"], ["parcero"] = ["🤝"], ["parce"] = ["🤝"],
+        ["tinto"] = ["☕"], ["guaro"] = ["🥃"], ["aguardiente"] = ["🥃"], ["polas"] = ["🍺"],
+        ["ancheta"] = ["🧺"], ["mecato"] = ["🍬"], ["onces"] = ["🍪"], ["corrientazo"] = ["🍽️"],
+        ["bandeja"] = ["🍛"], ["arepa"] = ["🫓"], ["buñuelo"] = ["🍩"], ["natilla"] = ["🍮"],
+        ["chiva"] = ["🚌"], ["buseta"] = ["🚌"], ["transmilenio"] = ["🚌"], ["taxi"] = ["🚕"],
+        ["tienda"] = ["🏪"], ["papeleria"] = ["📎"], ["droguería"] = ["💊"], ["drogueria"] = ["💊"],
+        ["peluqueria"] = ["💇"], ["barberia"] = ["💈"], ["lavanderia"] = ["🧺"],
+        ["recarga"] = ["📱"], ["datos"] = ["📶"], ["minutos"] = ["📞"],
+        // --- Casa y servicios ---
+        ["administracion"] = ["🏢"], ["predial"] = ["🏠"], ["cuota"] = ["🏠"], ["hipoteca"] = ["🏦"],
+        ["mudanza"] = ["📦"], ["trasteo"] = ["📦"], ["deposito"] = ["📦"], ["parqueadero"] = ["🅿️"],
+        ["gas"] = ["🔥"], ["telefono"] = ["📞"], ["television"] = ["📺"], ["streaming"] = ["📺"],
+        ["netflix"] = ["📺"], ["spotify"] = ["🎵"], ["suscripcion"] = ["🔁"],
+        // --- Familia y personas ---
+        ["mama"] = ["👩"], ["papa"] = ["👨"], ["hijo"] = ["👦"], ["hija"] = ["👧"],
+        ["abuela"] = ["👵"], ["abuelo"] = ["👴"], ["hermano"] = ["🧑"], ["hermana"] = ["👩"],
+        ["familia"] = ["👪"], ["pareja"] = ["💑"], ["amigos"] = ["🫂"], ["novia"] = ["❤️"], ["novio"] = ["❤️"],
+        ["colegio"] = ["🏫"], ["jardin"] = ["🧸"], ["pañales"] = ["👶"], ["niños"] = ["🧒"], ["ninos"] = ["🧒"],
+        // --- Deporte y ocio ---
+        ["futbol"] = ["⚽"], ["ciclismo"] = ["🚴"], ["gimnasia"] = ["🤸"], ["yoga"] = ["🧘"],
+        ["natacion"] = ["🏊"], ["tenis"] = ["🎾"], ["patines"] = ["🛼"], ["camping"] = ["⛺"],
+        ["caminata"] = ["🥾"], ["montaña"] = ["🏔️"], ["montana"] = ["🏔️"], ["rio"] = ["🏞️"],
+        ["videojuego"] = ["🎮"], ["consola"] = ["🎮"], ["libro"] = ["📖"], ["curso"] = ["📚"],
+        // --- Trabajo y herramientas ---
+        ["oficina"] = ["🏢"], ["escritorio"] = ["🪑"], ["silla"] = ["🪑"], ["impresora"] = ["🖨️"],
+        ["camara"] = ["📷"], ["audifonos"] = ["🎧"], ["parlante"] = ["🔊"], ["reloj"] = ["⌚"],
+        ["herramienta"] = ["🧰"], ["pintura"] = ["🎨"], ["jardineria"] = ["🪴"], ["planta"] = ["🪴"],
+        // --- Emociones y otros ---
+        ["sueño"] = ["✨"], ["sueno"] = ["✨"], ["meta"] = ["🎯"], ["reto"] = ["🏆"],
+        ["futuro"] = ["🔮"], ["libertad"] = ["🕊️"], ["seguro"] = ["🛡️"], ["retiro"] = ["🌅"],
         ["ciudad"] = ["🏙️"], ["bogota"] = ["🏙️"], ["medellin"] = ["🏙️"], ["cali"] = ["🏙️"],
         ["cartagena"] = ["🏖️"], ["barranquilla"] = ["🏖️"], ["santamarta"] = ["🏖️"], ["playa"] = ["🏖️"],
         ["finca"] = ["🌄"], ["campo"] = ["🌄"], ["pueblo"] = ["🏘️"],
