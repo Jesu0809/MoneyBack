@@ -161,11 +161,17 @@
 
     private static readonly TimeSpan IntervaloRefresco = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// El aviso llega desde el manejador de red, que corre fuera del ciclo de
+    /// render: hay que volver al hilo de la interfaz antes de repintar.
+    /// </summary>
+    private void AlCambiarConexion() => _ = InvokeAsync(StateHasChanged);
+
     protected override async Task OnInitializedAsync()
     {
         ThemeService.OnChange += StateHasChanged;
         UiOverlay.OnChange += StateHasChanged;
-        Estado.OnCambio += StateHasChanged;
+        Estado.OnCambio += AlCambiarConexion;
         AuthProvider.AuthenticationStateChanged += OnAuthenticationChanged;
         await CargarPendientesAsync();
 
@@ -269,7 +275,7 @@
 
     public void Dispose()
     {
-        Estado.OnCambio -= StateHasChanged;
+        Estado.OnCambio -= AlCambiarConexion;
         ThemeService.OnChange -= StateHasChanged;
         UiOverlay.OnChange -= StateHasChanged;
         AuthProvider.AuthenticationStateChanged -= OnAuthenticationChanged;

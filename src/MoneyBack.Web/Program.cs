@@ -19,7 +19,12 @@ builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddSingleton<UiOverlayService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiClient>();
-builder.Services.AddScoped<EstadoConexion>();
+// Singleton y no Scoped: IHttpClientFactory construye los manejadores en su
+// propio ámbito, así que FallosDeRedHandler recibía una instancia DISTINTA de
+// la que usa el layout. El manejador marcaba "sin conexión" en su copia y el
+// punto del encabezado seguía verde mirando otra — que es justo lo que se
+// veía: la pantalla avisaba sin señal y el LED no se enteraba.
+builder.Services.AddSingleton<EstadoConexion>();
 builder.Services.AddScoped<AlmacenLocal>();
 builder.Services.AddScoped<ColaPendientes>();
 builder.Services.AddScoped<DescargaArchivoService>();
