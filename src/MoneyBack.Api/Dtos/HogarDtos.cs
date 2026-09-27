@@ -4,9 +4,7 @@ namespace MoneyBack.Api.Dtos;
 
 public record CrearInvitacionHogarRequest(
     string EmailPareja,
-    bool AplicaTope150 = false,
-    decimal PorcentajeRedondeoEmergencia = 20,
-    decimal PorcentajeRedondeoApartamento = 80);
+    bool AplicaTope150 = false);
 
 public record InvitacionHogarResponse(
     int Id,
@@ -23,9 +21,7 @@ public record MisInvitacionesHogarResponse(
 
 public record ActualizarHogarRequest(
     bool AplicaTope150,
-    bool RedondeoActivo,
-    decimal PorcentajeRedondeoEmergencia,
-    decimal PorcentajeRedondeoApartamento);
+    bool RedondeoActivo);
 
 public record HogarResponse(
     int Id,
@@ -34,8 +30,6 @@ public record HogarResponse(
     int Usuario2Id,
     string Usuario2Nombre,
     bool AplicaTope150,
-    bool RedondeoActivo,
-    decimal PorcentajeRedondeoEmergencia,
-    decimal PorcentajeRedondeoApartamento);
+    bool RedondeoActivo);
 
 public record RedondeoTotalResponse(decimal Total);

@@ -30,17 +30,17 @@ public class DiaEnLaVidaTests : IClassFixture<ApiFactory>
 
         // Hogar con redondeo 20% Emergencia / 80% Apartamento — la pareja
         // debe aceptar la invitación, ya no se vincula solo con el correo.
-        var invitacion = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar", new CrearInvitacionHogarRequest(usuarioB.Email!, false, 20, 80));
+        var invitacion = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar", new CrearInvitacionHogarRequest(usuarioB.Email!));
         var invitacionCreada = (await invitacion.Content.ReadFromJsonAsync<InvitacionHogarResponse>())!;
         await clienteB.PostAsync($"/api/invitaciones-hogar/{invitacionCreada.Id}/aceptar", null);
-        await clienteA.PutAsJsonAsync("/api/hogares/mio", new ActualizarHogarRequest(false, true, 20, 80));
+        await clienteA.PutAsJsonAsync("/api/hogares/mio", new ActualizarHogarRequest(false, true));
         var hogar = await clienteA.GetFromJsonAsync<HogarResponse>("/api/hogares/mio");
 
         var crearApto = await clienteA.PostAsJsonAsync($"/api/hogares/{hogar!.Id}/metas",
-            new CrearMetaRequest(TipoMeta.Apartamento, "Apto", 200_000_000m));
+            new CrearMetaRequest("Apto", 200_000_000m, "🏠", false, 80));
         var apto = (await crearApto.Content.ReadFromJsonAsync<MetaResponse>())!;
         var crearEmergencia = await clienteA.PostAsJsonAsync($"/api/hogares/{hogar.Id}/metas",
-            new CrearMetaRequest(TipoMeta.Emergencia, "Emergencia", 10_000_000m));
+            new CrearMetaRequest("Emergencia", 10_000_000m, "🛟", true, 20));
         var emergencia = (await crearEmergencia.Content.ReadFromJsonAsync<MetaResponse>())!;
 
         var salario = await clienteA.CrearCategoriaAsync("Salario", TipoCategoria.Ingreso);

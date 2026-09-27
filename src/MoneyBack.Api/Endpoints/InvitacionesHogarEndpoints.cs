@@ -24,14 +24,6 @@ public static class InvitacionesHogarEndpoints
         {
             var usuarioId = principal.GetUsuarioId();
 
-            if (request.PorcentajeRedondeoEmergencia + request.PorcentajeRedondeoApartamento != 100)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["porcentajes"] = ["Los porcentajes de redondeo deben sumar 100."]
-                });
-            }
-
             var pareja = await userManager.FindByEmailAsync(request.EmailPareja);
             if (pareja is null)
             {
@@ -70,9 +62,7 @@ public static class InvitacionesHogarEndpoints
             {
                 InvitadorId = usuarioId,
                 InvitadoId = pareja.Id,
-                AplicaTope150 = request.AplicaTope150,
-                PorcentajeRedondeoEmergencia = request.PorcentajeRedondeoEmergencia,
-                PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento
+                AplicaTope150 = request.AplicaTope150
             };
             db.InvitacionesHogar.Add(invitacion);
             await db.SaveChangesAsync();
@@ -137,9 +127,7 @@ public static class InvitacionesHogarEndpoints
             {
                 Usuario1Id = invitacion.InvitadorId,
                 Usuario2Id = invitacion.InvitadoId,
-                AplicaTope150 = invitacion.AplicaTope150,
-                PorcentajeRedondeoEmergencia = invitacion.PorcentajeRedondeoEmergencia,
-                PorcentajeRedondeoApartamento = invitacion.PorcentajeRedondeoApartamento
+                AplicaTope150 = invitacion.AplicaTope150
             };
             db.Hogares.Add(hogar);
 
@@ -150,7 +138,7 @@ public static class InvitacionesHogarEndpoints
 
             return Results.Ok(new HogarResponse(
                 hogar.Id, hogar.Usuario1Id, invitacion.Invitador.Nombre, hogar.Usuario2Id, invitacion.Invitado.Nombre,
-                hogar.AplicaTope150, hogar.RedondeoActivo, hogar.PorcentajeRedondeoEmergencia, hogar.PorcentajeRedondeoApartamento));
+                hogar.AplicaTope150, hogar.RedondeoActivo));
         });
 
         group.MapPost("/{id:int}/rechazar", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>

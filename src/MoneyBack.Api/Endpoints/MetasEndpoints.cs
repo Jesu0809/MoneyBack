@@ -31,7 +31,9 @@ public static class MetasEndpoints
             var meta = new MetaAhorro
             {
                 HogarId = hogarId,
-                Tipo = request.Tipo,
+                Icono = string.IsNullOrWhiteSpace(request.Icono) ? "🎯" : request.Icono,
+                EsFondoEmergencia = request.EsFondoEmergencia,
+                PorcentajeRedondeo = request.PorcentajeRedondeo,
                 Nombre = request.Nombre,
                 MontoObjetivo = request.MontoObjetivo
             };
@@ -83,7 +85,7 @@ public static class MetasEndpoints
                 .ToList();
 
             return Results.Ok(new MetaDetalleResponse(
-                meta.Id, meta.HogarId, meta.Tipo, meta.Nombre, meta.MontoObjetivo,
+                meta.Id, meta.HogarId, meta.Nombre, meta.Icono, meta.EsFondoEmergencia, meta.PorcentajeRedondeo, meta.MontoObjetivo,
                 meta.MontoActual, meta.PorcentajeCompletado, meta.FechaObjetivoEstimada,
                 meta.Activa, meta.FechaCreacion, aportesPorUsuario, movimientos));
         });
@@ -157,7 +159,7 @@ public static class MetasEndpoints
     }
 
     private static MetaResponse ToResponse(MetaAhorro meta) => new(
-        meta.Id, meta.HogarId, meta.Tipo, meta.Nombre, meta.MontoObjetivo,
+        meta.Id, meta.HogarId, meta.Nombre, meta.Icono, meta.EsFondoEmergencia, meta.PorcentajeRedondeo, meta.MontoObjetivo,
         meta.MontoActual, meta.PorcentajeCompletado, meta.FechaObjetivoEstimada,
         meta.Activa, meta.FechaCreacion);
 }

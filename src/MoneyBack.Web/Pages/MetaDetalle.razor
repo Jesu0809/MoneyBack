@@ -27,7 +27,7 @@ else
             <div class="stack">
                 <div class="row-between">
                     <div>
-                        <div class="label">@(_meta.Tipo == TipoMeta.Apartamento ? "Apartamento" : "Emergencia")</div>
+                        <div class="label">@_meta.Icono @(_meta.EsFondoEmergencia ? "Fondo de emergencia" : "Meta de ahorro")</div>
                         <h2>@_meta.Nombre</h2>
                     </div>
                     @if (!_meta.Activa)

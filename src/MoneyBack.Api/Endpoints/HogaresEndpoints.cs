@@ -57,18 +57,8 @@ public static class HogaresEndpoints
                 .FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
             if (hogar is null) return Results.NotFound();
 
-            if (request.PorcentajeRedondeoEmergencia + request.PorcentajeRedondeoApartamento != 100)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
-                {
-                    ["porcentajes"] = ["Los porcentajes de redondeo deben sumar 100."]
-                });
-            }
-
             hogar.AplicaTope150 = request.AplicaTope150;
             hogar.RedondeoActivo = request.RedondeoActivo;
-            hogar.PorcentajeRedondeoEmergencia = request.PorcentajeRedondeoEmergencia;
-            hogar.PorcentajeRedondeoApartamento = request.PorcentajeRedondeoApartamento;
             await db.SaveChangesAsync();
 
             return Results.Ok(ToResponse(hogar, hogar.Usuario1.Nombre, hogar.Usuario2.Nombre));
@@ -94,7 +84,5 @@ public static class HogaresEndpoints
         hogar.Usuario2Id,
         usuario2Nombre,
         hogar.AplicaTope150,
-        hogar.RedondeoActivo,
-        hogar.PorcentajeRedondeoEmergencia,
-        hogar.PorcentajeRedondeoApartamento);
+        hogar.RedondeoActivo);
 }

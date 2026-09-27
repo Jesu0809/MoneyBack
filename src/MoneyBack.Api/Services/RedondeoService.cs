@@ -10,11 +10,13 @@ public static class RedondeoService
     private const decimal UnidadRedondeo = 1000m;
 
     /// <summary>
-    /// Si el usuario pertenece a un hogar con el redondeo activado, calcula
-    /// el "vuelto" del gasto hasta el siguiente $1.000 y lo reparte como
-    /// aportes automáticos entre las metas activas del hogar, según sus
-    /// porcentajes configurados. No hace nada si el usuario no tiene hogar,
-    /// el redondeo está apagado, o el gasto ya cae en un múltiplo exacto.
+    /// Si la persona pertenece a un grupo con el vuelto activado, calcula
+    /// cuánto falta para el siguiente $1.000 y lo reparte entre las metas
+    /// activas, según el porcentaje que cada una tenga asignado.
+    ///
+    /// El reparto vive en cada meta y no en el grupo. Antes eran dos campos
+    /// fijos —uno para apartamento, otro para emergencia— y eso hacía
+    /// literalmente imposible tener una tercera meta.
     /// </summary>
     public static async Task AplicarSiCorrespondeAsync(MovimientoDiaADia gasto, ApplicationDbContext db)
     {
@@ -27,22 +29,23 @@ public static class RedondeoService
         var vuelto = redondeado - gasto.Monto;
         if (vuelto <= 0) return;
 
-        var metasActivas = await db.MetasAhorro
-            .Where(m => m.HogarId == hogar.Id && m.Activa &&
-                        (m.Tipo == TipoMeta.Apartamento || m.Tipo == TipoMeta.Emergencia))
+        var metas = await db.MetasAhorro
+            .Where(m => m.HogarId == hogar.Id && m.Activa && m.PorcentajeRedondeo > 0)
             .ToListAsync();
 
-        var metaApartamento = metasActivas.FirstOrDefault(m => m.Tipo == TipoMeta.Apartamento);
-        var metaEmergencia = metasActivas.FirstOrDefault(m => m.Tipo == TipoMeta.Emergencia);
+        if (metas.Count == 0) return;
 
-        if (metaApartamento is not null && hogar.PorcentajeRedondeoApartamento > 0)
-        {
-            db.MovimientosMeta.Add(NuevoAporte(metaApartamento.Id, gasto, vuelto * hogar.PorcentajeRedondeoApartamento / 100m));
-        }
+        // Se normaliza sobre lo que realmente suman las metas activas, no
+        // sobre 100. Si alguien archiva la meta que tenía el 80%, el vuelto
+        // no debe perderse en el camino: se reparte entre las que quedan.
+        var totalPorcentajes = metas.Sum(m => m.PorcentajeRedondeo);
+        if (totalPorcentajes <= 0) return;
 
-        if (metaEmergencia is not null && hogar.PorcentajeRedondeoEmergencia > 0)
+        foreach (var meta in metas)
         {
-            db.MovimientosMeta.Add(NuevoAporte(metaEmergencia.Id, gasto, vuelto * hogar.PorcentajeRedondeoEmergencia / 100m));
+            var parte = vuelto * meta.PorcentajeRedondeo / totalPorcentajes;
+            var aporte = Math.Round(parte, 0, MidpointRounding.AwayFromZero);
+            if (aporte > 0) db.MovimientosMeta.Add(NuevoAporte(meta.Id, gasto, aporte));
         }
 
         gasto.RedondeoAplicado = true;
@@ -53,7 +56,7 @@ public static class RedondeoService
         MetaAhorroId = metaId,
         UsuarioId = gasto.UsuarioId,
         Tipo = TipoMovimiento.Aporte,
-        Monto = Math.Round(monto, 0, MidpointRounding.AwayFromZero),
+        Monto = monto,
         Nota = "Redondeo automático de gasto",
         EsAutomatico = true
     };

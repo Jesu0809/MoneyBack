@@ -22,7 +22,6 @@ public class InvitacionHogar
     public EstadoInvitacionHogar Estado { get; set; } = EstadoInvitacionHogar.Pendiente;
 
     public bool AplicaTope150 { get; set; }
-    public decimal PorcentajeRedondeoEmergencia { get; set; } = 20;
     public decimal PorcentajeRedondeoApartamento { get; set; } = 80;
 
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;

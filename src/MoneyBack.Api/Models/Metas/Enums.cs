@@ -1,15 +1,9 @@
 namespace MoneyBack.Api.Models.Metas;
 
-/// <summary>
-/// Tipo de meta de ahorro compartida entre los dos usuarios del hogar.
-/// Un solo enum en vez de tablas separadas, para poder agregar nuevos
-/// tipos de meta en el futuro sin duplicar estructura.
-/// </summary>
-public enum TipoMeta
-{
-    Apartamento,
-    Emergencia
-}
+// Acá vivía TipoMeta, un enum con Apartamento y Emergencia. Se quitó porque
+// la gente ahorra para una lavadora, un viaje o la matrícula, y un enum
+// obligaba a que todo eso fuera "Apartamento". Ahora la meta lleva nombre
+// libre e ícono, y el fondo de emergencia es una marca, no un tipo aparte.
 
 /// <summary>
 /// Un movimiento dentro de una MetaAhorro puede ser un aporte (suma) o

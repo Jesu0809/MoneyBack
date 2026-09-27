@@ -3,18 +3,33 @@ using System.Text.Json.Serialization;
 namespace MoneyBack.Web.Models;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum TipoMeta { Apartamento, Emergencia }
+// TipoMeta se quitó: la gente ahorra para una lavadora, un viaje o la
+// matrícula, y un enum de dos valores obligaba a que todo eso fuera
+// "Apartamento". Ahora la meta lleva nombre e ícono libres.
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum TipoMovimiento { Aporte, Retiro }
 
-public record CrearMetaRequest(TipoMeta Tipo, string Nombre, decimal MontoObjetivo);
+public record CrearMetaRequest(
+    string Nombre,
+    decimal MontoObjetivo,
+    string Icono = "🎯",
+    bool EsFondoEmergencia = false,
+    decimal PorcentajeRedondeo = 0);
+
+public record ActualizarMetaRequest(
+    string Nombre,
+    decimal MontoObjetivo,
+    string Icono,
+    decimal PorcentajeRedondeo);
 
 public record MetaResponse(
     int Id,
     int HogarId,
-    TipoMeta Tipo,
     string Nombre,
+    string Icono,
+    bool EsFondoEmergencia,
+    decimal PorcentajeRedondeo,
     decimal MontoObjetivo,
     decimal MontoActual,
     decimal PorcentajeCompletado,
@@ -39,8 +54,10 @@ public record AportePorUsuario(int UsuarioId, string UsuarioNombre, decimal Tota
 public record MetaDetalleResponse(
     int Id,
     int HogarId,
-    TipoMeta Tipo,
     string Nombre,
+    string Icono,
+    bool EsFondoEmergencia,
+    decimal PorcentajeRedondeo,
     decimal MontoObjetivo,
     decimal MontoActual,
     decimal PorcentajeCompletado,

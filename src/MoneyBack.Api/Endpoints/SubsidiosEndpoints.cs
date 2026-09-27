@@ -48,8 +48,10 @@ public static class SubsidiosEndpoints
             // Lo que ya llevan ahorrado sale de sus propias metas, no de una
             // pregunta: la app lo sabe, y preguntarlo sería repetir el error
             // del simulador viejo.
+            // Todo lo ahorrado menos el fondo de emergencia: ese existe
+            // justamente para NO gastarlo en la cuota inicial.
             var ahorroActual = await db.MetasAhorro
-                .Where(m => m.HogarId == hogarId && m.Activa && m.Tipo == TipoMeta.Apartamento)
+                .Where(m => m.HogarId == hogarId && m.Activa && !m.EsFondoEmergencia)
                 .SelectMany(m => m.Movimientos)
                 .SumAsync(mv => (decimal?)mv.Monto) ?? 0m;
 
@@ -112,7 +114,7 @@ public static class SubsidiosEndpoints
             var totalEstimado = montoCaja;
 
             var metaApartamento = await db.MetasAhorro
-                .Where(m => m.HogarId == hogarId && m.Tipo == TipoMeta.Apartamento && m.Activa)
+                .Where(m => m.HogarId == hogarId && !m.EsFondoEmergencia && m.Activa)
                 .OrderByDescending(m => m.FechaCreacion)
                 .Select(m => new { m.Id, m.Nombre, m.MontoObjetivo })
                 .FirstOrDefaultAsync();

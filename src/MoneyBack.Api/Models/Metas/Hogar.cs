@@ -19,20 +19,11 @@ public class Hogar
 
     /// <summary>
     /// Interruptor general: si está apagado, ningún gasto del día a día de
-    /// ninguno de los dos usuarios genera aporte automático a las metas.
+    /// ningún miembro genera aporte automático a las metas. El reparto entre
+    /// metas ya no vive acá sino en cada MetaAhorro, para que un grupo pueda
+    /// tener las que quiera y no solo dos.
     /// </summary>
     public bool RedondeoActivo { get; set; } = false;
-
-    /// <summary>
-    /// % del redondeo automático del día a día que va al fondo de emergencia.
-    /// Debe sumar 100 junto con PorcentajeRedondeoApartamento.
-    /// </summary>
-    public decimal PorcentajeRedondeoEmergencia { get; set; } = 20;
-
-    /// <summary>
-    /// % del redondeo automático del día a día que va al fondo del apartamento.
-    /// </summary>
-    public decimal PorcentajeRedondeoApartamento { get; set; } = 80;
 
     /// <summary>
     /// true si el hogar busca vivienda en uno de los 45 municipios del
