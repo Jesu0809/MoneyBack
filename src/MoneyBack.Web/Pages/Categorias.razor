@@ -14,7 +14,7 @@
 
     @if (_cargando)
     {
-        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+        <Esqueleto Filas="5" />
     }
     else
     {
@@ -51,11 +51,11 @@
 
                         <div class="field">
                             <label>Nombre</label>
-                            @* Un <input> normal y no InputText: @bind-Value:event no existe
-                                       para componentes y revienta al teclear. *@
-                                    <input class="input" value="@_form.Nombre"
-                                           @oninput="e => _form.Nombre = e.Value?.ToString() ?? string.Empty"
-                                           placeholder="Mascotas" />
+                            @* Un <input> normal y no InputText: @bind-Value:event no
+                               existe para componentes y revienta al teclear. *@
+                            <input class="input" value="@_form.Nombre"
+                                   @oninput="e => _form.Nombre = e.Value?.ToString() ?? string.Empty"
+                                   placeholder="Mascotas" />
                         </div>
                         <AlertBox Mensaje="@_error" />
                         <div class="row">
@@ -124,12 +124,6 @@
 </div>
 
 @code {
-    private static readonly string[] EmojisDeCategoria =
-    [
-        "🛒", "🍔", "🚗", "🏠", "💡", "🎬", "🏥", "👕", "📦",
-        "💼", "🎁", "💰", "✈️", "🐾", "📚", "🎮", "☕", "💳"
-    ];
-
     private bool _cargando = true;
     private bool _guardando;
     private bool _sembrando;

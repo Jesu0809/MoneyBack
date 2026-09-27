@@ -7,7 +7,10 @@
 
 @if (_cargando)
 {
-    <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    <div class="stack">
+        <Esqueleto Forma="resumen" />
+        <Esqueleto Filas="2" />
+    </div>
 }
 else if (_hogar is not null)
 {
@@ -365,12 +368,6 @@ else
     private readonly CrearHogarFormModel _crearHogarForm = new();
     private readonly CrearMetaFormModel _crearMetaForm = new();
 
-    /// <summary>
-    /// Los que casi todo el mundo elige, para no abrir un teclado de emojis
-    /// completo por algo que se decide en un segundo.
-    /// </summary>
-
-
     protected override async Task OnInitializedAsync()
     {
         await CargarAsync();
@@ -599,6 +596,5 @@ else
         public string Nombre { get; set; } = "";
         public decimal? MontoObjetivo { get; set; }
     }
-        public decimal? PorcentajeApartamento { get; set; }
-    }
+}
 }

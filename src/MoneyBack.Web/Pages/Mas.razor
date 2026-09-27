@@ -1,8 +1,22 @@
 @page "/mas"
 @attribute [Authorize]
+@inject ApiClient Api
 @inject NavigationManager Nav
 
 <PageTitle>Más · MoneyBack</PageTitle>
+
+@*
+    Era una lista de nueve tarjetas iguales: había que leerlas todas para
+    encontrar una, y ninguna decía nada hasta entrar.
+
+    Ahora es un mosaico y cada pieza trae su propio dato — cuántos topes van
+    apretados, cuánto se debe, cuándo es el próximo cobro. La mayoría de las
+    veces eso es justo lo que uno venía a averiguar, así que el menú deja de
+    ser un paso intermedio y pasa a ser la respuesta.
+
+    Los datos llegan después de pintar: la pantalla se ve completa desde el
+    primer instante y los números aparecen encima.
+*@
 
 <div class="stack">
     <div>
@@ -10,56 +24,171 @@
         <p class="muted">Todo lo que no se usa a diario, pero hace falta tener a mano.</p>
     </div>
 
-    @* Agrupado porque una lista de nueve cosas seguidas obliga a leerlas
-       todas para encontrar una. Los títulos dicen cuándo sirve cada grupo,
-       no qué es: "Mes a mes" se busca distinto que "Cuando toca decidir". *@
-    @foreach (var grupo in Grupos)
-    {
-        <div class="stack" style="gap:10px">
-            <span class="label">@grupo.Titulo</span>
-            @foreach (var item in grupo.Items)
-            {
-                <div class="card card-tap" @onclick="() => Nav.NavigateTo(item.Ruta)">
-                    <div class="row-between">
-                        <div class="row">
-                            <div class="icon-bubble icon-bubble-accent"><Icon Name="@item.Icono" Size="18" /></div>
-                            <div>
-                                <div style="font-weight:600">@item.Nombre</div>
-                                <div class="muted" style="font-size:12.5px">@item.Descripcion</div>
-                            </div>
-                        </div>
-                        <Icon Name="chevron-right" Size="18" />
-                    </div>
-                </div>
-            }
-        </div>
-    }
+    <span class="label">Mes a mes</span>
+    <div class="tile-grid">
+        <button class="tile" style="--tono: var(--color-accent)" @onclick='() => Nav.NavigateTo("/presupuestos")'>
+            <div class="tile-icono"><Icon Name="wallet" Size="19" /></div>
+            <div class="tile-nombre">Topes de gasto</div>
+            <div class="tile-dato @(_topesApretados > 0 ? "alerta" : "")">@DatoTopes()</div>
+        </button>
+
+        <button class="tile" style="--tono: var(--color-warning)" @onclick='() => Nav.NavigateTo("/suscripciones")'>
+            <div class="tile-icono"><Icon Name="bell" Size="19" /></div>
+            <div class="tile-nombre">Cobros fijos</div>
+            <div class="tile-dato">@DatoCobros()</div>
+        </button>
+
+        <button class="tile" style="--tono: #7a63c9" @onclick='() => Nav.NavigateTo("/reportes")'>
+            <div class="tile-icono"><Icon Name="pie-chart" Size="19" /></div>
+            <div class="tile-nombre">Reportes</div>
+            <div class="tile-dato">Cómo va el mes y el año, y descargas</div>
+        </button>
+
+        <button class="tile" style="--tono: var(--color-success)" @onclick='() => Nav.NavigateTo("/vuelto")'>
+            <div class="tile-icono"><Icon Name="coin" Size="19" /></div>
+            <div class="tile-nombre">Ahorrar con el vuelto</div>
+            <div class="tile-dato">@DatoVuelto()</div>
+        </button>
+    </div>
+
+    <span class="label">Lo que debes</span>
+    <div class="tile-grid">
+        <button class="tile" style="--tono: var(--color-danger)" @onclick='() => Nav.NavigateTo("/tarjetas-credito")'>
+            <div class="tile-icono"><Icon Name="credit-card" Size="19" /></div>
+            <div class="tile-nombre">Tarjetas de crédito</div>
+            <div class="tile-dato">@DatoTarjetas()</div>
+        </button>
+
+        <button class="tile" style="--tono: #c9587a" @onclick='() => Nav.NavigateTo("/deudas")'>
+            <div class="tile-icono"><Icon Name="coin" Size="19" /></div>
+            <div class="tile-nombre">Deudas</div>
+            <div class="tile-dato">@DatoDeudas()</div>
+        </button>
+    </div>
+
+    <span class="label">Cuando toca decidir</span>
+    <div class="tile-grid">
+        @* Ancha porque no es una consulta de rutina: se abre cuando están
+           mirando apartamentos, y merece verse como algo aparte. *@
+        <button class="tile tile-ancha" style="--tono: #4f8fc0" @onclick='() => Nav.NavigateTo("/subsidios")'>
+            <div class="tile-icono"><Icon Name="home" Size="19" /></div>
+            <div class="tile-nombre">Vivienda</div>
+            <div class="tile-dato">Hasta cuánto pueden comprar, con subsidios, crédito y cuota</div>
+        </button>
+    </div>
+
+    <span class="label">Ajustes</span>
+    <div class="tile-grid">
+        <button class="tile tile-ancha" style="--tono: var(--color-text-muted)" @onclick='() => Nav.NavigateTo("/categorias")'>
+            <div class="tile-icono"><Icon Name="tag" Size="19" /></div>
+            <div class="tile-nombre">Categorías</div>
+            <div class="tile-dato">@DatoCategorias()</div>
+        </button>
+    </div>
 </div>
 
 @code {
-    private record MenuItem(string Ruta, string Icono, string Nombre, string Descripcion);
-    private record Grupo(string Titulo, MenuItem[] Items);
+    private bool _cargando = true;
 
-    private static readonly Grupo[] Grupos =
-    [
-        new("Mes a mes", [
-            new("/presupuestos", "wallet", "Topes de gasto", "Cuánto quieres gastar en cada categoría"),
-            new("/suscripciones", "bell", "Cobros fijos", "Lo que se paga solo cada mes"),
-            new("/reportes", "pie-chart", "Reportes", "Cómo va el mes y el año, y descargas"),
-            new("/vuelto", "coin", "Ahorrar con el vuelto", "Redondear cada gasto y guardar la diferencia")
-        ]),
-        new("Lo que debes", [
-            new("/tarjetas-credito", "credit-card", "Tarjetas de crédito", "Cuánto llevas debiendo al banco"),
-            new("/deudas", "coin", "Deudas", "Créditos y préstamos con cuotas")
-        ]),
-        new("Cuando toca decidir", [
-            // Se movió acá desde la barra de abajo: es una herramienta que se
-            // consulta cuando uno está mirando apartamentos, no algo del día
-            // a día. Ocupaba un lugar de los cinco de la barra sin ganárselo.
-            new("/subsidios", "home", "Vivienda", "Hasta cuánto pueden comprar, con subsidios y cuota")
-        ]),
-        new("Ajustes", [
-            new("/categorias", "tag", "Categorías", "En qué se divide lo que gastas")
-        ])
-    ];
+    private int _topesApretados;
+    private int _totalTopes;
+    private SuscripcionResponse? _proximoCobro;
+    private decimal _vueltoAhorrado;
+    private int _tarjetas;
+    private decimal _deudaRestante;
+    private int _deudas;
+    private int _categorias;
+
+    /// <summary>
+    /// Todas en paralelo y ninguna bloquea el primer pintado: los mosaicos
+    /// aparecen completos y el dato entra encima cuando llega. Con el
+    /// servidor en Virginia, esperar a las seis antes de mostrar nada sería
+    /// medio segundo de pantalla en blanco para abrir un menú.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = DateTime.Now;
+
+        var topes = Api.ObtenerPresupuestosAsync(hoy.Month, hoy.Year);
+        var cobros = Api.ObtenerSuscripcionesAsync();
+        var vuelto = Api.ObtenerTotalRedondeoAsync();
+        var tarjetas = Api.ObtenerTarjetasCreditoAsync();
+        var deudas = Api.ObtenerDeudasAsync();
+        var categorias = Api.ObtenerCategoriasAsync();
+
+        await Task.WhenAll(topes, cobros, vuelto, tarjetas, deudas, categorias);
+
+        var listaTopes = await topes;
+        _totalTopes = listaTopes.Count;
+        // "Apretado" es 80% o más, el mismo umbral con el que la app avisa
+        // por push: dos números distintos para la misma idea confunden.
+        _topesApretados = listaTopes.Count(t => t.MontoLimite > 0 && t.MontoGastado / t.MontoLimite >= 0.8m);
+
+        _proximoCobro = (await cobros)
+            .Where(s => s.Activa)
+            .OrderBy(s => s.ProximoCobro)
+            .FirstOrDefault();
+
+        _vueltoAhorrado = await vuelto;
+        _tarjetas = (await tarjetas).Count(t => t.Activa);
+
+        var listaDeudas = (await deudas).Where(d => d.Activa).ToList();
+        _deudas = listaDeudas.Count;
+        _deudaRestante = listaDeudas.Sum(d => d.MontoRestante);
+
+        _categorias = (await categorias).Count(c => c.Activa);
+
+        _cargando = false;
+    }
+
+    private string DatoTopes()
+    {
+        if (_cargando) return "…";
+        if (_totalTopes == 0) return "Cuánto quieres gastar en cada categoría";
+        if (_topesApretados == 0) return $"{_totalTopes} topes, todos con margen";
+        return _topesApretados == 1 ? "1 tope cerca del límite" : $"{_topesApretados} topes cerca del límite";
+    }
+
+    private string DatoCobros()
+    {
+        if (_cargando) return "…";
+        if (_proximoCobro is null) return "Lo que se paga solo cada mes";
+
+        var dias = (_proximoCobro.ProximoCobro.Date - DateTime.Now.Date).Days;
+        var cuando = dias switch
+        {
+            < 0 => "ya pasó",
+            0 => "hoy",
+            1 => "mañana",
+            _ => $"en {dias} días"
+        };
+        return $"{_proximoCobro.Nombre} {cuando} · {Formato.Pesos(_proximoCobro.Monto)}";
+    }
+
+    private string DatoVuelto() => _cargando
+        ? "…"
+        : _vueltoAhorrado > 0
+            ? $"Llevan {Formato.Pesos(_vueltoAhorrado)} juntados de puro vuelto"
+            : "Redondear cada gasto y guardar la diferencia";
+
+    private string DatoTarjetas() => _cargando
+        ? "…"
+        : _tarjetas switch
+        {
+            0 => "Cuánto llevas debiendo al banco",
+            1 => "1 tarjeta",
+            _ => $"{_tarjetas} tarjetas"
+        };
+
+    private string DatoDeudas() => _cargando
+        ? "…"
+        : _deudas == 0
+            ? "Créditos y préstamos con cuotas"
+            : $"Faltan {Formato.Pesos(_deudaRestante)}";
+
+    private string DatoCategorias() => _cargando
+        ? "…"
+        : _categorias == 0
+            ? "En qué se divide lo que gastas"
+            : $"{_categorias} activas · en qué se divide lo que gastas";
 }

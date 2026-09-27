@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject ApiClient Api
 @inject NavigationManager Nav
+@inject ConfirmacionService Confirmacion
 
 <PageTitle>Cobros fijos · MoneyBack</PageTitle>
 
@@ -17,7 +18,7 @@
 
     @if (_cargando)
     {
-        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+        <Esqueleto Filas="3" />
     }
     else
     {
@@ -30,6 +31,10 @@
             {
                 <EditForm Model="_form" OnValidSubmit="Guardar">
                     <div class="stack">
+                        @if (_categoriasGasto.Count == 0)
+                        {
+                            <AvisoSinCategorias Para="registrar un cobro fijo" />
+                        }
                         <div class="field">
                             <label>Nombre</label>
                             <InputText class="input" @bind-Value="_form.Nombre" placeholder="Netflix" />
@@ -66,7 +71,8 @@
                         <AlertBox Mensaje="@_error" />
                         <div class="row">
                             <button class="btn btn-secondary" type="button" @onclick="() => _mostrarForm = false">Cancelar</button>
-                            <button class="btn btn-primary" style="flex:1" type="submit" disabled="@_guardando">
+                            <button class="btn btn-primary" style="flex:1" type="submit"
+                                    disabled="@(_guardando || _categoriasGasto.Count == 0)">
                                 @if (_guardando) { <span class="spinner"></span> }
                                 <span>Guardar</span>
                             </button>
@@ -78,9 +84,8 @@
 
         @if (_suscripciones.Count == 0)
         {
-            <div class="empty-state">
-                <p>Todavía no tienes cobros fijos.</p>
-            </div>
+            <Vacio Icono="bell" Titulo="Sin cobros fijos"
+                   Detalle="Netflix, el gimnasio, el plan del celular. Te avisamos antes de cada cobro para que confirmes si pasó." />
         }
         else
         {
@@ -96,7 +101,7 @@
                                 <div class="muted" style="font-size:12.5px">@NombreFrecuencia(s.Frecuencia) · @Formato.Pesos(s.Monto)</div>
                             </div>
                         </div>
-                        <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(s.Id)">
+                        <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(s)">
                             <Icon Name="trash" Size="15" />
                         </button>
                     </div>
@@ -170,9 +175,15 @@
         _guardando = false;
     }
 
-    private async Task Eliminar(int id)
+    private async Task Eliminar(SuscripcionResponse cobro)
     {
-        await Api.EliminarSuscripcionAsync(id);
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Quitar {cobro.Nombre}?",
+            "Dejas de recibir el aviso antes de cada cobro. Los gastos ya registrados se quedan.",
+            "Sí, quitarlo"));
+        if (!confirmado) return;
+
+        await Api.EliminarSuscripcionAsync(cobro.Id);
         await CargarAsync();
     }
 

@@ -1,0 +1,43 @@
+@implements IDisposable
+@inject ConfirmacionService Confirmacion
+
+@*
+    Hoja que sube desde abajo, no un diálogo centrado: en un celular el
+    pulgar llega al borde inferior y no al centro de la pantalla, y la
+    decisión queda donde está la mano.
+*@
+
+@if (Confirmacion.Pendiente is { } pregunta)
+{
+    <div class="sheet-backdrop" @onclick="() => Confirmacion.Responder(false)"></div>
+    <div class="sheet" role="alertdialog" aria-modal="true">
+        <div class="sheet-grip"></div>
+        <div class="stack" style="gap:6px">
+            <h3 style="font-size:19px">@pregunta.Titulo</h3>
+            @if (!string.IsNullOrWhiteSpace(pregunta.Detalle))
+            {
+                <p class="muted" style="margin:0">@pregunta.Detalle</p>
+            }
+        </div>
+        <div class="stack" style="gap:10px; margin-top:20px">
+            @* El destructivo va arriba y el de cancelar abajo, pegado al
+               borde: si estuvieran al revés, el pulgar cae primero en el
+               que borra. *@
+            <button class="btn btn-block @(pregunta.EsDestructiva ? "btn-danger-solid" : "btn-primary")"
+                    @onclick="() => Confirmacion.Responder(true)">
+                @pregunta.TextoConfirmar
+            </button>
+            <button class="btn btn-secondary btn-block" @onclick="() => Confirmacion.Responder(false)">
+                Cancelar
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Confirmacion.OnCambio += Repintar;
+
+    private void Repintar() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Confirmacion.OnCambio -= Repintar;
+}

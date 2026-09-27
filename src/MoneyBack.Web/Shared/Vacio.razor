@@ -1,0 +1,23 @@
+@*
+    Una pantalla vacía no es un error, es un punto de partida — pero una
+    línea de texto gris centrada se lee igual que "algo falló". Con un ícono
+    y una frase que dice qué va a pasar cuando haya algo, deja de parecer
+    una falla y pasa a ser una invitación.
+*@
+
+<div class="empty-state">
+    <div class="empty-icono"><Icon Name="@Icono" Size="26" /></div>
+    <h3>@Titulo</h3>
+    @if (!string.IsNullOrWhiteSpace(Detalle))
+    {
+        <p>@Detalle</p>
+    }
+    @ContenidoExtra
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Icono { get; set; } = "archive";
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter] public string? Detalle { get; set; }
+    [Parameter] public RenderFragment? ContenidoExtra { get; set; }
+}

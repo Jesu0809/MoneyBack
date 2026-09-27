@@ -227,15 +227,83 @@ public class PantallasDeMasTests : PruebaDePantalla
             .Select(a => a.Template)
             .ToHashSet();
 
+        MasVacio();
         var pantalla = RenderComponent<Mas>();
-        var atajos = pantalla.FindAll(".card-tap").Count;
 
-        Assert.True(atajos >= 8, $"El menú Más quedó con {atajos} atajos.");
-        // Cada atajo del menú tiene que corresponder a una página real.
+        Assert.Equal(8, pantalla.FindAll("button.tile").Count);
         foreach (var ruta in new[] { "/presupuestos", "/suscripciones", "/reportes", "/vuelto",
                                       "/tarjetas-credito", "/deudas", "/subsidios", "/categorias" })
         {
             Assert.Contains(ruta, rutasDeLaApp);
         }
+    }
+
+    private void MasVacio() => Servidor
+        .Responde("GET", "api/presupuestos", Array.Empty<object>())
+        .Responde("GET", "api/suscripciones", Array.Empty<object>())
+        .Responde("GET", "api/hogares/mio/redondeo-total", new RedondeoTotalResponse(0))
+        .Responde("GET", "api/tarjetas-credito", Array.Empty<object>())
+        .Responde("GET", "api/deudas", Array.Empty<object>())
+        .Responde("GET", "api/categorias", Array.Empty<object>());
+
+    /// <summary>
+    /// Sin nada configurado el mosaico tiene que explicar para qué sirve
+    /// cada cosa; con datos, decir el dato. Un menú que solo lista nombres
+    /// obliga a entrar a cada pantalla para saber si pasa algo.
+    /// </summary>
+    [Fact]
+    public void Mas_SinNadaConfigurado_CadaMosaicoExplicaParaQueSirve()
+    {
+        MasVacio();
+
+        var pantalla = RenderComponent<Mas>();
+
+        Assert.Contains("Cuánto quieres gastar en cada categoría", pantalla.Markup);
+        Assert.Contains("Lo que se paga solo cada mes", pantalla.Markup);
+        Assert.DoesNotContain("…", pantalla.Markup);
+    }
+
+    [Fact]
+    public void Mas_ConDatos_ElMosaicoDiceLoQueEstaPasando()
+    {
+        var hoy = DateTime.Now;
+        MasVacio();
+        Servidor
+            .Responde("GET", "api/presupuestos", new[]
+            {
+                new PresupuestoResponse(1, 1, "Mercado", "🛒", 500_000, 450_000, hoy.Month, hoy.Year),
+                new PresupuestoResponse(2, 2, "Salidas", "🍔", 300_000, 90_000, hoy.Month, hoy.Year)
+            })
+            .Responde("GET", "api/suscripciones", new[] { Cobro(nombre: "Netflix") })
+            .Responde("GET", "api/hogares/mio/redondeo-total", new RedondeoTotalResponse(187_400))
+            .Responde("GET", "api/deudas", new[] { Deuda(total: 12_000_000, cuota: 500_000, pagadas: 6) });
+
+        var pantalla = RenderComponent<Mas>();
+
+        // 450.000 de 500.000 es el 90%: ese tope va apretado, el otro no.
+        Assert.Contains("1 tope cerca del límite", pantalla.Markup);
+        Assert.Contains("Netflix", pantalla.Markup);
+        Assert.Contains("187.400", pantalla.Markup);
+        Assert.Contains("9.000.000", pantalla.Markup);
+    }
+
+    /// <summary>
+    /// El umbral de "apretado" es el mismo 80% con el que la app avisa por
+    /// push. Dos números distintos para la misma idea confunden.
+    /// </summary>
+    [Fact]
+    public void Mas_ElUmbralDeTopeApretadoEsElMismoQueElDelAviso()
+    {
+        var hoy = DateTime.Now;
+        MasVacio();
+        Servidor.Responde("GET", "api/presupuestos", new[]
+        {
+            new PresupuestoResponse(1, 1, "Justo en 80", "🛒", 100_000, 80_000, hoy.Month, hoy.Year),
+            new PresupuestoResponse(2, 2, "Justo debajo", "🍔", 100_000, 79_999, hoy.Month, hoy.Year)
+        });
+
+        var pantalla = RenderComponent<Mas>();
+
+        Assert.Contains("1 tope cerca del límite", pantalla.Markup);
     }
 }

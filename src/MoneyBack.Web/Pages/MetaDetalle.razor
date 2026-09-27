@@ -7,14 +7,19 @@
 
 @if (_cargando)
 {
-    <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    <div class="stack">
+        <Esqueleto Forma="resumen" />
+        <Esqueleto Filas="3" />
+    </div>
 }
 else if (_meta is null)
 {
-    <div class="empty-state">
-        <h3>No encontramos esta meta</h3>
-        <a href="/hogar">Volver al hogar</a>
-    </div>
+    <Vacio Icono="alert-triangle" Titulo="No encontramos esta meta"
+           Detalle="Puede que la hayan borrado, o que sea de un grupo del que ya no haces parte.">
+        <ContenidoExtra>
+            <a class="btn btn-secondary" href="/hogar">Volver a los grupos</a>
+        </ContenidoExtra>
+    </Vacio>
 }
 else
 {
@@ -36,12 +41,29 @@ else
                     }
                 </div>
 
-                <AnimatedMoney Valor="_meta.MontoActual" Class="money money-lg" />
-                <ProgressBar Porcentaje="_meta.PorcentajeCompletado" />
+                <AnilloProgreso Porcentaje="_meta.PorcentajeCompletado" Leyenda="del total" />
+
                 <div class="row-between">
-                    <span class="muted">@Formato.Porcentaje(_meta.PorcentajeCompletado) completado</span>
-                    <span class="muted">Meta: @Formato.Pesos(_meta.MontoObjetivo)</span>
+                    <div>
+                        <div class="label">Llevan</div>
+                        <AnimatedMoney Valor="_meta.MontoActual" Class="money money-md" />
+                    </div>
+                    <div style="text-align:right">
+                        <div class="label">Meta</div>
+                        <span class="money money-md">@Formato.Pesos(_meta.MontoObjetivo)</span>
+                    </div>
                 </div>
+
+                @* Lo que de verdad se quiere saber de una meta a años vista
+                   no es el porcentaje: es si a este ritmo se llega. *@
+                @if (Ritmo() is { } ritmo)
+                {
+                    <div class="divider"></div>
+                    <div class="row" style="gap:8px; align-items:flex-start">
+                        <Icon Name="coin" Size="16" />
+                        <span style="font-size:13.5px">@ritmo</span>
+                    </div>
+                }
             </div>
         </div>
 
@@ -178,6 +200,46 @@ else
         _cargando = true;
         _meta = await Api.ObtenerMetaAsync(MetaId);
         _cargando = false;
+    }
+
+    /// <summary>
+    /// A este ritmo, cuánto falta. Se calcula con lo aportado desde el
+    /// primer movimiento, no con el promedio de los aportes: dos aportes
+    /// grandes en un año no son el mismo ritmo que dos en un mes.
+    ///
+    /// Devuelve null cuando todavía no hay con qué decir nada honesto —
+    /// menos de un mes de historia, o nada aportado. Una proyección hecha
+    /// con un solo dato no es una proyección, es un número inventado, y
+    /// acá se usa para decidir sobre una compra de cien millones.
+    /// </summary>
+    private string? Ritmo()
+    {
+        if (_meta is null || !_meta.Activa) return null;
+
+        var aportes = _meta.Movimientos.Where(m => m.Tipo == TipoMovimiento.Aporte).ToList();
+        if (aportes.Count < 2) return null;
+
+        var desde = aportes.Min(m => m.Fecha);
+        var meses = (decimal)(DateTime.UtcNow - desde).TotalDays / 30.44m;
+        if (meses < 1) return null;
+
+        var porMes = _meta.MontoActual / meses;
+        if (porMes <= 0) return null;
+
+        var falta = _meta.MontoObjetivo - _meta.MontoActual;
+        if (falta <= 0) return "Ya llegaron a la meta. 🎉";
+
+        var mesesQueFaltan = (int)Math.Ceiling(falta / porMes);
+
+        var cuanto = mesesQueFaltan switch
+        {
+            1 => "un mes",
+            < 12 => $"{mesesQueFaltan} meses",
+            < 24 => "algo más de un año",
+            _ => $"unos {mesesQueFaltan / 12} años"
+        };
+
+        return $"Van a {Formato.Pesos(porMes)} por mes. A ese ritmo faltan {cuanto}.";
     }
 
     private void CancelarMovimiento()

@@ -1,0 +1,54 @@
+@*
+    La forma de lo que viene, mientras viene.
+
+    Un spinner centrado deja la pantalla en blanco y no dice nada; peor, la
+    página "salta" cuando el contenido por fin llega y empuja todo. El
+    esqueleto ocupa el mismo espacio que el contenido real, así que no hay
+    salto y la espera se siente más corta aunque dure exactamente lo mismo.
+
+    Importa acá más que en otras apps: cada viaje al servidor desde Colombia
+    cuesta ~0,3 s y el servidor está en Virginia.
+*@
+
+@if (Forma == "resumen")
+{
+    <div class="card">
+        <div class="stack" style="gap:14px">
+            <div class="skel skel-linea" style="width:35%"></div>
+            <div class="skel skel-monto"></div>
+            <div class="divider"></div>
+            <div class="row-between"><div class="skel skel-linea" style="width:30%"></div><div class="skel skel-linea" style="width:22%"></div></div>
+            <div class="row-between"><div class="skel skel-linea" style="width:26%"></div><div class="skel skel-linea" style="width:22%"></div></div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="stack" style="gap:0">
+            @for (var i = 0; i < Filas; i++)
+            {
+                <div class="skel-fila">
+                    <div class="skel skel-circulo"></div>
+                    <div class="stack">
+                        <div class="skel skel-linea" style="width:@(Anchos[i % Anchos.Length])"></div>
+                        <div class="skel skel-linea" style="width:35%; height:10px"></div>
+                    </div>
+                    <div class="skel skel-linea" style="width:64px"></div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>"lista" (por defecto) o "resumen".</summary>
+    [Parameter] public string Forma { get; set; } = "lista";
+    [Parameter] public int Filas { get; set; } = 3;
+
+    /// <summary>
+    /// Anchos desparejos a propósito: todas las líneas del mismo largo se
+    /// leen como una tabla vacía, no como texto cargando.
+    /// </summary>
+    private static readonly string[] Anchos = ["58%", "44%", "66%", "38%", "52%"];
+}

@@ -119,7 +119,9 @@ public class NavegacionYSesionTests : PruebaDePantalla
         Assert.Contains("Cuota inicial", pantalla.Markup);
         Assert.Contains("Ana", pantalla.Markup);
         Assert.Contains("7.000.000", pantalla.Markup);
-        Assert.Contains("25", pantalla.Markup);
+        // El anillo arranca en cero y se llena, así que el número llega un
+        // instante después del primer pintado.
+        pantalla.WaitForAssertion(() => Assert.Contains("25%", pantalla.Markup));
     }
 
     [Fact]

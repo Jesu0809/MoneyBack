@@ -6,6 +6,7 @@
 @inject AlmacenLocal Almacen
 @inject ColaPendientes Cola
 @inject UiOverlayService UiOverlay
+@inject ConfirmacionService Confirmacion
 @inject NavigationManager Nav
 @implements IDisposable
 
@@ -183,7 +184,7 @@
 
     @if (_cargando)
     {
-        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+        <Esqueleto Filas="4" />
     }
     else
     {
@@ -249,9 +250,8 @@
             @{ var grupos = _movimientos.GroupBy(m => m.Fecha.ToLocalTime().Date).OrderByDescending(g => g.Key).ToList(); }
             @if (grupos.Count == 0)
             {
-                <div class="empty-state">
-                    <p>Nada registrado este mes todavía.</p>
-                </div>
+                <Vacio Icono="wallet" Titulo="Nada registrado este mes"
+                       Detalle="Los gastos del banco entran solos. Para los de efectivo, toca el + de abajo." />
             }
             else
             {
@@ -304,7 +304,7 @@
                                             <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => AbrirEdicion(mov)" title="Editar">
                                                 <Icon Name="pencil" Size="14" />
                                             </button>
-                                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(mov.Id)" title="Eliminar">
+                                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(mov)" title="Eliminar">
                                                 <Icon Name="x" Size="15" />
                                             </button>
                                         </div>
@@ -833,9 +833,20 @@
         _form.TarjetaCreditoId = null;
     }
 
-    private async Task Eliminar(int id)
+    /// <summary>
+    /// Pregunta antes de borrar. El botón mide 30 píxeles y está pegado al
+    /// de editar: sin esta pregunta, un roce con el pulgar borraba un gasto
+    /// para siempre y sin forma de recuperarlo.
+    /// </summary>
+    private async Task Eliminar(MovimientoDiaADiaResponse mov)
     {
-        await Api.EliminarMovimientoDiaADiaAsync(id);
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Borrar este {(mov.Tipo == TipoCategoria.Ingreso ? "ingreso" : "gasto")} de {Formato.Pesos(mov.Monto)}?",
+            $"{mov.CategoriaNombre} · {Formato.FechaHora(mov.Fecha.ToLocalTime())}. No se puede deshacer.",
+            "Sí, borrarlo"));
+        if (!confirmado) return;
+
+        await Api.EliminarMovimientoDiaADiaAsync(mov.Id);
         _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
         await CargarMesAsync();
     }

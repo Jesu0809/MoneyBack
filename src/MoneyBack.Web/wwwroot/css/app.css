@@ -12,6 +12,8 @@
   --color-danger-soft: #fbe9e7;
   --color-warning: #b8862e;
   --color-warning-soft: #fbf1de;
+  --color-success: #2f7d54;
+  --color-success-soft: #e3f2e8;
   --shadow-card: 0 1px 2px rgba(20, 20, 15, 0.04), 0 8px 24px rgba(20, 20, 15, 0.06);
   --shadow-card-hover: 0 2px 4px rgba(20, 20, 15, 0.06), 0 16px 32px rgba(20, 20, 15, 0.10);
   --radius-lg: 22px;
@@ -36,6 +38,8 @@
     --color-danger-soft: #3a2320;
     --color-warning: #d9a94e;
     --color-warning-soft: #3a3120;
+    --color-success: #5cb887;
+    --color-success-soft: #1d3327;
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 32px rgba(0, 0, 0, 0.4);
   }
@@ -56,6 +60,8 @@
   --color-danger-soft: #3a2320;
   --color-warning: #d9a94e;
   --color-warning-soft: #3a3120;
+  --color-success: #5cb887;
+  --color-success-soft: #1d3327;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 16px 32px rgba(0, 0, 0, 0.4);
 }
@@ -762,3 +768,193 @@ h1:focus { outline: none; }
   justify-content: center;
   color: var(--color-accent-strong);
 }
+
+/* ==========================================================================
+   Hoja de confirmación
+   Sube desde abajo porque en un celular el pulgar llega al borde inferior,
+   no al centro. Va fuera de .page-enter (ver el comentario de esa clase) o
+   quedaría atrapada debajo de las barras.
+   ========================================================================== */
+
+.sheet-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(10, 12, 11, 0.42);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 10000;
+  animation: fadeIn 200ms var(--ease-smooth) both;
+}
+
+.sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  margin: 0 auto;
+  max-width: 480px;
+  z-index: 10001;
+  background: var(--color-surface);
+  border-radius: 26px 26px 0 0;
+  padding: 10px 22px calc(22px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.22);
+  animation: sheetUp 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet { animation: fadeIn 160ms both; }
+}
+
+.sheet-grip {
+  width: 38px; height: 4px; border-radius: 999px;
+  background: var(--color-border);
+  margin: 0 auto 18px;
+}
+
+/* Borrar de verdad se pinta lleno, no en tono suave: .btn-danger se usa
+   para acciones reversibles y este botón no lo es. */
+.btn-danger-solid {
+  background: var(--color-danger);
+  color: white;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--color-danger) 32%, transparent);
+}
+.btn-danger-solid:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 85%, black);
+}
+
+/* ==========================================================================
+   Esqueletos de carga
+   Un spinner centrado deja la pantalla en blanco y no dice nada; el
+   esqueleto muestra la forma de lo que viene, así que la espera se siente
+   más corta aunque dure lo mismo. Importa acá: cada petición desde Colombia
+   cuesta ~0,3 s y el servidor está en Virginia.
+   ========================================================================== */
+
+.skel {
+  background: linear-gradient(
+    100deg,
+    var(--color-surface-2) 30%,
+    color-mix(in srgb, var(--color-border) 55%, var(--color-surface-2)) 50%,
+    var(--color-surface-2) 70%);
+  background-size: 300% 100%;
+  animation: brillo 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes brillo {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+}
+
+.skel-linea { height: 13px; }
+.skel-titulo { height: 22px; width: 55%; border-radius: 8px; }
+.skel-monto { height: 34px; width: 62%; border-radius: 10px; }
+.skel-circulo { width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; }
+.skel-fila { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.skel-fila > .stack { flex: 1; gap: 7px; }
+
+/* ==========================================================================
+   Mosaico de la sección Más
+   Nueve tarjetas iguales en fila obligan a leerlas todas. En mosaico, cada
+   una lleva su color y —lo que de verdad cambia las cosas— un dato vivo:
+   un menú que ya te dice algo ahorra el viaje de entrar a mirar.
+   ========================================================================== */
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.tile-grid .tile-ancha { grid-column: span 2; }
+
+.tile {
+  position: relative;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  text-align: left;
+  appearance: none;
+  font-family: inherit;
+  color: var(--color-text);
+  overflow: hidden;
+  transition: transform 220ms var(--ease-spring), box-shadow 220ms var(--ease-smooth);
+}
+.tile:active { transform: scale(0.965); }
+.tile:hover { box-shadow: var(--shadow-card-hover); }
+
+/* Un velo del color del tema, muy tenue: distingue los mosaicos entre sí
+   sin convertir la pantalla en un semáforo. */
+.tile::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(150deg, var(--tono, transparent) 0%, transparent 62%);
+  opacity: 0.1;
+  pointer-events: none;
+}
+:root[data-theme="dark"] .tile::after { opacity: 0.16; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tile::after { opacity: 0.16; }
+}
+
+.tile-icono {
+  width: 40px; height: 40px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--tono) 16%, transparent);
+  color: var(--tono);
+  position: relative; z-index: 1;
+}
+.tile-nombre { font-weight: 660; font-size: 15px; line-height: 1.25; position: relative; z-index: 1; }
+.tile-dato {
+  font-size: 12.5px; color: var(--color-text-muted); line-height: 1.35;
+  position: relative; z-index: 1;
+}
+.tile-dato strong { color: var(--color-text); font-weight: 650; }
+.tile-dato.alerta strong { color: var(--color-warning); }
+
+/* ==========================================================================
+   Anillo de progreso
+   Reemplaza la barra en el detalle de una meta: una meta de años se mira de
+   reojo y un anillo con el porcentaje en el centro se lee de un vistazo.
+   ========================================================================== */
+
+.ring-wrap { display: flex; justify-content: center; padding: 6px 0 2px; }
+.ring { transform: rotate(-90deg); }
+.ring-pista { fill: none; stroke: var(--color-surface-2); }
+.ring-avance {
+  fill: none;
+  stroke: url(#gradienteAnillo);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1100ms var(--ease-smooth);
+}
+.ring-centro {
+  position: absolute;
+  inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+.ring-caja { position: relative; display: inline-flex; }
+
+/* ==========================================================================
+   Estados vacíos
+   Antes eran una línea de texto gris, que se lee como un error. Con un
+   ícono y una acción, una pantalla vacía es un punto de partida.
+   ========================================================================== */
+
+.empty-state .empty-icono {
+  width: 62px; height: 62px; border-radius: 22px;
+  margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.empty-state h3 { margin-bottom: 6px; color: var(--color-text); }
+.empty-state p { margin: 0 auto; max-width: 300px; line-height: 1.5; }
+.empty-state .btn { margin-top: 18px; }

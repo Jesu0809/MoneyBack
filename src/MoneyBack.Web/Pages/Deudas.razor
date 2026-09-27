@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject ApiClient Api
 @inject NavigationManager Nav
+@inject ConfirmacionService Confirmacion
 
 <PageTitle>Deudas · MoneyBack</PageTitle>
 
@@ -17,7 +18,7 @@
 
     @if (_cargando)
     {
-        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+        <Esqueleto Filas="2" />
     }
     else
     {
@@ -68,9 +69,8 @@
 
         @if (_deudas.Count == 0)
         {
-            <div class="empty-state">
-                <p>No tienes deudas registradas.</p>
-            </div>
+            <Vacio Icono="coin" Titulo="Sin deudas registradas"
+                   Detalle="Un crédito, un préstamo, algo que estén pagando a cuotas. Al registrarlo verás cuánto falta y podrás marcar cada cuota que pagan." />
         }
         else
         {
@@ -83,7 +83,7 @@
                                 <div class="label">@(d.TipoPropiedad == TipoPropiedadDeuda.Privada ? "Privada" : "Compartida")</div>
                                 <h3>@d.Nombre</h3>
                             </div>
-                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(d.Id)">
+                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(d)">
                                 <Icon Name="trash" Size="15" />
                             </button>
                         </div>
@@ -103,6 +103,10 @@
                         {
                             <div class="divider"></div>
                             <div class="stack" style="gap:10px">
+                                @if (_categoriasGasto.Count == 0)
+                                {
+                                    <AvisoSinCategorias Para="registrar el pago de una cuota" />
+                                }
                                 <div class="field" style="margin:0">
                                     <label>¿A qué categoría va esta cuota?</label>
                                     <InputSelect class="input" @bind-Value="_pagoForm.CategoriaId">
@@ -115,7 +119,9 @@
                                 <AlertBox Mensaje="@_errorPago" />
                                 <div class="row" style="gap:8px">
                                     <button class="btn btn-secondary" style="flex:1" @onclick="() => _deudaPagando = null">Cancelar</button>
-                                    <button class="btn btn-primary" style="flex:1" disabled="@_pagando" @onclick="() => PagarCuota(d.Id)">
+                                    <button class="btn btn-primary" style="flex:1"
+                                            disabled="@(_pagando || _categoriasGasto.Count == 0)"
+                                            @onclick="() => PagarCuota(d.Id)">
                                         @if (_pagando) { <span class="spinner"></span> }
                                         <span>Confirmar pago de @Formato.Pesos(d.MontoCuota)</span>
                                     </button>
@@ -224,9 +230,15 @@
         _pagando = false;
     }
 
-    private async Task Eliminar(int id)
+    private async Task Eliminar(DeudaResponse deuda)
     {
-        await Api.EliminarDeudaAsync(id);
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Borrar {deuda.Nombre}?",
+            $"Se pierde el registro de las {deuda.CuotasPagadas} cuotas que ya pagaste. No se puede deshacer.",
+            "Sí, borrarla"));
+        if (!confirmado) return;
+
+        await Api.EliminarDeudaAsync(deuda.Id);
         await CargarAsync();
     }
 

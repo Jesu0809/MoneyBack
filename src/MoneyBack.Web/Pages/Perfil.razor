@@ -1,6 +1,7 @@
 @page "/perfil"
 @attribute [Authorize]
 @inject ApiClient Api
+@inject ConfirmacionService Confirmacion
 @inject AuthService AuthService
 @inject NavigationManager Nav
 @inject PushNotificationService Push
@@ -17,7 +18,7 @@
 
     @if (_cargando)
     {
-        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+        <Esqueleto Filas="4" />
     }
     else
     {
@@ -225,7 +226,7 @@
                                 @(t.UltimoUso is not null ? $"· última vez {Formato.FechaHora(t.UltimoUso.Value.ToLocalTime())}" : "· nunca usado")
                             </div>
                         </div>
-                        <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => EliminarToken(t.Id)">
+                        <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => EliminarToken(t)">
                             <Icon Name="trash" Size="15" />
                         </button>
                     </div>
@@ -522,9 +523,24 @@
         _generandoToken = false;
     }
 
-    private async Task EliminarToken(int id)
+    /// <summary>
+    /// De todos los borrados de la app este es el que más duele y el que
+    /// menos se ve venir: sin token, el Atajo de iOS deja de poder
+    /// registrar los SMS del banco y los gastos dejan de entrar solos. No
+    /// falla nada visible — simplemente no vuelve a aparecer un gasto, y
+    /// uno se entera semanas después cuando cuadra cuentas.
+    /// </summary>
+    private async Task EliminarToken(TokenAtajoResponse token)
     {
-        await Api.EliminarTokenAtajoAsync(id);
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Borrar \"{token.Nombre ?? "Token para Atajos"}\"?",
+            token.UltimoUso is null
+                ? "Este token nunca se ha usado. Si el Atajo del teléfono está configurado con él, dejará de registrar los gastos del banco."
+                : $"Se usó por última vez el {Formato.FechaCorta(token.UltimoUso.Value)}. Si el Atajo del teléfono usa este token, los gastos del banco dejan de entrar solos y no avisa nada cuando pasa.",
+            "Sí, borrarlo"));
+        if (!confirmado) return;
+
+        await Api.EliminarTokenAtajoAsync(token.Id);
         _tokens = await Api.ObtenerTokensAtajoAsync();
     }
 

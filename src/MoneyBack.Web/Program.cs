@@ -17,6 +17,7 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? builder.HostEnvironment.
 builder.Services.AddSingleton<TokenStore>();
 builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddSingleton<UiOverlayService>();
+builder.Services.AddSingleton<ConfirmacionService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ApiClient>();
 // Singleton y no Scoped: IHttpClientFactory construye los manejadores en su

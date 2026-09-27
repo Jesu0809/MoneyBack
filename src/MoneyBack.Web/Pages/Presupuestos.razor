@@ -18,7 +18,7 @@
 
     @if (_cargando)
     {
-        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+        <Esqueleto Filas="4" />
     }
     else
     {
@@ -59,9 +59,8 @@
 
         @if (_presupuestos.Count == 0)
         {
-            <div class="empty-state">
-                <p>Todavía no has definido presupuestos para este mes.</p>
-            </div>
+            <Vacio Icono="wallet" Titulo="Sin topes este mes"
+                   Detalle="Un tope es cuánto quieres gastar en una categoría. La app te avisa al llegar al 80% y al pasarte — una vez cada uno, no más." />
         }
         else
         {

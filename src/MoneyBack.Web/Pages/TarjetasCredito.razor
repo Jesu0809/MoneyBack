@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject ApiClient Api
 @inject NavigationManager Nav
+@inject ConfirmacionService Confirmacion
 
 <PageTitle>Tarjetas de crédito · MoneyBack</PageTitle>
 
@@ -17,7 +18,7 @@
 
     @if (_cargando)
     {
-        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+        <Esqueleto Filas="2" />
     }
     else
     {
@@ -53,9 +54,8 @@
 
         @if (_tarjetas.Count == 0)
         {
-            <div class="empty-state">
-                <p>No tienes tarjetas de crédito registradas.</p>
-            </div>
+            <Vacio Icono="credit-card" Titulo="Sin tarjetas registradas"
+                   Detalle="Al registrar una puedes marcar qué gastos pagaste con ella y saber cuánto llevas debiendo antes de que llegue el extracto." />
         }
         else
         {
@@ -69,7 +69,7 @@
                                 <div class="label">Cierra el @t.DiaCorte de cada mes</div>
                                 <h3>@t.Nombre</h3>
                             </div>
-                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(t.Id)">
+                            <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => Eliminar(t)">
                                 <Icon Name="trash" Size="15" />
                             </button>
                         </div>
@@ -200,9 +200,15 @@
         _pagando = false;
     }
 
-    private async Task Eliminar(int id)
+    private async Task Eliminar(TarjetaCreditoResponse tarjeta)
     {
-        await Api.EliminarTarjetaCreditoAsync(id);
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Borrar {tarjeta.Nombre}?",
+            "Se pierde el historial de pagos de esta tarjeta. Los gastos que pagaste con ella se quedan en el día a día.",
+            "Sí, borrarla"));
+        if (!confirmado) return;
+
+        await Api.EliminarTarjetaCreditoAsync(tarjeta.Id);
         await CargarAsync();
     }
 

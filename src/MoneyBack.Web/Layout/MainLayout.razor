@@ -146,6 +146,10 @@
     </NotAuthorized>
 </AuthorizeView>
 
+@* Fuera de .page-enter a propósito: ahí adentro quedaría atrapada debajo
+   de la barra de arriba y la de abajo por más z-index que tuviera. *@
+<HojaDeConfirmacion />
+
 @code {
     private bool _menuAbierto;
     private bool _panelNotifAbierto;

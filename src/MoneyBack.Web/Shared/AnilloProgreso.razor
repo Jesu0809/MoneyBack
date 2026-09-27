@@ -1,0 +1,73 @@
+@*
+    El anillo reemplaza a la barra en el detalle de una meta.
+
+    Una barra al 8% se ve igual que una al 3%: en una meta de cincuenta
+    millones, que es la mayoría del tiempo, no comunica nada. El anillo pone
+    la cifra en el centro, así que el número manda y el arco acompaña.
+*@
+
+<div class="ring-wrap">
+    <div class="ring-caja" style="width:@(Tamano)px; height:@(Tamano)px">
+        <svg class="ring" width="@Tamano" height="@Tamano" aria-hidden="true">
+            <defs>
+                @* Id único por instancia: dos anillos en la misma página
+                   compartirían el gradiente y el segundo no se pintaría. *@
+                <linearGradient id="@_idGradiente" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="var(--color-accent)" />
+                    <stop offset="100%" stop-color="var(--color-accent-strong)" />
+                </linearGradient>
+            </defs>
+            <circle class="ring-pista" cx="@_centro" cy="@_centro" r="@_radio" stroke-width="@Grosor" />
+            <circle cx="@_centro" cy="@_centro" r="@_radio" stroke-width="@Grosor"
+                    fill="none" stroke-linecap="round" stroke="url(#@_idGradiente)"
+                    stroke-dasharray="@_circunferencia.ToString(Invariante)"
+                    stroke-dashoffset="@_desfase.ToString(Invariante)"
+                    style="transition: stroke-dashoffset 1100ms var(--ease-smooth)" />
+        </svg>
+        <div class="ring-centro">
+            <span class="money" style="font-size:@(Tamano / 5)px">@Formato.Porcentaje(_mostrado)</span>
+            @if (!string.IsNullOrEmpty(Leyenda))
+            {
+                <span class="muted" style="font-size:12px">@Leyenda</span>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public decimal Porcentaje { get; set; }
+    [Parameter] public int Tamano { get; set; } = 168;
+    [Parameter] public int Grosor { get; set; } = 13;
+    [Parameter] public string? Leyenda { get; set; }
+
+    private static readonly System.Globalization.CultureInfo Invariante =
+        System.Globalization.CultureInfo.InvariantCulture;
+
+    private readonly string _idGradiente = $"anillo-{Guid.NewGuid():N}";
+
+    private int _centro => Tamano / 2;
+    private int _radio => (Tamano - Grosor) / 2;
+    private double _circunferencia => 2 * Math.PI * _radio;
+
+    private decimal _mostrado;
+    private decimal _ultimoValor = -1;
+
+    private double _desfase => (double)(_circunferencia * (1 - (double)(_mostrado / 100)));
+
+    /// <summary>
+    /// Arranca en cero y se llena: ver el arco crecer es la mitad de lo que
+    /// hace que ahorrar se sienta como un avance y no como una cifra.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
+    {
+        var objetivo = Math.Clamp(Porcentaje, 0, 100);
+        if (objetivo == _ultimoValor) return;
+        _ultimoValor = objetivo;
+
+        _mostrado = 0;
+        StateHasChanged();
+        await Task.Delay(60);
+        _mostrado = objetivo;
+        StateHasChanged();
+    }
+}

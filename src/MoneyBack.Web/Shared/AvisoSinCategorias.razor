@@ -1,0 +1,20 @@
+@*
+    El mismo aviso en todas partes donde hace falta una categoría de gasto.
+
+    Sin esto, el selector se dibujaba vacío, la categoría quedaba en 0 y el
+    servidor devolvía un error que no explicaba nada. Día a día ya lo
+    manejaba bien; cobros fijos y deudas no.
+*@
+
+<div class="alert alert-warning">
+    <Icon Name="alert-triangle" Size="18" />
+    <span>
+        Necesitas al menos una categoría de gasto para @Para.
+        <a href="/categorias">Créala aquí</a> y vuelve.
+    </span>
+</div>
+
+@code {
+    /// <summary>Qué es lo que no se puede hacer, en infinitivo.</summary>
+    [Parameter, EditorRequired] public string Para { get; set; } = "";
+}

@@ -34,6 +34,7 @@ public abstract class PruebaDePantalla : TestContext
         Services.AddSingleton<TokenStore>();
         Services.AddSingleton<ThemeService>();
         Services.AddSingleton<UiOverlayService>();
+        Services.AddSingleton<ConfirmacionService>();
         Services.AddScoped<AuthService>();
         Services.AddScoped<ApiClient>();
         Services.AddScoped<AlmacenLocal>();
@@ -51,4 +52,13 @@ public abstract class PruebaDePantalla : TestContext
 
     /// <summary>La ruta a la que la pantalla navegó, sin el origen.</summary>
     protected string RutaActual => Navegador.ToBaseRelativePath(Navegador.Uri);
+
+    protected ConfirmacionService Confirmacion => Services.GetRequiredService<ConfirmacionService>();
+
+    /// <summary>Responde que sí a la hoja de confirmación que esté abierta.</summary>
+    protected void ConfirmarLoQuePregunte()
+    {
+        Assert.NotNull(Confirmacion.Pendiente);
+        Confirmacion.Responder(true);
+    }
 }
