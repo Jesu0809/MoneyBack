@@ -12,3 +12,5 @@ public record TokenAtajoResponse(int Id, string? Nombre, DateTime FechaCreacion,
 public record CategoriaAtajoResponse(int Id, string Nombre, string Icono, TipoCategoria Tipo);
 
 public record CrearMovimientoAtajoRequest(int CategoriaId, decimal Monto, string? Nota);
+
+public record LlamadaAtajoResponse(DateTime Fecha, string? Texto, bool Exito, string? Detalle);

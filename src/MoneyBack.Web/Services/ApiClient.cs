@@ -133,6 +133,13 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
     }
 
+    public async Task<List<LlamadaAtajoResponse>> ObtenerLlamadasAtajoAsync()
+    {
+        var response = await Api.GetAsync("api/tokens-atajo/llamadas");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<LlamadaAtajoResponse>>() ?? [];
+    }
+
     public async Task<List<InvitacionAppResponse>> ObtenerInvitacionesAppAsync()
     {
         var response = await Api.GetAsync("api/invitaciones-app");

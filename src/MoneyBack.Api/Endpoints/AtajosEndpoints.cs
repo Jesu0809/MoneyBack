@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
+using MoneyBack.Api.Models.Auth;
 using MoneyBack.Api.Models.DiaADia;
 using MoneyBack.Api.Services;
 
@@ -188,6 +189,8 @@ public static class AtajosEndpoints
             var interpretacion = InterpretadorTexto.Interpretar(texto, categorias, categoriaPorDefecto, categoriaForzada, vieneDeCaptura);
             if (!interpretacion.Exito)
             {
+                await DejarConstanciaAsync(usuarioId.Value, texto, false, interpretacion.Razon, db);
+
                 // 200 y no 400 a propósito: en Atajos, un código de error hace
                 // que la acción falle y el usuario solo vea un aviso genérico
                 // del sistema. Con 200 el "Mostrar resultado" le muestra la
@@ -265,6 +268,8 @@ public static class AtajosEndpoints
                 await sender.EnviarATodosLosDispositivosAsync(usuarioId.Value, "Gasto registrado", confirmacion);
             }
 
+            await DejarConstanciaAsync(usuarioId.Value, texto, true, confirmacion, db);
+
             // Texto plano, no JSON: el "Mostrar resultado" de Atajos enseña la
             // respuesta tal cual, así que con JSON el usuario vería llaves y
             // comillas. Así lee una frase limpia sin necesidad de agregar un
@@ -304,6 +309,36 @@ public static class AtajosEndpoints
         categorias.Add(nueva);
         return categorias;
     }
+
+    /// <summary>
+    /// Anota el intento y poda los viejos. Se guarda incluso cuando falla —
+    /// sobre todo cuando falla: un intento fallido registrado es la
+    /// diferencia entre saber qué pasó y adivinar.
+    /// </summary>
+    private static async Task DejarConstanciaAsync(
+        int usuarioId, string? texto, bool exito, string? detalle, ApplicationDbContext db)
+    {
+        db.LlamadasAtajo.Add(new LlamadaAtajo
+        {
+            UsuarioId = usuarioId,
+            Texto = Recortar(texto, 200),
+            Exito = exito,
+            Detalle = Recortar(detalle, 200)
+        });
+
+        var sobran = await db.LlamadasAtajo
+            .Where(l => l.UsuarioId == usuarioId)
+            .OrderByDescending(l => l.Fecha)
+            .Skip(LlamadaAtajo.MaximoPorUsuario)
+            .ToListAsync();
+
+        if (sobran.Count > 0) db.LlamadasAtajo.RemoveRange(sobran);
+
+        await db.SaveChangesAsync();
+    }
+
+    private static string? Recortar(string? texto, int maximo) =>
+        texto is null || texto.Length <= maximo ? texto : texto[..maximo];
 
     private static async Task<string> LeerTextoDelCuerpoAsync(HttpRequest request)
     {

@@ -30,6 +30,23 @@ public static class TokensAtajoEndpoints
             return Results.Ok(tokens);
         });
 
+        // El historial de llamadas: la única evidencia de si la automatización
+        // llegó o no. iOS no muestra un registro de automatizaciones, así que
+        // sin esto "el atajo no hizo nada" no se puede resolver, solo adivinar.
+        group.MapGet("/llamadas", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var usuarioId = principal.GetUsuarioId();
+
+            var llamadas = await db.LlamadasAtajo
+                .Where(l => l.UsuarioId == usuarioId)
+                .OrderByDescending(l => l.Fecha)
+                .Take(LlamadaAtajo.MaximoPorUsuario)
+                .Select(l => new LlamadaAtajoResponse(l.Fecha, l.Texto, l.Exito, l.Detalle))
+                .ToListAsync();
+
+            return Results.Ok(llamadas);
+        });
+
         group.MapPost("/", async (CrearTokenAtajoRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var bytesAleatorios = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);

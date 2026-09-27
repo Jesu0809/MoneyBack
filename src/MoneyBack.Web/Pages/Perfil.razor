@@ -232,14 +232,38 @@
                     <div class="divider"></div>
                 }
 
-                @* Con la hora exacta, "el atajo no hizo nada" deja de ser un
-                   misterio: si la última vez es de ayer, la automatización ni
-                   siquiera se disparó y el problema está en el disparador, no
-                   en el servidor. Si es de hace un minuto, sí llegó. *@
-                <p class="muted" style="font-size:12.5px; margin:0">
-                    Si un gasto no se registró, mira la hora de arriba: si no coincide con el momento
-                    de la compra, la automatización no se disparó y hay que revisar su disparador en Atajos.
-                </p>
+                <div class="divider"></div>
+
+                @* iOS no muestra historial de automatizaciones, así que esta
+                   lista es la única evidencia de si el atajo llegó o no.
+                   Sin ella, "no hizo nada" solo se puede adivinar. *@
+                <div class="row-between">
+                    <span class="label">Últimas llamadas del atajo</span>
+                    <button class="btn btn-ghost" style="font-size:13px" @onclick="CargarLlamadas" disabled="@_cargandoLlamadas">
+                        @if (_cargandoLlamadas) { <span class="spinner"></span> } else { <span>Actualizar</span> }
+                    </button>
+                </div>
+
+                @if (_llamadas.Count == 0)
+                {
+                    <p class="muted" style="font-size:12.5px; margin:0">
+                        Sin registros todavía. Si compraste algo y acá no aparece nada a esa hora,
+                        la automatización no se disparó: el problema está en Atajos, no en el servidor.
+                    </p>
+                }
+                else
+                {
+                    @foreach (var llamada in _llamadas)
+                    {
+                        <div class="row" style="gap:8px; align-items:flex-start; padding:5px 0">
+                            <span style="font-size:13px">@(llamada.Exito ? "✅" : "⚠️")</span>
+                            <div style="min-width:0; flex:1">
+                                <div style="font-size:12.5px; font-weight:600">@Formato.FechaHora(llamada.Fecha.ToLocalTime())</div>
+                                <div class="muted" style="font-size:12px">@llamada.Detalle</div>
+                            </div>
+                        </div>
+                    }
+                }
 
                 <button class="btn btn-primary btn-block" disabled="@_generandoToken" @onclick="GenerarToken">
                     @if (_generandoToken) { <span class="spinner"></span> }
@@ -374,6 +398,9 @@
     private const string EnlaceAtajoBancos = "https://www.icloud.com/shortcuts/744cf37baa914e91a860446c41563103";
 
 
+    private List<LlamadaAtajoResponse> _llamadas = [];
+    private bool _cargandoLlamadas;
+
     private List<InvitacionAppResponse> _invitaciones = [];
     private string? _enlaceNuevo;
     private bool _generandoInvitacion;
@@ -405,9 +432,11 @@
 
         var tokens = Api.ObtenerTokensAtajoAsync();
         var invitaciones = Api.ObtenerInvitacionesAppAsync();
-        await Task.WhenAll(tokens, invitaciones);
+        var llamadas = Api.ObtenerLlamadasAtajoAsync();
+        await Task.WhenAll(tokens, invitaciones, llamadas);
         _tokens = tokens.Result;
         _invitaciones = invitaciones.Result;
+        _llamadas = llamadas.Result;
     }
 
     private async Task GenerarToken()
@@ -440,6 +469,13 @@
     {
         if (_tokenNuevo is null) return;
         await Copiar(_tokenNuevo);
+    }
+
+    private async Task CargarLlamadas()
+    {
+        _cargandoLlamadas = true;
+        _llamadas = await Api.ObtenerLlamadasAtajoAsync();
+        _cargandoLlamadas = false;
     }
 
     private async Task GenerarInvitacion()
