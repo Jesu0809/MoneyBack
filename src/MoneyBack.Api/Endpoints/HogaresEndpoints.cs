@@ -18,6 +18,26 @@ public static class HogaresEndpoints
         // sin que la invitada confirmara nada. Ver InvitacionesHogarEndpoints:
         // ahora un hogar solo nace cuando el invitado acepta la invitación.
 
+        // Cuánto ha entrado solo por el vuelto de los gastos. Se muestra
+        // junto a la explicación del redondeo: entender el concepto es una
+        // cosa, ver que ya llevas ochenta mil pesos ahorrados sin darte
+        // cuenta es lo que hace que lo dejes prendido.
+        group.MapGet("/mio/redondeo-total", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var usuarioId = principal.GetUsuarioId();
+
+            var hogar = await db.Hogares.FirstOrDefaultAsync(h =>
+                h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
+
+            if (hogar is null) return Results.Ok(new RedondeoTotalResponse(0));
+
+            var total = await db.MovimientosMeta
+                .Where(m => m.EsAutomatico && m.MetaAhorro.HogarId == hogar.Id)
+                .SumAsync(m => (decimal?)m.Monto) ?? 0m;
+
+            return Results.Ok(new RedondeoTotalResponse(total));
+        });
+
         group.MapGet("/mio", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();

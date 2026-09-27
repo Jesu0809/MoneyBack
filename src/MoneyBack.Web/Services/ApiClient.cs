@@ -37,6 +37,13 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<HogarResponse>() : null;
     }
 
+    public async Task<decimal> ObtenerTotalRedondeoAsync()
+    {
+        var response = await Api.GetAsync("api/hogares/mio/redondeo-total");
+        if (!response.IsSuccessStatusCode) return 0;
+        return (await response.Content.ReadFromJsonAsync<RedondeoTotalResponse>())?.Total ?? 0;
+    }
+
     public async Task<MisInvitacionesHogarResponse> ObtenerMisInvitacionesHogarAsync()
     {
         var response = await Api.GetAsync("api/invitaciones-hogar/mia");

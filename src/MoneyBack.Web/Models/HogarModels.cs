@@ -40,3 +40,5 @@ public record HogarResponse(
     bool RedondeoActivo,
     decimal PorcentajeRedondeoEmergencia,
     decimal PorcentajeRedondeoApartamento);
+
+public record RedondeoTotalResponse(decimal Total);

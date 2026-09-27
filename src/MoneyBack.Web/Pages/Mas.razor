@@ -7,38 +7,58 @@
 <div class="stack">
     <div>
         <h2>Más</h2>
-        <p class="muted">Categorías, presupuestos, cobros programados, deudas y reportes.</p>
+        <p class="muted">Todo lo que no se usa a diario, pero hace falta tener a mano.</p>
     </div>
 
-    <div class="stack" style="gap:10px">
-        @foreach (var item in Items)
-        {
-            <div class="card card-tap" @onclick="() => Nav.NavigateTo(item.Ruta)">
-                <div class="row-between">
-                    <div class="row">
-                        <div class="icon-bubble icon-bubble-accent"><Icon Name="@item.Icono" Size="18" /></div>
-                        <div>
-                            <div style="font-weight:600">@item.Nombre</div>
-                            <div class="muted" style="font-size:12.5px">@item.Descripcion</div>
+    @* Agrupado porque una lista de nueve cosas seguidas obliga a leerlas
+       todas para encontrar una. Los títulos dicen cuándo sirve cada grupo,
+       no qué es: "Mes a mes" se busca distinto que "Cuando toca decidir". *@
+    @foreach (var grupo in Grupos)
+    {
+        <div class="stack" style="gap:10px">
+            <span class="label">@grupo.Titulo</span>
+            @foreach (var item in grupo.Items)
+            {
+                <div class="card card-tap" @onclick="() => Nav.NavigateTo(item.Ruta)">
+                    <div class="row-between">
+                        <div class="row">
+                            <div class="icon-bubble icon-bubble-accent"><Icon Name="@item.Icono" Size="18" /></div>
+                            <div>
+                                <div style="font-weight:600">@item.Nombre</div>
+                                <div class="muted" style="font-size:12.5px">@item.Descripcion</div>
+                            </div>
                         </div>
+                        <Icon Name="chevron-right" Size="18" />
                     </div>
-                    <Icon Name="chevron-right" Size="18" />
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
+    }
 </div>
 
 @code {
     private record MenuItem(string Ruta, string Icono, string Nombre, string Descripcion);
+    private record Grupo(string Titulo, MenuItem[] Items);
 
-    private static readonly MenuItem[] Items =
+    private static readonly Grupo[] Grupos =
     [
-        new("/suscripciones", "bell", "Suscripciones", "Cobros programados y recordatorios"),
-        new("/deudas", "coin", "Deudas", "Créditos y préstamos con cuotas"),
-        new("/tarjetas-credito", "credit-card", "Tarjetas de crédito", "Lleva la cuenta de lo que le debes al banco"),
-        new("/reportes", "pie-chart", "Reportes", "Vista mensual/anual y descargas"),
-        new("/presupuestos", "wallet", "Presupuestos", "Límites de gasto por categoría"),
-        new("/categorias", "tag", "Categorías", "Administra tus categorías de ingreso y gasto")
+        new("Mes a mes", [
+            new("/presupuestos", "wallet", "Topes de gasto", "Cuánto quieres gastar en cada categoría"),
+            new("/suscripciones", "bell", "Cobros fijos", "Lo que se paga solo cada mes"),
+            new("/reportes", "pie-chart", "Reportes", "Cómo va el mes y el año, y descargas")
+        ]),
+        new("Lo que debes", [
+            new("/tarjetas-credito", "credit-card", "Tarjetas de crédito", "Cuánto llevas debiendo al banco"),
+            new("/deudas", "coin", "Deudas", "Créditos y préstamos con cuotas")
+        ]),
+        new("Cuando toca decidir", [
+            // Se movió acá desde la barra de abajo: es una herramienta que se
+            // consulta cuando uno está mirando apartamentos, no algo del día
+            // a día. Ocupaba un lugar de los cinco de la barra sin ganárselo.
+            new("/subsidios", "home", "Vivienda", "Hasta cuánto pueden comprar, con subsidios y cuota")
+        ]),
+        new("Ajustes", [
+            new("/categorias", "tag", "Categorías", "En qué se divide lo que gastas")
+        ])
     ];
 }
