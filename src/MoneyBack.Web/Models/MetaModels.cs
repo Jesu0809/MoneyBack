@@ -65,3 +65,6 @@ public record MetaDetalleResponse(
     DateTime FechaCreacion,
     List<AportePorUsuario> AportesPorUsuario,
     List<MovimientoResponse> Movimientos);
+
+public record DestinoAporteResponse(
+    string Caso, int? MetaId, string? MetaNombre, string? MetaIcono, int MetasActivas);

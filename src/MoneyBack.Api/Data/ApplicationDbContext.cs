@@ -22,6 +22,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<Hogar> Hogares => Set<Hogar>();
     public DbSet<InvitacionHogar> InvitacionesHogar => Set<InvitacionHogar>();
     public DbSet<MetaAhorro> MetasAhorro => Set<MetaAhorro>();
+    public DbSet<MiembroHogar> MiembrosHogar => Set<MiembroHogar>();
     public DbSet<MovimientoMeta> MovimientosMeta => Set<MovimientoMeta>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<CodigoInvitacion> CodigosInvitacion => Set<CodigoInvitacion>();
@@ -63,6 +64,8 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new InvitacionAppConfiguration());
         builder.ApplyConfiguration(new LlamadaAtajoConfiguration());
         builder.ApplyConfiguration(new CodigoRecuperacionConfiguration());
+
+        builder.ApplyConfiguration(new MiembroHogarConfiguration());
 
         LongitudesDeTexto.Aplicar(builder);
         builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());

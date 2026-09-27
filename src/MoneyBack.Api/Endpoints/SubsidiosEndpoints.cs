@@ -41,7 +41,7 @@ public static class SubsidiosEndpoints
                 });
             }
 
-            var hogar = await db.Hogares.FindAsync(hogarId);
+            var hogar = await db.Hogares.Include(h => h.Miembros).FirstOrDefaultAsync(h => h.Id == hogarId);
             if (hogar is null) return Results.NotFound($"No existe el hogar {hogarId}.");
             if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -93,7 +93,7 @@ public static class SubsidiosEndpoints
                 });
             }
 
-            var hogar = await db.Hogares.FindAsync(hogarId);
+            var hogar = await db.Hogares.Include(h => h.Miembros).FirstOrDefaultAsync(h => h.Id == hogarId);
             if (hogar is null) return Results.NotFound($"No existe el hogar {hogarId}.");
             if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 

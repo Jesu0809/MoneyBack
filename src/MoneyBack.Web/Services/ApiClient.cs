@@ -31,6 +31,19 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
     }
 
+    public async Task<List<HogarResponse>> ObtenerMisHogaresAsync()
+    {
+        var response = await Api.GetAsync("api/hogares");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<HogarResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<HogarResponse>> CrearHogarAsync(CrearHogarRequest request)
+    {
+        var response = await Api.PostAsJsonAsync("api/hogares", request);
+        return await ApiResult<HogarResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<HogarResponse>()!);
+    }
+
     public async Task<HogarResponse?> ObtenerMiHogarAsync()
     {
         var response = await Api.GetAsync("api/hogares/mio");
@@ -99,6 +112,20 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
     {
         var response = await Api.PostAsJsonAsync($"api/metas/{metaId}/movimientos", request);
         return await ApiResult<int>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<int>());
+    }
+
+    public async Task<DestinoAporteResponse?> ObtenerDestinoAporteAsync()
+    {
+        var response = await Api.GetAsync("api/metas/destino-aporte");
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<DestinoAporteResponse>()
+            : null;
+    }
+
+    public async Task<bool> MarcarMetaFavoritaAsync(int metaId)
+    {
+        var response = await Api.PostAsync($"api/metas/{metaId}/favorita", null);
+        return response.IsSuccessStatusCode;
     }
 
     public async Task<bool> DesarchivarMetaAsync(int metaId)

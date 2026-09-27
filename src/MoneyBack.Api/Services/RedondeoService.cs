@@ -20,17 +20,23 @@ public static class RedondeoService
     /// </summary>
     public static async Task AplicarSiCorrespondeAsync(MovimientoDiaADia gasto, ApplicationDbContext db)
     {
-        var hogar = await db.Hogares
-            .FirstOrDefaultAsync(h => h.Usuario1Id == gasto.UsuarioId || h.Usuario2Id == gasto.UsuarioId);
+        // El vuelto va a los grupos donde la persona tenga el redondeo
+        // activo. Con varios grupos ya no hay "el hogar" de alguien, y
+        // quedarse con el primero haría que el ahorro dependiera del orden
+        // en que se crearon — invisible y arbitrario.
+        var hogares = await db.Hogares
+            .Where(h => h.RedondeoActivo && h.Miembros.Any(m => m.UsuarioId == gasto.UsuarioId))
+            .Select(h => h.Id)
+            .ToListAsync();
 
-        if (hogar is null || !hogar.RedondeoActivo) return;
+        if (hogares.Count == 0) return;
 
         var redondeado = Math.Ceiling(gasto.Monto / UnidadRedondeo) * UnidadRedondeo;
         var vuelto = redondeado - gasto.Monto;
         if (vuelto <= 0) return;
 
         var metas = await db.MetasAhorro
-            .Where(m => m.HogarId == hogar.Id && m.Activa && m.PorcentajeRedondeo > 0)
+            .Where(m => hogares.Contains(m.HogarId) && m.Activa && m.PorcentajeRedondeo > 0)
             .ToListAsync();
 
         if (metas.Count == 0) return;

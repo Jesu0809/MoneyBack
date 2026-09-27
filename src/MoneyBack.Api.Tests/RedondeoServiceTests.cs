@@ -16,23 +16,11 @@ public class RedondeoServiceTests : IClassFixture<ApiFactory>
 
     public RedondeoServiceTests(ApiFactory factory) => _factory = factory;
 
-    private async Task<(HttpClient Cliente, HogarResponse Hogar)> CrearHogarConRedondeoAsync(
-        )
+    private async Task<(HttpClient Cliente, HogarResponse Hogar)> CrearHogarConRedondeoAsync()
     {
-        var (clienteA, _) = await _factory.CrearClienteAutenticadoAsync();
-        var (clienteB, usuarioB) = await _factory.CrearClienteAutenticadoAsync();
+        var (clienteA, _, hogar) = await _factory.CrearGrupoDeDosAsync();
 
-        var invitar = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar",
-            new CrearInvitacionHogarRequest(usuarioB.Email!));
-        invitar.EnsureSuccessStatusCode();
-        var invitacion = (await invitar.Content.ReadFromJsonAsync<InvitacionHogarResponse>())!;
-
-        var aceptar = await clienteB.PostAsync($"/api/invitaciones-hogar/{invitacion.Id}/aceptar", null);
-        aceptar.EnsureSuccessStatusCode();
-        var hogar = (await aceptar.Content.ReadFromJsonAsync<HogarResponse>())!;
-
-        var activar = await clienteA.PutAsJsonAsync("/api/hogares/mio",
-            new ActualizarHogarRequest(false, true));
+        var activar = await clienteA.PutAsJsonAsync("/api/hogares/mio", new ActualizarHogarRequest(false, true));
         activar.EnsureSuccessStatusCode();
 
         return (clienteA, hogar);

@@ -55,4 +55,32 @@ public static class TestHelpers
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.Content.ReadFromJsonAsync<MovimientoDiaADiaResponse>())!;
     }
+
+    /// <summary>
+    /// Crea un grupo y le suma una segunda persona.
+    ///
+    /// Antes un grupo nacía al aceptar una invitación, así que no se podía
+    /// tener uno solo. Ahora se crea primero y se invita después, que es el
+    /// orden que permite ahorrar solo y sumar gente cuando toque.
+    /// </summary>
+    public static async Task<(HttpClient Cliente, HttpClient ClienteB, HogarResponse Hogar)>
+        CrearGrupoDeDosAsync(this ApiFactory factory, string nombre = "Nosotros")
+    {
+        var (clienteA, _) = await factory.CrearClienteAutenticadoAsync();
+        var (clienteB, usuarioB) = await factory.CrearClienteAutenticadoAsync();
+
+        var creado = await clienteA.PostAsJsonAsync("/api/hogares", new CrearHogarRequest(nombre));
+        creado.EnsureSuccessStatusCode();
+        var hogar = (await creado.Content.ReadFromJsonAsync<HogarResponse>())!;
+
+        var invitar = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar",
+            new CrearInvitacionHogarRequest(usuarioB.Email!, hogar.Id));
+        invitar.EnsureSuccessStatusCode();
+        var invitacion = (await invitar.Content.ReadFromJsonAsync<InvitacionHogarResponse>())!;
+
+        var aceptar = await clienteB.PostAsync($"/api/invitaciones-hogar/{invitacion.Id}/aceptar", null);
+        aceptar.EnsureSuccessStatusCode();
+
+        return (clienteA, clienteB, (await aceptar.Content.ReadFromJsonAsync<HogarResponse>())!);
+    }
 }

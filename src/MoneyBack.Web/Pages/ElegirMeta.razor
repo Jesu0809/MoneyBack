@@ -1,0 +1,110 @@
+@page "/elegir-meta"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>¿A cuál aportas? · MoneyBack</PageTitle>
+
+@*
+    Solo aparece cuando hay varias metas y ninguna marcada. Con una sola, o
+    con favorita, el botón va directo — preguntar ahí sería estorbo.
+
+    Lo importante de esta pantalla no es elegir: es poder dejar marcada una
+    para no volver a pasar por acá.
+*@
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/diaadia")'>
+            <Icon Name="chevron-left" Size="18" /> Día a día
+        </button>
+    </div>
+
+    <div>
+        <h2>¿A cuál aportas?</h2>
+        <p class="muted">Marca una como tuya y el botón del inicio irá directo ahí la próxima vez.</p>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else
+    {
+        @foreach (var grupo in _metas.GroupBy(m => m.GrupoNombre))
+        {
+            <div class="stack" style="gap:10px">
+                <span class="label">@grupo.Key</span>
+                @foreach (var meta in grupo)
+                {
+                    <div class="card">
+                        <div class="stack">
+                            <div class="row-between card-tap" @onclick="() => Aportar(meta.Id)">
+                                <div class="row" style="gap:10px">
+                                    <div class="icon-bubble" style="background:var(--color-surface-2); font-size:19px">@meta.Icono</div>
+                                    <div>
+                                        <div style="font-weight:600">@meta.Nombre</div>
+                                        <div class="muted" style="font-size:12.5px">
+                                            @Formato.Pesos(meta.MontoActual) de @Formato.Pesos(meta.MontoObjetivo)
+                                        </div>
+                                    </div>
+                                </div>
+                                <Icon Name="chevron-right" Size="18" />
+                            </div>
+                            <ProgressBar Porcentaje="meta.PorcentajeCompletado" />
+                            <button class="btn btn-ghost btn-block" disabled="@(_marcando == meta.Id)"
+                                    @onclick="() => MarcarFavorita(meta.Id)">
+                                @if (_marcando == meta.Id) { <span class="spinner"></span> }
+                                <span style="font-size:13px">Que el botón del inicio vaya siempre aquí</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private int? _marcando;
+    private List<MetaConGrupo> _metas = [];
+
+    private record MetaConGrupo(
+        int Id, string Nombre, string Icono, decimal MontoActual,
+        decimal MontoObjetivo, decimal PorcentajeCompletado, string GrupoNombre);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Se recorren los grupos porque una persona puede tener metas en
+        // varios, y el nombre del grupo es lo único que distingue dos metas
+        // que se llamen igual — "Emergencia" en el de la pareja y en el de
+        // la familia son cosas distintas.
+        foreach (var grupo in await Api.ObtenerMisHogaresAsync())
+        {
+            var metas = await Api.ObtenerMetasAsync(grupo.Id);
+            _metas.AddRange(metas
+                .Where(m => m.Activa)
+                .Select(m => new MetaConGrupo(
+                    m.Id, m.Nombre, m.Icono, m.MontoActual,
+                    m.MontoObjetivo, m.PorcentajeCompletado, grupo.Nombre)));
+        }
+
+        _cargando = false;
+    }
+
+    private void Aportar(int metaId) => Nav.NavigateTo($"/metas/{metaId}");
+
+    private async Task MarcarFavorita(int metaId)
+    {
+        _marcando = metaId;
+
+        if (await Api.MarcarMetaFavoritaAsync(metaId))
+        {
+            Nav.NavigateTo($"/metas/{metaId}");
+            return;
+        }
+
+        _marcando = null;
+    }
+}

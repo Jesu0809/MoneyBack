@@ -25,8 +25,12 @@
                 <span class="muted">Gastos totales</span>
                 <span style="font-weight:650">@Formato.Pesos(_saldoAcumulado?.TotalGastos ?? 0)</span>
             </div>
+            @* El botón cambia según lo que haya, porque "nuestra meta" no
+               significa lo mismo con cero, una o cinco. Con una favorita
+               elegida va directo y la nombra: aportar es un gesto de dos
+               segundos y preguntar cada vez lo convierte en una decisión. *@
             <button class="btn btn-secondary btn-block" @onclick="AportarAMeta">
-                <Icon Name="coin" Size="16" /> Aportar a nuestra meta
+                <Icon Name="coin" Size="16" /> @TextoDelBotonDeAporte()
             </button>
             @* Rescate cuando el atajo no alcanzó a registrar. Va acá y no
                escondido en Más porque el momento en que hace falta es justo
@@ -562,9 +566,37 @@
     /// directo a aportar. Con 0 o 2+, /hogar es quien decide qué mostrar
     /// (crear la primera, o elegir entre varias).
     /// </summary>
+    private DestinoAporteResponse? _destinoAporte;
+
+    /// <summary>
+    /// Qué dice el botón. Nombrar la meta cuando se sabe cuál es le quita
+    /// toda la duda a un gesto que debe ser inmediato.
+    /// </summary>
+    private string TextoDelBotonDeAporte() => _destinoAporte?.Caso switch
+    {
+        "SinMetas" => "Crear nuestra primera meta",
+        "Unica" or "Favorita" => $"Aportar a {_destinoAporte.MetaIcono} {_destinoAporte.MetaNombre}",
+        "Varias" => "Aportar a una meta",
+        _ => "Aportar a nuestra meta"
+    };
+
+    /// <summary>
+    /// A dónde lleva:
+    ///
+    /// Sin metas, a crearlas — no tiene sentido mandar a aportar a nada.
+    /// Con una sola, directo: preguntar cuál sobra cuando hay una.
+    /// Con favorita, directo a esa, aunque haya diez.
+    /// Con varias y sin favorita, a elegir; y ahí se puede dejar marcada
+    /// una para no volver a elegir nunca.
+    /// </summary>
     private void AportarAMeta()
     {
-        Nav.NavigateTo(_metasActivas.Count == 1 ? $"/metas/{_metasActivas[0].Id}" : "/hogar");
+        Nav.NavigateTo(_destinoAporte?.Caso switch
+        {
+            "Unica" or "Favorita" => $"/metas/{_destinoAporte.MetaId}",
+            "Varias" => "/elegir-meta",
+            _ => "/hogar"
+        });
     }
 
     /// <summary>
@@ -681,8 +713,10 @@
         if (hogar is not null)
         {
             _metasActivas = (await Api.ObtenerMetasAsync(hogar.Id)).Where(m => m.Activa).ToList();
-            StateHasChanged();
         }
+
+        _destinoAporte = await Api.ObtenerDestinoAporteAsync();
+        StateHasChanged();
 
         // Va de último porque abre el formulario, y para eso necesita las
         // categorías ya cargadas.

@@ -2,9 +2,11 @@ using MoneyBack.Api.Models.Metas;
 
 namespace MoneyBack.Api.Dtos;
 
-public record CrearInvitacionHogarRequest(
-    string EmailPareja,
-    bool AplicaTope150 = false);
+/// <param name="HogarId">
+/// A qué grupo se invita. Si no viene, se usa el primero de quien invita —
+/// que es lo que tiene sentido para alguien con un solo grupo.
+/// </param>
+public record CrearInvitacionHogarRequest(string EmailPareja, int? HogarId = null);
 
 public record InvitacionHogarResponse(
     int Id,
@@ -23,13 +25,18 @@ public record ActualizarHogarRequest(
     bool AplicaTope150,
     bool RedondeoActivo);
 
+public record CrearHogarRequest(string Nombre, bool AplicaTope150 = false);
+
+public record ActualizarGrupoRequest(string Nombre, bool AplicaTope150, bool RedondeoActivo);
+
+public record MiembroResponse(int UsuarioId, string Nombre, bool EsAdministrador);
+
 public record HogarResponse(
     int Id,
-    int Usuario1Id,
-    string Usuario1Nombre,
-    int Usuario2Id,
-    string Usuario2Nombre,
+    string Nombre,
     bool AplicaTope150,
-    bool RedondeoActivo);
+    bool RedondeoActivo,
+    bool SoyAdministrador,
+    List<MiembroResponse> Miembros);
 
 public record RedondeoTotalResponse(decimal Total);

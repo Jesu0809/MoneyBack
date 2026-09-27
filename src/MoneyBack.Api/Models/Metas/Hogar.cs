@@ -3,19 +3,30 @@ using MoneyBack.Api.Models;
 namespace MoneyBack.Api.Models.Metas;
 
 /// <summary>
-/// Representa a la pareja como unidad. Es el único punto donde los dos
-/// Usuario se cruzan — las cuentas de día a día (gastos/ingresos/categorías)
-/// NO pasan por aquí, siguen asociadas 1:1 a cada Usuario por separado.
+/// Un grupo de personas que ahorran juntas. Es el único punto donde varias
+/// cuentas se cruzan — el día a día (gastos, ingresos, categorías) sigue
+/// siendo de cada quien por separado.
+///
+/// Antes era "el hogar": exactamente dos personas, en dos columnas. Con eso
+/// no se podía ahorrar en familia ni con amigos, y una misma persona no
+/// podía tener un grupo con su pareja y otro con sus hermanos. El nombre de
+/// la tabla se conserva para no reescribir media base; lo que cambió es que
+/// los miembros viven aparte y pueden ser los que sean.
 /// </summary>
 public class Hogar
 {
     public int Id { get; set; }
 
-    public int Usuario1Id { get; set; }
-    public Usuario Usuario1 { get; set; } = null!;
+    /// <summary>
+    /// Cómo lo llaman quienes están adentro: "Nosotros", "Los Nuncira",
+    /// "Viaje con los del trabajo". Con un solo grupo daba igual; con varios
+    /// es lo único que los distingue.
+    /// </summary>
+    public string Nombre { get; set; } = "Nuestro hogar";
 
-    public int Usuario2Id { get; set; }
-    public Usuario Usuario2 { get; set; } = null!;
+    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+
+    public ICollection<MiembroHogar> Miembros { get; set; } = new List<MiembroHogar>();
 
     /// <summary>
     /// Interruptor general: si está apagado, ningún gasto del día a día de

@@ -4,23 +4,16 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace MoneyBack.Api.Models.Metas;
 
 /// <summary>
-/// Configuración explícita necesaria porque Hogar tiene DOS relaciones
-/// hacia Usuario (Usuario1 y Usuario2). Sin esto, EF Core no sabe cómo
-/// resolver el borrado en cascada por dos caminos distintos hacia la
-/// misma tabla y falla al crear la migración.
+/// Acá vivía la configuración de las dos FKs a Usuario (Usuario1 y
+/// Usuario2), que EF exigía porque eran dos caminos de borrado hacia la
+/// misma tabla. Al pasar los miembros a su propia tabla ese problema
+/// desapareció: ahora hay una sola relación, y está en
+/// MiembroHogarConfiguration.
 /// </summary>
 public class HogarConfiguration : IEntityTypeConfiguration<Hogar>
 {
     public void Configure(EntityTypeBuilder<Hogar> builder)
     {
-        builder.HasOne(h => h.Usuario1)
-            .WithMany()
-            .HasForeignKey(h => h.Usuario1Id)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(h => h.Usuario2)
-            .WithMany()
-            .HasForeignKey(h => h.Usuario2Id)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(h => h.Nombre).HasMaxLength(60);
     }
 }

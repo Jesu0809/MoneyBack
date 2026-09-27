@@ -18,11 +18,14 @@ public static class DeudasEndpoints
         deudas.MapGet("/", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();
-            var hogar = await db.Hogares
-                .FirstOrDefaultAsync(h => h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId);
+            // Las deudas compartidas son las de cualquiera de sus grupos.
+            var misHogares = await db.Hogares
+                .Where(h => h.Miembros.Any(m => m.UsuarioId == usuarioId))
+                .Select(h => h.Id)
+                .ToListAsync();
 
             var query = db.Deudas.Where(d =>
-                d.UsuarioId == usuarioId || (hogar != null && d.HogarId == hogar.Id));
+                d.UsuarioId == usuarioId || (d.HogarId != null && misHogares.Contains(d.HogarId.Value)));
 
             var listado = await query.OrderBy(d => d.FechaCreacion).ToListAsync();
             return Results.Ok(listado.Select(ToResponse));
@@ -53,7 +56,7 @@ public static class DeudasEndpoints
             var error = ValidarMontos(request.MontoTotal, request.MontoCuota, request.TotalCuotas);
             if (error is not null) return error;
 
-            var hogar = await db.Hogares.FindAsync(hogarId);
+            var hogar = await db.Hogares.Include(h => h.Miembros).FirstOrDefaultAsync(h => h.Id == hogarId);
             if (hogar is null) return Results.NotFound($"No existe el hogar {hogarId}.");
             if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -75,7 +78,7 @@ public static class DeudasEndpoints
         deudas.MapPost("/{id:int}/pagar-cuota", async (int id, PagarCuotaRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();
-            var deuda = await db.Deudas.Include(d => d.Hogar).FirstOrDefaultAsync(d => d.Id == id);
+            var deuda = await db.Deudas.Include(d => d.Hogar).ThenInclude(h => h.Miembros).FirstOrDefaultAsync(d => d.Id == id);
             if (deuda is null) return Results.NotFound();
             if (!deuda.PerteneceALaDeuda(principal)) return Results.Forbid();
             if (!deuda.Activa) return Results.Conflict("La deuda está archivada, no admite pagos nuevos.");
@@ -126,7 +129,7 @@ public static class DeudasEndpoints
 
         deudas.MapDelete("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            var deuda = await db.Deudas.Include(d => d.Hogar).FirstOrDefaultAsync(d => d.Id == id);
+            var deuda = await db.Deudas.Include(d => d.Hogar).ThenInclude(h => h.Miembros).FirstOrDefaultAsync(d => d.Id == id);
             if (deuda is null) return Results.NotFound();
             if (!deuda.PerteneceALaDeuda(principal)) return Results.Forbid();
 

@@ -62,3 +62,11 @@ public record MetaDetalleResponse(
     DateTime FechaCreacion,
     IReadOnlyList<AportePorUsuario> AportesPorUsuario,
     IReadOnlyList<MovimientoResponse> Movimientos);
+
+/// <param name="Caso">
+/// SinMetas, Unica, Favorita o Varias. Decide qué dice el botón y a dónde
+/// lleva: con una sola meta no tiene sentido preguntar, y con varias
+/// tampoco tiene sentido elegir por la persona.
+/// </param>
+public record DestinoAporteResponse(
+    string Caso, int? MetaId, string? MetaNombre, string? MetaIcono, int MetasActivas);

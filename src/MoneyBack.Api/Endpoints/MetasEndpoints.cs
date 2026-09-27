@@ -32,7 +32,7 @@ public static class MetasEndpoints
                 });
             }
 
-            var hogar = await db.Hogares.FindAsync(hogarId);
+            var hogar = await db.Hogares.Include(h => h.Miembros).FirstOrDefaultAsync(h => h.Id == hogarId);
             if (hogar is null) return Results.NotFound($"No existe el hogar {hogarId}.");
             if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -56,7 +56,7 @@ public static class MetasEndpoints
 
         hogarMetas.MapGet("/", async (int hogarId, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            var hogar = await db.Hogares.FindAsync(hogarId);
+            var hogar = await db.Hogares.Include(h => h.Miembros).FirstOrDefaultAsync(h => h.Id == hogarId);
             if (hogar is null) return Results.NotFound();
             if (!hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -72,7 +72,7 @@ public static class MetasEndpoints
         metas.MapGet("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var meta = await db.MetasAhorro
-                .Include(m => m.Hogar)
+                .Include(m => m.Hogar).ThenInclude(h => h.Miembros)
                 .Include(m => m.Movimientos)
                     .ThenInclude(mv => mv.Usuario)
                 .FirstOrDefaultAsync(m => m.Id == id);
@@ -112,7 +112,7 @@ public static class MetasEndpoints
             }
 
             var meta = await db.MetasAhorro
-                .Include(m => m.Hogar)
+                .Include(m => m.Hogar).ThenInclude(h => h.Miembros)
                 .Include(m => m.Movimientos)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
@@ -142,7 +142,7 @@ public static class MetasEndpoints
 
         metas.MapGet("/{id:int}/movimientos", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            var meta = await db.MetasAhorro.Include(m => m.Hogar).FirstOrDefaultAsync(m => m.Id == id);
+            var meta = await db.MetasAhorro.Include(m => m.Hogar).ThenInclude(h => h.Miembros).FirstOrDefaultAsync(m => m.Id == id);
             if (meta is null) return Results.NotFound();
             if (!meta.Hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -159,7 +159,7 @@ public static class MetasEndpoints
 
         metas.MapPost("/{id:int}/archivar", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            var meta = await db.MetasAhorro.Include(m => m.Hogar).FirstOrDefaultAsync(m => m.Id == id);
+            var meta = await db.MetasAhorro.Include(m => m.Hogar).ThenInclude(h => h.Miembros).FirstOrDefaultAsync(m => m.Id == id);
             if (meta is null) return Results.NotFound();
             if (!meta.Hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -174,7 +174,7 @@ public static class MetasEndpoints
         // que ser reversible, o es borrar con otro nombre.
         metas.MapPost("/{id:int}/desarchivar", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            var meta = await db.MetasAhorro.Include(m => m.Hogar).FirstOrDefaultAsync(m => m.Id == id);
+            var meta = await db.MetasAhorro.Include(m => m.Hogar).ThenInclude(h => h.Miembros).FirstOrDefaultAsync(m => m.Id == id);
             if (meta is null) return Results.NotFound();
             if (!meta.Hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -189,7 +189,7 @@ public static class MetasEndpoints
         metas.MapPut("/{id:int}", async (
             int id, ActualizarMetaRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
-            var meta = await db.MetasAhorro.Include(m => m.Hogar).FirstOrDefaultAsync(m => m.Id == id);
+            var meta = await db.MetasAhorro.Include(m => m.Hogar).ThenInclude(h => h.Miembros).FirstOrDefaultAsync(m => m.Id == id);
             if (meta is null) return Results.NotFound();
             if (!meta.Hogar.PerteneceAlHogar(principal)) return Results.Forbid();
 
@@ -216,6 +216,68 @@ public static class MetasEndpoints
 
             await db.SaveChangesAsync();
             return Results.Ok(ToResponse(meta));
+        });
+
+        // La meta favorita: a dónde apunta el botón de aportar del día a
+        // día. Es de cada persona, no del grupo — dos personas del mismo
+        // hogar pueden estar empujando cosas distintas.
+        metas.MapPost("/{id:int}/favorita", async (
+            int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var meta = await db.MetasAhorro
+                .Include(m => m.Hogar).ThenInclude(h => h.Miembros)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            if (meta is null) return Results.NotFound();
+            if (!meta.Hogar.PerteneceAlHogar(principal)) return Results.Forbid();
+
+            var usuario = await db.Users.FindAsync(principal.GetUsuarioId());
+            if (usuario is null) return Results.NotFound();
+
+            usuario.MetaFavoritaId = meta.Id;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
+        metas.MapDelete("/favorita", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var usuario = await db.Users.FindAsync(principal.GetUsuarioId());
+            if (usuario is null) return Results.NotFound();
+
+            usuario.MetaFavoritaId = null;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
+        // A dónde debe llevar el botón de aportar, resuelto en el servidor
+        // para que la app no tenga que traerse todos los grupos y todas las
+        // metas solo para pintar un botón.
+        metas.MapGet("/destino-aporte", async (ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var usuarioId = principal.GetUsuarioId();
+
+            var activas = await db.MetasAhorro
+                .Where(m => m.Activa && m.Hogar.Miembros.Any(mi => mi.UsuarioId == usuarioId))
+                .Include(m => m.Hogar)
+                .OrderBy(m => m.FechaCreacion)
+                .ToListAsync();
+
+            if (activas.Count == 0) return Results.Ok(new DestinoAporteResponse("SinMetas", null, null, null, 0));
+
+            var usuario = await db.Users.FindAsync(usuarioId);
+            var favorita = usuario?.MetaFavoritaId is int favId
+                ? activas.FirstOrDefault(m => m.Id == favId)
+                : null;
+
+            // Si la favorita se archivó o se salió de ese grupo, se cae al
+            // caso general en vez de mandar a una pantalla que ya no existe.
+            var elegida = favorita ?? (activas.Count == 1 ? activas[0] : null);
+
+            return Results.Ok(elegida is null
+                ? new DestinoAporteResponse("Varias", null, null, null, activas.Count)
+                : new DestinoAporteResponse(
+                    favorita is not null ? "Favorita" : "Unica",
+                    elegida.Id, elegida.Nombre, elegida.Icono, activas.Count));
         });
     }
 

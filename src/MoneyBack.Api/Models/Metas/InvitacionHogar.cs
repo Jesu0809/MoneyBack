@@ -13,6 +13,14 @@ public class InvitacionHogar
 {
     public int Id { get; set; }
 
+    /// <summary>
+    /// El grupo al que se invita. Antes la invitación no apuntaba a nada:
+    /// aceptarla CREABA un hogar entre dos personas, así que no se podía
+    /// invitar a alguien a un grupo que ya existía, ni sumar a una tercera.
+    /// </summary>
+    public int HogarId { get; set; }
+    public Hogar Hogar { get; set; } = null!;
+
     public int InvitadorId { get; set; }
     public Usuario Invitador { get; set; } = null!;
 
@@ -21,8 +29,6 @@ public class InvitacionHogar
 
     public EstadoInvitacionHogar Estado { get; set; } = EstadoInvitacionHogar.Pendiente;
 
-    public bool AplicaTope150 { get; set; }
-    public decimal PorcentajeRedondeoApartamento { get; set; } = 80;
 
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
     public DateTime? FechaResolucion { get; set; }

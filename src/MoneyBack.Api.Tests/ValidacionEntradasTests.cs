@@ -88,16 +88,7 @@ public class ValidacionEntradasTests : IClassFixture<ApiFactory>
 
     private async Task<(HttpClient Cliente, HogarResponse Hogar)> CrearHogarAsync()
     {
-        var (clienteA, _) = await _factory.CrearClienteAutenticadoAsync();
-        var (clienteB, usuarioB) = await _factory.CrearClienteAutenticadoAsync();
-
-        var invitar = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar",
-            new CrearInvitacionHogarRequest(usuarioB.Email!));
-        var invitacion = (await invitar.Content.ReadFromJsonAsync<InvitacionHogarResponse>())!;
-
-        var aceptar = await clienteB.PostAsync($"/api/invitaciones-hogar/{invitacion.Id}/aceptar", null);
-        var hogar = (await aceptar.Content.ReadFromJsonAsync<HogarResponse>())!;
-
+        var (clienteA, _, hogar) = await _factory.CrearGrupoDeDosAsync();
         return (clienteA, hogar);
     }
 }

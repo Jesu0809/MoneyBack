@@ -25,18 +25,13 @@ public class DiaEnLaVidaTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task UnMesNormalDeGastosEIngresos_CuadraEnTodasLasVistasALaVez()
     {
-        var (clienteA, usuarioA) = await _factory.CrearClienteAutenticadoAsync();
-        var (clienteB, usuarioB) = await _factory.CrearClienteAutenticadoAsync();
-
-        // Hogar con redondeo 20% Emergencia / 80% Apartamento — la pareja
-        // debe aceptar la invitación, ya no se vincula solo con el correo.
-        var invitacion = await clienteA.PostAsJsonAsync("/api/invitaciones-hogar", new CrearInvitacionHogarRequest(usuarioB.Email!));
-        var invitacionCreada = (await invitacion.Content.ReadFromJsonAsync<InvitacionHogarResponse>())!;
-        await clienteB.PostAsync($"/api/invitaciones-hogar/{invitacionCreada.Id}/aceptar", null);
+        // Grupo de dos con el vuelto activo: 80% al apartamento, 20% al
+        // fondo de emergencia.
+        var (clienteA, clienteB, hogar) = await _factory.CrearGrupoDeDosAsync();
+        var usuarioA = await clienteA.GetFromJsonAsync<PerfilResponse>("/api/auth/me");
         await clienteA.PutAsJsonAsync("/api/hogares/mio", new ActualizarHogarRequest(false, true));
-        var hogar = await clienteA.GetFromJsonAsync<HogarResponse>("/api/hogares/mio");
 
-        var crearApto = await clienteA.PostAsJsonAsync($"/api/hogares/{hogar!.Id}/metas",
+        var crearApto = await clienteA.PostAsJsonAsync($"/api/hogares/{hogar.Id}/metas",
             new CrearMetaRequest("Apto", 200_000_000m, "🏠", false, 80));
         var apto = (await crearApto.Content.ReadFromJsonAsync<MetaResponse>())!;
         var crearEmergencia = await clienteA.PostAsJsonAsync($"/api/hogares/{hogar.Id}/metas",
@@ -93,7 +88,7 @@ public class DiaEnLaVidaTests : IClassFixture<ApiFactory>
         // domingo en la noche. ---
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var tip = await InsightsService.CalcularTipAsync(usuarioA.Id, db, new DateTime(2026, 6, 20));
+        var tip = await InsightsService.CalcularTipAsync(usuarioA!.Id, db, new DateTime(2026, 6, 20));
 
         Assert.NotNull(tip);
         Assert.Contains("Mercado", tip);

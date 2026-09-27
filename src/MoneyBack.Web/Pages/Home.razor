@@ -14,7 +14,7 @@ else if (_hogar is not null)
     <div class="stack">
         <div>
             <h2>Ahorro del hogar</h2>
-            <p class="muted">@_hogar.Usuario1Nombre &amp; @_hogar.Usuario2Nombre</p>
+            <p class="muted">@string.Join(" · ", _hogar.Miembros.Select(m => m.Nombre))</p>
         </div>
 
         @if (_metas.Count > 0)
@@ -216,21 +216,26 @@ else if (_invitacionEnviada is not null)
 else
 {
     <div class="stack">
-        <h2>Invita a tu pareja</h2>
-        <p class="muted">Antes de empezar a ahorrar juntos, invita a tu pareja a un hogar. Ella (o él) debe haberse registrado primero, y debe aceptar la invitación para que quede vinculado.</p>
+        <div>
+            <h2>Empieza un grupo de ahorro</h2>
+            <p class="muted">
+                Con tu pareja, con tu familia, con quien sea. Puedes crearlo ahora y sumar gente después
+                — no necesitas esperar a nadie para empezar.
+            </p>
+        </div>
 
         <div class="card">
-            <EditForm Model="_crearHogarForm" OnValidSubmit="EnviarInvitacion">
+            <EditForm Model="_crearHogarForm" OnValidSubmit="CrearGrupo">
                 <div class="stack">
                     <div class="field">
-                        <label>Correo de tu pareja</label>
-                        <InputText class="input" @bind-Value="_crearHogarForm.EmailPareja" placeholder="pareja@correo.com" />
+                        <label>¿Cómo se llama?</label>
+                        <InputText class="input" @bind-Value="_crearHogarForm.Nombre" placeholder="Nosotros dos" />
                     </div>
 
                     <div class="switch-row">
                         <div>
-                            <div style="font-weight:600">¿Buscan en Bogotá, Cali, Medellín, Barranquilla o Bucaramanga?</div>
-                            <div class="muted">Incluye sus aglomeraciones. Cambia el tope VIS aplicable (150 vs 135 SMMLV).</div>
+                            <div style="font-weight:600">¿Buscan vivienda en Bogotá, Cali, Medellín, Barranquilla o Bucaramanga?</div>
+                            <div class="muted">Cambia el tope VIS que aplica. Lo puedes cambiar después.</div>
                         </div>
                         <button type="button" class="switch @(_crearHogarForm.AplicaTope150 ? "on" : "")"
                                 @onclick="() => _crearHogarForm.AplicaTope150 = !_crearHogarForm.AplicaTope150">
@@ -242,7 +247,7 @@ else
 
                     <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
                         @if (_guardando) { <span class="spinner"></span> }
-                        <span>Enviar invitación</span>
+                        <span>Crear grupo</span>
                     </button>
                 </div>
             </EditForm>
@@ -312,7 +317,7 @@ else
         _guardando = true;
 
         var resultado = await Api.CrearInvitacionHogarAsync(new CrearInvitacionHogarRequest(
-            _crearHogarForm.EmailPareja, _crearHogarForm.AplicaTope150));
+            _crearHogarForm.EmailPareja, _hogar?.Id));
 
         if (resultado.Exito)
         {
@@ -408,6 +413,32 @@ else
         _desarchivando = null;
     }
 
+    /// <summary>
+    /// Antes no existía: un grupo solo nacía cuando alguien aceptaba una
+    /// invitación, así que no se podía empezar a ahorrar sin convencer a
+    /// otra persona primero. Ahora se crea y se invita cuando toque.
+    /// </summary>
+    private async Task CrearGrupo()
+    {
+        _error = null;
+        _guardando = true;
+
+        var resultado = await Api.CrearHogarAsync(
+            new CrearHogarRequest(_crearHogarForm.Nombre, _crearHogarForm.AplicaTope150));
+
+        if (resultado.Exito)
+        {
+            _hogar = resultado.Valor;
+            await CargarAsync();
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _guardando = false;
+    }
+
     private async Task CrearMeta()
     {
         if (_hogar is null) return;
@@ -432,6 +463,7 @@ else
 
     private class CrearHogarFormModel
     {
+        public string Nombre { get; set; } = "";
         public string EmailPareja { get; set; } = "";
         public bool AplicaTope150 { get; set; }
     }

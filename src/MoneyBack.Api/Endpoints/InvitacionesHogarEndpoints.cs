@@ -41,28 +41,38 @@ public static class InvitacionesHogarEndpoints
                 });
             }
 
-            var yaTieneHogar = await db.Hogares.AnyAsync(h =>
-                h.Usuario1Id == usuarioId || h.Usuario2Id == usuarioId ||
-                h.Usuario1Id == pareja.Id || h.Usuario2Id == pareja.Id);
-            if (yaTieneHogar)
+            // Se invita a un grupo concreto. Si no dicen a cuál, se usa el
+            // primero de quien invita: es lo que hacía antes y evita romper
+            // a quien solo tiene uno.
+            var hogar = request.HogarId is int hogarId
+                ? await db.Hogares.Include(h => h.Miembros)
+                    .FirstOrDefaultAsync(h => h.Id == hogarId)
+                : await db.Hogares.Include(h => h.Miembros)
+                    .Where(h => h.Miembros.Any(m => m.UsuarioId == usuarioId))
+                    .OrderBy(h => h.FechaCreacion)
+                    .FirstOrDefaultAsync();
+
+            if (hogar is null) return Results.NotFound("Ese grupo no existe. Crea uno antes de invitar.");
+            if (!hogar.Miembros.Any(m => m.UsuarioId == usuarioId)) return Results.Forbid();
+
+            if (hogar.Miembros.Any(m => m.UsuarioId == pareja.Id))
             {
-                return Results.Conflict("Uno de los dos usuarios ya pertenece a un hogar.");
+                return Results.Conflict("Esa persona ya está en el grupo.");
             }
 
-            var yaTieneInvitacionPendiente = await db.InvitacionesHogar.AnyAsync(i =>
-                i.Estado == EstadoInvitacionHogar.Pendiente &&
-                (i.InvitadorId == usuarioId || i.InvitadoId == usuarioId ||
-                 i.InvitadorId == pareja.Id || i.InvitadoId == pareja.Id));
-            if (yaTieneInvitacionPendiente)
+            var yaInvitada = await db.InvitacionesHogar.AnyAsync(i =>
+                i.Estado == EstadoInvitacionHogar.Pendiente
+                && i.HogarId == hogar.Id && i.InvitadoId == pareja.Id);
+            if (yaInvitada)
             {
-                return Results.Conflict("Uno de los dos ya tiene una invitación de hogar pendiente.");
+                return Results.Conflict("Esa persona ya tiene una invitación pendiente a este grupo.");
             }
 
             var invitacion = new InvitacionHogar
             {
                 InvitadorId = usuarioId,
                 InvitadoId = pareja.Id,
-                AplicaTope150 = request.AplicaTope150
+                HogarId = hogar.Id
             };
             db.InvitacionesHogar.Add(invitacion);
             await db.SaveChangesAsync();
@@ -115,30 +125,39 @@ public static class InvitacionesHogarEndpoints
                 return Results.Conflict("Esta invitación ya se resolvió.");
             }
 
-            var yaTieneHogar = await db.Hogares.AnyAsync(h =>
-                h.Usuario1Id == invitacion.InvitadorId || h.Usuario2Id == invitacion.InvitadorId ||
-                h.Usuario1Id == invitacion.InvitadoId || h.Usuario2Id == invitacion.InvitadoId);
-            if (yaTieneHogar)
+            var hogar = await db.Hogares
+                .Include(h => h.Miembros).ThenInclude(m => m.Usuario)
+                .FirstOrDefaultAsync(h => h.Id == invitacion.HogarId);
+
+            if (hogar is null) return Results.NotFound("Ese grupo ya no existe.");
+
+            if (hogar.Miembros.Any(m => m.UsuarioId == invitacion.InvitadoId))
             {
-                return Results.Conflict("Uno de los dos ya pertenece a un hogar.");
+                return Results.Conflict("Ya estás en ese grupo.");
             }
 
-            var hogar = new Hogar
+            // Aceptar suma a la persona al grupo. Antes CREABA un hogar, que
+            // es lo que hacía imposible tener más de dos personas.
+            db.MiembrosHogar.Add(new MiembroHogar
             {
-                Usuario1Id = invitacion.InvitadorId,
-                Usuario2Id = invitacion.InvitadoId,
-                AplicaTope150 = invitacion.AplicaTope150
-            };
-            db.Hogares.Add(hogar);
+                HogarId = hogar.Id,
+                UsuarioId = invitacion.InvitadoId
+            });
 
             invitacion.Estado = EstadoInvitacionHogar.Aceptada;
             invitacion.FechaResolucion = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
 
+            await db.Entry(hogar).Collection(h => h.Miembros).Query().Include(m => m.Usuario).LoadAsync();
+
             return Results.Ok(new HogarResponse(
-                hogar.Id, hogar.Usuario1Id, invitacion.Invitador.Nombre, hogar.Usuario2Id, invitacion.Invitado.Nombre,
-                hogar.AplicaTope150, hogar.RedondeoActivo));
+                hogar.Id, hogar.Nombre, hogar.AplicaTope150, hogar.RedondeoActivo,
+                SoyAdministrador: false,
+                hogar.Miembros
+                    .OrderByDescending(m => m.EsAdministrador).ThenBy(m => m.FechaIngreso)
+                    .Select(m => new MiembroResponse(m.UsuarioId, m.Usuario.Nombre, m.EsAdministrador))
+                    .ToList()));
         });
 
         group.MapPost("/{id:int}/rechazar", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>

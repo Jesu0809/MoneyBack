@@ -11,6 +11,19 @@ public class Usuario : IdentityUser<int>
 {
     public string Nombre { get; set; } = string.Empty;
 
+    /// <summary>
+    /// La meta a la que apunta el botón de aportar del día a día.
+    ///
+    /// Es de cada persona y no del grupo a propósito: dos personas del mismo
+    /// hogar pueden estar empujando cosas distintas —uno el apartamento, el
+    /// otro el fondo de emergencia— y con varios grupos la diferencia crece.
+    /// Que la app elija por uno, o que pregunte cada vez, convierte un gesto
+    /// de dos segundos en una decisión.
+    ///
+    /// null = todavía no ha elegido; ahí la app decide sola con lo que haya.
+    /// </summary>
+    public int? MetaFavoritaId { get; set; }
+
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
     /// <summary>
