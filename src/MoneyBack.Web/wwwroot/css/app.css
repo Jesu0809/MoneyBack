@@ -748,12 +748,17 @@ h1:focus { outline: none; }
   .dot-registrando { animation: none; }
 }
 
-/* Campo del selector de emoji: cuadrado y grande, para que se vea que ahí
-   va un símbolo y no una palabra. */
-.emoji-input {
-  width: 62px;
-  text-align: center;
-  font-size: 25px;
-  padding: 6px;
-  line-height: 1.2;
+/* Cuadrícula del catálogo de emojis: tamaño fijo para que las filas no se
+   desalineen entre categorías, y suficientemente grande para tocar sin
+   apuntar. */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+.emoji-chip-mas {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent-strong);
 }

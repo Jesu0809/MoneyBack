@@ -80,18 +80,35 @@
             <div class="card">
                 <div class="stack">
                     <div class="label">A dónde va</div>
-                    @foreach (var meta in _metas.OrderByDescending(m => m.PorcentajeRedondeo))
+                    @* Se ajusta acá y no al crear la meta: allá la pregunta
+                       aparecía sin contexto y se leía como un monto —alguien
+                       escribió 55.000 en un campo de porcentaje. Acá se está
+                       mirando el vuelto, así que se entiende sola. *@
+                    @foreach (var meta in _metas)
                     {
-                        <div class="row-between" style="padding:5px 0">
-                            <span>@meta.Icono @meta.Nombre</span>
-                            <span class="@(meta.PorcentajeRedondeo > 0 ? "" : "muted")" style="font-weight:600">
-                                @(meta.PorcentajeRedondeo > 0 ? $"{meta.PorcentajeRedondeo:N0}%" : "nada")
-                            </span>
+                        <div class="row-between" style="padding:6px 0; gap:12px">
+                            <span style="min-width:0">@meta.Icono @meta.Nombre</span>
+                            <div class="row" style="gap:6px; align-items:center">
+                                <input class="input" type="number" min="0" max="100" inputmode="numeric"
+                                       style="width:76px; text-align:right"
+                                       value="@meta.PorcentajeRedondeo"
+                                       @onchange="e => CambiarPorcentaje(meta, e.Value?.ToString())" />
+                                <span class="muted">%</span>
+                            </div>
                         </div>
                     }
-                    <span class="muted" style="font-size:12.5px">
-                        Se ajusta en cada meta. No tiene que sumar 100: lo que haya se reparte proporcional.
-                    </span>
+
+                    @if (_guardandoReparto)
+                    {
+                        <span class="muted" style="font-size:12.5px">Guardando…</span>
+                    }
+                    else
+                    {
+                        <span class="muted" style="font-size:12.5px">
+                            No tiene que sumar 100: lo que pongas se reparte proporcional.
+                            En 0, esa meta solo recibe lo que le aportes a mano.
+                        </span>
+                    }
                 </div>
             </div>
         }
@@ -116,6 +133,31 @@
         }
 
         _cargando = false;
+    }
+
+    private bool _guardandoReparto;
+
+    /// <summary>
+    /// Guarda apenas se cambia, sin botón. Un "guardar" aparte para un
+    /// número suelto es un paso extra que la gente olvida, y el cambio se
+    /// pierde sin que nadie se entere.
+    /// </summary>
+    private async Task CambiarPorcentaje(MetaResponse meta, string? valor)
+    {
+        if (!decimal.TryParse(valor, out var porcentaje)) return;
+
+        porcentaje = Math.Clamp(porcentaje, 0, 100);
+        _guardandoReparto = true;
+
+        var resultado = await Api.ActualizarMetaAsync(meta.Id,
+            new ActualizarMetaRequest(meta.Nombre, meta.MontoObjetivo, meta.Icono, porcentaje));
+
+        if (resultado.Exito && _hogar is not null)
+        {
+            _metas = (await Api.ObtenerMetasAsync(_hogar.Id)).Where(m => m.Activa).ToList();
+        }
+
+        _guardandoReparto = false;
     }
 
     private async Task Alternar()

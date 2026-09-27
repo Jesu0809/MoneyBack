@@ -216,27 +216,6 @@ else if (_hogar is not null)
                                     <label>Meta en pesos</label>
                                     <InputNumber class="input" @bind-Value="_crearMetaForm.MontoObjetivo" placeholder="Cuánto quieren juntar" />
                                 </div>
-                                <div class="switch-row">
-                                    <div>
-                                        <div style="font-weight:600">¿Es el fondo de emergencia?</div>
-                                        <div class="muted">El que se guarda para un imprevisto, no para comprar algo.</div>
-                                    </div>
-                                    <button type="button" class="switch @(_crearMetaForm.EsFondoEmergencia ? "on" : "")"
-                                            @onclick="() => _crearMetaForm.EsFondoEmergencia = !_crearMetaForm.EsFondoEmergencia">
-                                        <div class="knob"></div>
-                                    </button>
-                                </div>
-                                <div class="field">
-                                    <label>Qué parte del vuelto va aquí</label>
-                                    <InputNumber class="input" @bind-Value="_crearMetaForm.PorcentajeRedondeo" placeholder="0" />
-                                    @* No tiene que sumar 100 entre todas: el reparto se
-                                       normaliza sobre lo que haya. Pedir que cuadren
-                                       exactamente sería una talanquera sin motivo. *@
-                                    <span class="muted">
-                                        Deja 0 si a esta meta solo quieres aportarle a mano.
-                                        No tiene que sumar 100 entre todas.
-                                    </span>
-                                </div>
                                 <AlertBox Mensaje="@_error" />
                                 <div class="row" style="gap:10px">
                                     @if (_metas.Count > 0)
@@ -367,7 +346,6 @@ else
             </EditForm>
         </div>
     </div>
-}
 
 @code {
     private bool _cargando = true;

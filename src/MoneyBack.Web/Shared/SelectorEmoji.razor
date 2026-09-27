@@ -1,73 +1,68 @@
 @*
     Selector de ícono compartido por categorías y metas.
 
-    Antes cada pantalla tenía su propio campo de texto libre: se podía
-    escribir una frase entera y quedaba guardada como "ícono", que después
-    aparecía como un párrafo donde debía ir un símbolo de 18px. Acá el campo
-    solo acepta lo que sea un emoji de verdad; cualquier otra cosa se
-    descarta y se queda el que estaba.
+    Nadie escribe un emoji: se toca. Antes había un campo de texto donde
+    tocaba abrir el teclado del sistema, buscar el símbolo y esperar que
+    quedara el correcto — y de paso se podía escribir una frase entera y
+    guardarla como "ícono".
 
-    El campo libre sigue existiendo —es lo que abre el teclado del teléfono,
-    donde está toda la variedad— pero ahora filtra.
+    Se muestran siete sugeridos según lo que la persona escribió en el
+    nombre, que es lo que acierta la mayoría de las veces sin abrir nada.
+    El octavo botón abre el catálogo completo por categorías.
 *@
 
 <div class="stack" style="gap:8px">
-    <div class="row" style="gap:8px; align-items:center">
-        <input class="input emoji-input" maxlength="8" inputmode="text"
-               value="@Valor" @onchange="Escribieron"
-               aria-label="Ícono" />
-        <div class="row" style="gap:5px; flex-wrap:wrap; flex:1">
-            @foreach (var emoji in Sugeridos)
+    <div class="row" style="gap:6px; flex-wrap:wrap">
+        @foreach (var emoji in Sugeridos.Take(7))
+        {
+            <button type="button" class="emoji-chip @(Valor == emoji ? "active" : "")"
+                    @onclick="() => ValorChanged.InvokeAsync(emoji)">@emoji</button>
+        }
+        <button type="button" class="emoji-chip emoji-chip-mas" @onclick="() => _abierto = true" title="Ver todos">
+            <Icon Name="plus" Size="15" />
+        </button>
+    </div>
+</div>
+
+@if (_abierto)
+{
+    <div class="fullscreen-modal">
+        <div class="fullscreen-header">
+            <button class="icon-btn" style="background:transparent;border:none" @onclick="() => _abierto = false">
+                <Icon Name="x" Size="22" />
+            </button>
+            <strong>Elige un ícono</strong>
+            <div style="width:40px"></div>
+        </div>
+
+        <div class="fullscreen-body">
+            @foreach (var categoria in CatalogoEmojis.Categorias)
             {
-                <button type="button" class="emoji-chip @(Valor == emoji ? "active" : "")"
-                        @onclick="() => ValorChanged.InvokeAsync(emoji)">@emoji</button>
+                <div class="stack" style="gap:8px">
+                    <span class="label">@categoria.Nombre</span>
+                    <div class="emoji-grid">
+                        @foreach (var emoji in categoria.Emojis)
+                        {
+                            <button type="button" class="emoji-chip @(Valor == emoji ? "active" : "")"
+                                    @onclick="() => Elegir(emoji)">@emoji</button>
+                        }
+                    </div>
+                </div>
             }
         </div>
     </div>
-    <span class="muted" style="font-size:12px">
-        @(_rechazado ? "Eso no es un emoji. Toca el cuadro y elige uno del teclado." : "Toca el cuadro para elegir cualquier emoji del teclado.")
-    </span>
-</div>
+}
 
 @code {
     [Parameter, EditorRequired] public string Valor { get; set; } = "";
     [Parameter] public EventCallback<string> ValorChanged { get; set; }
-    [Parameter] public string[] Sugeridos { get; set; } = ["🏠", "🛟", "🧺", "✈️", "🚗", "🎓", "🍔", "🎯"];
+    [Parameter] public string[] Sugeridos { get; set; } = ["🎯", "🏠", "🛟", "✈️", "🚗", "🎓", "💰"];
 
-    private bool _rechazado;
+    private bool _abierto;
 
-    private async Task Escribieron(ChangeEventArgs e)
+    private async Task Elegir(string emoji)
     {
-        var emoji = PrimerEmoji(e.Value?.ToString());
-        _rechazado = emoji is null;
-
-        // Se reasigna siempre, incluso al rechazar: así el cuadro vuelve a
-        // mostrar el ícono válido en vez de quedarse con lo que escribieron.
-        await ValorChanged.InvokeAsync(emoji ?? Valor);
-    }
-
-    /// <summary>
-    /// Un emoji puede ocupar varios caracteres —🇨🇴 son dos, 👩‍👩‍👧 son cinco con
-    /// uniones invisibles— así que se toma el primer elemento de texto
-    /// completo y no el primer char, que partiría el símbolo a la mitad.
-    ///
-    /// La misma regla corre en el servidor (ver Services/Emoji.cs): la
-    /// pantalla no es la única puerta al API.
-    /// </summary>
-    private static string? PrimerEmoji(string? valor)
-    {
-        if (string.IsNullOrWhiteSpace(valor)) return null;
-
-        var enumerador = System.Globalization.StringInfo.GetTextElementEnumerator(valor.Trim());
-        if (!enumerador.MoveNext()) return null;
-
-        var primero = (string)enumerador.Current;
-
-        foreach (var c in primero)
-        {
-            if (char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || char.IsPunctuation(c)) return null;
-        }
-
-        return primero.Length > 0 ? primero : null;
+        _abierto = false;
+        await ValorChanged.InvokeAsync(emoji);
     }
 }
