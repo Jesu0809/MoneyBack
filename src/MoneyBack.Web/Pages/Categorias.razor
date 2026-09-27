@@ -51,7 +51,11 @@
 
                         <div class="field">
                             <label>Nombre</label>
-                            <InputText class="input" @bind-Value="_form.Nombre" @bind-Value:event="oninput" placeholder="Mascotas" />
+                            @* Un <input> normal y no InputText: @bind-Value:event no existe
+                                       para componentes y revienta al teclear. *@
+                                    <input class="input" value="@_form.Nombre"
+                                           @oninput="e => _form.Nombre = e.Value?.ToString() ?? string.Empty"
+                                           placeholder="Mascotas" />
                         </div>
                         <AlertBox Mensaje="@_error" />
                         <div class="row">

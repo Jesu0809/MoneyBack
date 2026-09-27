@@ -202,7 +202,11 @@ else if (_hogar is not null)
                             <div class="stack">
                                 <div class="field">
                                     <label>¿Para qué están ahorrando?</label>
-                                    <InputText class="input" @bind-Value="_crearMetaForm.Nombre" @bind-Value:event="oninput" placeholder="Para qué ahorran" />
+                                    @* Un <input> normal y no InputText: @bind-Value:event no existe
+                                       para componentes y revienta al teclear. *@
+                                    <input class="input" value="@_crearMetaForm.Nombre"
+                                           @oninput="e => _crearMetaForm.Nombre = e.Value?.ToString() ?? string.Empty"
+                                           placeholder="Para qué ahorran" />
                                 </div>
                                 <div class="field">
                                     <label>Ícono</label>
