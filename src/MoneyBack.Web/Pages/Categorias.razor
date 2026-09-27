@@ -46,13 +46,7 @@
 
                         <div class="field">
                             <label>Ícono</label>
-                            <div class="row" style="flex-wrap: wrap; gap: 6px">
-                                @foreach (var emoji in EmojiSugeridos)
-                                {
-                                    <button type="button" class="emoji-chip @(_form.Icono == emoji ? "active" : "")" @onclick="() => _form.Icono = emoji">@emoji</button>
-                                }
-                            </div>
-                            <InputText class="input" @bind-Value="_form.Icono" placeholder="O escribe/pega tu propio emoji" style="margin-top:6px" />
+                            <SelectorEmoji @bind-Valor="_form.Icono" Sugeridos="EmojisDeCategoria" />
                         </div>
 
                         <div class="field">
@@ -126,7 +120,7 @@
 </div>
 
 @code {
-    private static readonly string[] EmojiSugeridos =
+    private static readonly string[] EmojisDeCategoria =
     [
         "🛒", "🍔", "🚗", "🏠", "💡", "🎬", "🏥", "👕", "📦",
         "💼", "🎁", "💰", "✈️", "🐾", "📚", "🎮", "☕", "💳"

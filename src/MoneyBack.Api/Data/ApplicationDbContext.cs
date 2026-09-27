@@ -63,6 +63,8 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new InvitacionAppConfiguration());
         builder.ApplyConfiguration(new LlamadaAtajoConfiguration());
         builder.ApplyConfiguration(new CodigoRecuperacionConfiguration());
+
+        LongitudesDeTexto.Aplicar(builder);
         builder.ApplyConfiguration(new ConfirmacionCobroConfiguration());
         builder.ApplyConfiguration(new DeudaConfiguration());
         builder.ApplyConfiguration(new SuscripcionPushConfiguration());

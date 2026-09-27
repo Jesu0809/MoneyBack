@@ -1,0 +1,73 @@
+@*
+    Selector de ícono compartido por categorías y metas.
+
+    Antes cada pantalla tenía su propio campo de texto libre: se podía
+    escribir una frase entera y quedaba guardada como "ícono", que después
+    aparecía como un párrafo donde debía ir un símbolo de 18px. Acá el campo
+    solo acepta lo que sea un emoji de verdad; cualquier otra cosa se
+    descarta y se queda el que estaba.
+
+    El campo libre sigue existiendo —es lo que abre el teclado del teléfono,
+    donde está toda la variedad— pero ahora filtra.
+*@
+
+<div class="stack" style="gap:8px">
+    <div class="row" style="gap:8px; align-items:center">
+        <input class="input emoji-input" maxlength="8" inputmode="text"
+               value="@Valor" @onchange="Escribieron"
+               aria-label="Ícono" />
+        <div class="row" style="gap:5px; flex-wrap:wrap; flex:1">
+            @foreach (var emoji in Sugeridos)
+            {
+                <button type="button" class="emoji-chip @(Valor == emoji ? "active" : "")"
+                        @onclick="() => ValorChanged.InvokeAsync(emoji)">@emoji</button>
+            }
+        </div>
+    </div>
+    <span class="muted" style="font-size:12px">
+        @(_rechazado ? "Eso no es un emoji. Toca el cuadro y elige uno del teclado." : "Toca el cuadro para elegir cualquier emoji del teclado.")
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Valor { get; set; } = "";
+    [Parameter] public EventCallback<string> ValorChanged { get; set; }
+    [Parameter] public string[] Sugeridos { get; set; } = ["🏠", "🛟", "🧺", "✈️", "🚗", "🎓", "🍔", "🎯"];
+
+    private bool _rechazado;
+
+    private async Task Escribieron(ChangeEventArgs e)
+    {
+        var emoji = PrimerEmoji(e.Value?.ToString());
+        _rechazado = emoji is null;
+
+        // Se reasigna siempre, incluso al rechazar: así el cuadro vuelve a
+        // mostrar el ícono válido en vez de quedarse con lo que escribieron.
+        await ValorChanged.InvokeAsync(emoji ?? Valor);
+    }
+
+    /// <summary>
+    /// Un emoji puede ocupar varios caracteres —🇨🇴 son dos, 👩‍👩‍👧 son cinco con
+    /// uniones invisibles— así que se toma el primer elemento de texto
+    /// completo y no el primer char, que partiría el símbolo a la mitad.
+    ///
+    /// La misma regla corre en el servidor (ver Services/Emoji.cs): la
+    /// pantalla no es la única puerta al API.
+    /// </summary>
+    private static string? PrimerEmoji(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return null;
+
+        var enumerador = System.Globalization.StringInfo.GetTextElementEnumerator(valor.Trim());
+        if (!enumerador.MoveNext()) return null;
+
+        var primero = (string)enumerador.Current;
+
+        foreach (var c in primero)
+        {
+            if (char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || char.IsPunctuation(c)) return null;
+        }
+
+        return primero.Length > 0 ? primero : null;
+    }
+}

@@ -95,27 +95,7 @@ else if (_hogar is not null)
                                 </div>
                                 <div class="field">
                                     <label>Ícono</label>
-                                    <div class="row" style="gap:8px; align-items:center">
-                                        @* El campo acepta cualquier emoji: se toca y se abre el
-                                           teclado del teléfono, donde está toda la variedad de
-                                           iOS. Los de al lado son solo atajos para los comunes,
-                                           no la lista completa — limitar a ocho íconos obligaba
-                                           a que una meta de mascota fuera un blanco de tiro. *@
-                                        <input class="input" maxlength="4" inputmode="text"
-                                               style="width:64px; text-align:center; font-size:26px; padding:6px"
-                                               value="@_crearMetaForm.Icono"
-                                               @onchange="e => ElegirIcono(e.Value?.ToString())" />
-                                        <div class="row" style="gap:5px; flex-wrap:wrap; flex:1">
-                                            @foreach (var emoji in Emojis)
-                                            {
-                                                <button type="button"
-                                                        class="btn @(_crearMetaForm.Icono == emoji ? "btn-primary" : "btn-secondary")"
-                                                        style="font-size:18px; padding:5px 9px; min-width:0"
-                                                        @onclick="() => _crearMetaForm.Icono = emoji">@emoji</button>
-                                            }
-                                        </div>
-                                    </div>
-                                    <span class="muted">Toca el cuadro y elige el que quieras del teclado.</span>
+                                    <SelectorEmoji @bind-Valor="_crearMetaForm.Icono" />
                                 </div>
                                 <div class="field">
                                     <label>Meta en pesos</label>
@@ -288,26 +268,7 @@ else
     /// Los que casi todo el mundo elige, para no abrir un teclado de emojis
     /// completo por algo que se decide en un segundo.
     /// </summary>
-    private static readonly string[] Emojis = ["🏠", "🛟", "🧺", "✈️", "🚗", "🎓", "💍", "🎯"];
 
-    /// <summary>
-    /// Se queda con el primer emoji de lo que hayan escrito. Si alguien
-    /// teclea una palabra en vez de un emoji, no se guarda basura: se deja
-    /// el que estaba.
-    /// </summary>
-    private void ElegirIcono(string? valor)
-    {
-        var limpio = valor?.Trim();
-        if (string.IsNullOrEmpty(limpio)) return;
-
-        var enumerador = System.Globalization.StringInfo.GetTextElementEnumerator(limpio);
-        if (!enumerador.MoveNext()) return;
-
-        var primero = enumerador.GetTextElement();
-        if (primero.Any(char.IsLetterOrDigit)) return;
-
-        _crearMetaForm.Icono = primero;
-    }
 
     protected override async Task OnInitializedAsync()
     {

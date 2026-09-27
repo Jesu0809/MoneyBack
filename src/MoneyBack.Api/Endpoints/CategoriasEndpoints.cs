@@ -40,7 +40,7 @@ public static class CategoriasEndpoints
                 UsuarioId = principal.GetUsuarioId(),
                 Nombre = request.Nombre.Trim(),
                 Tipo = request.Tipo,
-                Icono = string.IsNullOrWhiteSpace(request.Icono) ? "📦" : request.Icono
+                Icono = Emoji.Primero(request.Icono) ?? "📦"
             };
             db.Categorias.Add(categoria);
             await db.SaveChangesAsync();
@@ -64,7 +64,7 @@ public static class CategoriasEndpoints
             }
 
             categoria.Nombre = request.Nombre.Trim();
-            categoria.Icono = string.IsNullOrWhiteSpace(request.Icono) ? categoria.Icono : request.Icono;
+            categoria.Icono = Emoji.Primero(request.Icono) ?? categoria.Icono;
             categoria.Activa = request.Activa;
             await db.SaveChangesAsync();
 

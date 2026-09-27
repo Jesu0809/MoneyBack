@@ -16,6 +16,14 @@ public static class MetasEndpoints
 
         hogarMetas.MapPost("/", async (int hogarId, CrearMetaRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
+            if (string.IsNullOrWhiteSpace(request.Nombre))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["nombre"] = ["Ponle un nombre a la meta."]
+                });
+            }
+
             if (request.MontoObjetivo <= 0)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -31,10 +39,13 @@ public static class MetasEndpoints
             var meta = new MetaAhorro
             {
                 HogarId = hogarId,
-                Icono = string.IsNullOrWhiteSpace(request.Icono) ? "🎯" : request.Icono,
+                Icono = Emoji.Primero(request.Icono) ?? "🎯",
                 EsFondoEmergencia = request.EsFondoEmergencia,
-                PorcentajeRedondeo = request.PorcentajeRedondeo,
-                Nombre = request.Nombre,
+                // Se acota igual que al editar: un 99999% no rompe el
+                // reparto —se normaliza— pero deja un dato que no significa
+                // nada y que sorprende al leerlo.
+                PorcentajeRedondeo = Math.Clamp(request.PorcentajeRedondeo, 0, 100),
+                Nombre = request.Nombre.Trim(),
                 MontoObjetivo = request.MontoObjetivo
             };
             db.MetasAhorro.Add(meta);
@@ -200,7 +211,7 @@ public static class MetasEndpoints
 
             meta.Nombre = request.Nombre.Trim();
             meta.MontoObjetivo = request.MontoObjetivo;
-            meta.Icono = string.IsNullOrWhiteSpace(request.Icono) ? meta.Icono : request.Icono;
+            meta.Icono = Emoji.Primero(request.Icono) ?? meta.Icono;
             meta.PorcentajeRedondeo = Math.Clamp(request.PorcentajeRedondeo, 0, 100);
 
             await db.SaveChangesAsync();

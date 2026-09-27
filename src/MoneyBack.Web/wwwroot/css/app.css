@@ -747,3 +747,13 @@ h1:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   .dot-registrando { animation: none; }
 }
+
+/* Campo del selector de emoji: cuadrado y grande, para que se vea que ahí
+   va un símbolo y no una palabra. */
+.emoji-input {
+  width: 62px;
+  text-align: center;
+  font-size: 25px;
+  padding: 6px;
+  line-height: 1.2;
+}
