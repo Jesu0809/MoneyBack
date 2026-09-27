@@ -2,5 +2,9 @@
   <Folder Name="/src/">
     <Project Path="src/MoneyBack.Api/MoneyBack.Api.csproj" />
     <Project Path="src/MoneyBack.Api.Tests/MoneyBack.Api.Tests.csproj" />
+    <!-- Sin estas dos líneas, `dotnet build` en la raíz decía "correcta" sin
+         compilar un solo .razor: el proyecto Web no estaba en la solución. -->
+    <Project Path="src/MoneyBack.Web/MoneyBack.Web.csproj" />
+    <Project Path="src/MoneyBack.Web.Tests/MoneyBack.Web.Tests.csproj" />
   </Folder>
 </Solution>

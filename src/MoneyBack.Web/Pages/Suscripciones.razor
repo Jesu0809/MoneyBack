@@ -3,7 +3,7 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
 
-<PageTitle>Suscripciones · MoneyBack</PageTitle>
+<PageTitle>Cobros fijos · MoneyBack</PageTitle>
 
 <div class="stack">
     <div class="row">
@@ -11,7 +11,7 @@
     </div>
 
     <div>
-        <h2>Cobros programados</h2>
+        <h2>Cobros fijos</h2>
         <p class="muted">Suscripciones y cobros recurrentes. Te avisamos antes de cada cobro para que confirmes si pasó o no.</p>
     </div>
 
@@ -24,7 +24,7 @@
         <div class="card">
             @if (!_mostrarForm)
             {
-                <button class="btn btn-primary btn-block" @onclick="AbrirFormNueva"><Icon Name="plus" Size="18" /> Nueva suscripción</button>
+                <button class="btn btn-primary btn-block" @onclick="AbrirFormNueva"><Icon Name="plus" Size="18" /> Nuevo cobro fijo</button>
             }
             else
             {
@@ -79,7 +79,7 @@
         @if (_suscripciones.Count == 0)
         {
             <div class="empty-state">
-                <p>Todavía no tienes cobros programados.</p>
+                <p>Todavía no tienes cobros fijos.</p>
             </div>
         }
         else

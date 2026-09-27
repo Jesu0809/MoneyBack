@@ -525,7 +525,6 @@
     private readonly EdicionMovimientoModel _editForm = new();
     private ResumenDiaADiaResponse? _resumen;
     private ResumenDiaADiaResponse? _saldoAcumulado;
-    private List<MetaResponse> _metasActivas = [];
     private readonly FormModel _form = new();
 
     /// <summary>
@@ -699,23 +698,20 @@
 
     private async Task CargarLoSecundarioAsync()
     {
+        // Las tres en paralelo y nada encadenado detrás. Antes se pedía
+        // además el hogar y sus metas para llenar un campo que nadie leía, y
+        // como iban en serie el destino del botón llegaba cuatro viajes
+        // después de abrir la pantalla: durante ese rato el botón decía
+        // "Aportar a nuestra meta" y luego cambiaba solo.
         var categoriasTask = Api.ObtenerCategoriasAsync();
         var tarjetasTask = Api.ObtenerTarjetasCreditoAsync();
-        var hogarTask = Api.ObtenerMiHogarAsync();
+        var destinoTask = Api.ObtenerDestinoAporteAsync();
 
-        await Task.WhenAll(categoriasTask, tarjetasTask, hogarTask);
+        await Task.WhenAll(categoriasTask, tarjetasTask, destinoTask);
 
         _categorias = await categoriasTask;
         _tarjetas = (await tarjetasTask).Where(t => t.Activa).ToList();
-        StateHasChanged();
-
-        var hogar = await hogarTask;
-        if (hogar is not null)
-        {
-            _metasActivas = (await Api.ObtenerMetasAsync(hogar.Id)).Where(m => m.Activa).ToList();
-        }
-
-        _destinoAporte = await Api.ObtenerDestinoAporteAsync();
+        _destinoAporte = await destinoTask;
         StateHasChanged();
 
         // Va de último porque abre el formulario, y para eso necesita las
