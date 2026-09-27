@@ -103,4 +103,37 @@ public class LlamadasAtajoTests : IClassFixture<ApiFactory>
 
         Assert.Empty((await HistorialAsync(clienteB))!);
     }
+
+    /// <summary>
+    /// Las claves temporales del banco pasan por el mismo camino —no traen
+    /// monto, así que quedan como intento fallido— y guardar una clave de
+    /// acceso bancario para poder diagnosticar no es un intercambio
+    /// aceptable, aunque expire en cinco minutos.
+    /// </summary>
+    [Fact]
+    public async Task NoGuardaLasClavesTemporalesDelBanco()
+    {
+        var (cliente, token) = await PrepararAsync();
+
+        await LlamarAsync(token, "DAVIbank: Tu clave temporal es 482193 y vence en 5 minutos");
+
+        var llamada = Assert.Single((await HistorialAsync(cliente))!);
+        Assert.DoesNotContain("482193", llamada.Texto!);
+        Assert.Contains("clave temporal", llamada.Texto!);
+    }
+
+    /// <summary>
+    /// Y no se lleva por delante los montos, que es justo lo que uno necesita
+    /// ver en el historial.
+    /// </summary>
+    [Fact]
+    public async Task ElMontoDeUnaCompraSiSeGuarda()
+    {
+        var (cliente, token) = await PrepararAsync();
+
+        await LlamarAsync(token, "DAVIbank: Realizaste transaccion en OXXO CALLE 85 por 6,250 con tu tarjeta Clasica");
+
+        var llamada = Assert.Single((await HistorialAsync(cliente))!);
+        Assert.Contains("6,250", llamada.Texto!);
+    }
 }

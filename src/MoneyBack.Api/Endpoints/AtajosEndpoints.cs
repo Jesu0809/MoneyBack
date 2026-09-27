@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
@@ -18,7 +19,7 @@ namespace MoneyBack.Api.Endpoints;
 /// movimiento, nada más: ni con el token en mano se puede tocar metas,
 /// deudas, ni el resto de la cuenta.
 /// </summary>
-public static class AtajosEndpoints
+public static partial class AtajosEndpoints
 {
     public static void MapAtajosEndpoints(this WebApplication app)
     {
@@ -321,7 +322,7 @@ public static class AtajosEndpoints
         db.LlamadasAtajo.Add(new LlamadaAtajo
         {
             UsuarioId = usuarioId,
-            Texto = Recortar(texto, 200),
+            Texto = Recortar(TaparClaves(texto), 200),
             Exito = exito,
             Detalle = Recortar(detalle, 200)
         });
@@ -336,6 +337,34 @@ public static class AtajosEndpoints
 
         await db.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Tapa los códigos de un solo uso antes de guardar el texto.
+    ///
+    /// El historial sirve para saber si el atajo llegó, y para eso alcanza
+    /// con ver de qué mensaje se trataba. Pero por el mismo camino pasan las
+    /// claves temporales del banco —no traen monto, así que se registran como
+    /// intento fallido— y guardar una clave de acceso bancario en una tabla
+    /// para poder diagnosticar no es un intercambio aceptable, aunque expire
+    /// en cinco minutos.
+    /// </summary>
+    private static string? TaparClaves(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return texto;
+        if (!RegexMencionaClave().IsMatch(texto)) return texto;
+
+        return RegexPosibleClave().Replace(texto, "••••");
+    }
+
+    [GeneratedRegex(@"clave|c[oó]digo|token|contrase|otp|verificaci[oó]n", RegexOptions.IgnoreCase)]
+    private static partial Regex RegexMencionaClave();
+
+    /// <summary>
+    /// Números sueltos de 4 a 8 dígitos. No toca los que llevan separador de
+    /// miles —esos son montos— ni los pegados a otra cosa.
+    /// </summary>
+    [GeneratedRegex(@"(?<![\d.,])\d{4,8}(?![\d.,])")]
+    private static partial Regex RegexPosibleClave();
 
     private static string? Recortar(string? texto, int maximo) =>
         texto is null || texto.Length <= maximo ? texto : texto[..maximo];
