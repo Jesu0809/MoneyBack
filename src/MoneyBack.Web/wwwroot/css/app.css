@@ -716,3 +716,34 @@ h1:focus { outline: none; }
   cursor: pointer; transition: background 180ms var(--ease-smooth), color 180ms var(--ease-smooth);
 }
 .segmented-btn.active { background: var(--color-surface); color: var(--color-text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+/* --- El LED junto al nombre, como el de un router ---
+   Verde: hay línea y nada pendiente. Ámbar con latido: sin señal pero
+   anotando en el teléfono, que es el estado que de verdad hay que notar —
+   significa "esto todavía no está a salvo allá". Gris apagado: sin señal y
+   sin nada esperando, o sea nada que perder. */
+.dot-enlinea {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.dot-registrando {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-warning) 26%, transparent);
+  animation: latidoLed 1.8s ease-in-out infinite;
+}
+.dot-sinconexion {
+  background: var(--color-text-muted);
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+@keyframes latidoLed {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Quien tenga activado "reducir movimiento" no necesita el latido: el color
+   ya dice lo mismo. */
+@media (prefers-reduced-motion: reduce) {
+  .dot-registrando { animation: none; }
+}

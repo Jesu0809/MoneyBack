@@ -226,6 +226,28 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<ResumenDiaADiaResponse>() : null;
     }
 
+    /// <summary>
+    /// Igual que ObtenerMovimientosDiaADiaAsync pero diciendo si falló por
+    /// red. Las versiones que devuelven lista vacía no dejan distinguir
+    /// "este mes no gastaste nada" de "no hubo conexión", y mostrar ceros
+    /// cuando en realidad no se sabe es peor que no mostrar nada.
+    /// </summary>
+    public async Task<ApiResult<List<MovimientoDiaADiaResponse>>> ObtenerMovimientosConEstadoAsync(DateTime? desde = null, DateTime? hasta = null)
+    {
+        var query = ConstruirQueryFechas(desde, hasta);
+        var response = await Api.GetAsync($"api/movimientos-diaadia{query}");
+        return await ApiResult<List<MovimientoDiaADiaResponse>>.FromResponseAsync(
+            response, async r => await r.Content.ReadFromJsonAsync<List<MovimientoDiaADiaResponse>>() ?? []);
+    }
+
+    public async Task<ApiResult<ResumenDiaADiaResponse>> ObtenerResumenConEstadoAsync(DateTime? desde = null, DateTime? hasta = null)
+    {
+        var query = ConstruirQueryFechas(desde, hasta);
+        var response = await Api.GetAsync($"api/movimientos-diaadia/resumen{query}");
+        return await ApiResult<ResumenDiaADiaResponse>.FromResponseAsync(
+            response, r => r.Content.ReadFromJsonAsync<ResumenDiaADiaResponse>()!);
+    }
+
     public async Task<ApiResult<MovimientoDiaADiaResponse>> RegistrarMovimientoDiaADiaAsync(CrearMovimientoDiaADiaRequest request)
     {
         var response = await Api.PostAsJsonAsync("api/movimientos-diaadia", request);

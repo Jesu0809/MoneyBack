@@ -17,21 +17,28 @@ namespace MoneyBack.Web.Services;
 /// Con esto, cada llamada recibe una respuesta fallida como cualquier otra
 /// y el código de siempre muestra un mensaje que se entiende.
 /// </summary>
-public class FallosDeRedHandler : DelegatingHandler
+public class FallosDeRedHandler(EstadoConexion estado) : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         try
         {
-            return await base.SendAsync(request, cancellationToken);
+            var respuesta = await base.SendAsync(request, cancellationToken);
+
+            // Cualquier respuesta del servidor, aunque sea un error suyo,
+            // significa que hay camino hasta él.
+            estado.MarcarEnLinea();
+            return respuesta;
         }
         catch (HttpRequestException)
         {
+            estado.MarcarSinConexion();
             return SinConexion("No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.");
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            estado.MarcarSinConexion();
             // Se agotó el tiempo de espera. Se distingue del caso anterior
             // porque el consejo es distinto: acá sí llegó a haber conexión.
             return SinConexion("El servidor está tardando en responder. Inténtalo en un momento.");

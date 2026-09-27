@@ -3,6 +3,8 @@
 @using Microsoft.AspNetCore.WebUtilities
 @inject ApiClient Api
 @inject IJSRuntime JS
+@inject AlmacenLocal Almacen
+@inject ColaPendientes Cola
 @inject UiOverlayService UiOverlay
 @inject NavigationManager Nav
 @implements IDisposable
@@ -34,6 +36,65 @@
             </button>
         </div>
     </div>
+
+    @if (_sinConexion)
+    {
+        <div class="card" style="border-left:3px solid var(--color-warning)">
+            <div class="stack" style="gap:6px">
+                <div class="row" style="gap:8px">
+                    <Icon Name="alert-triangle" Size="17" />
+                    <strong>Sin conexión</strong>
+                </div>
+                <span class="muted" style="font-size:13px">
+                    @if (_guardadoEl is not null)
+                    {
+                        @($"Estos son los datos de {Formato.FechaHora(_guardadoEl.Value)}. Puede que falte algo reciente.")
+                    }
+                    else
+                    {
+                        @("No pudimos traer tus datos y no hay nada guardado en este teléfono todavía.")
+                    }
+                </span>
+                @if (_pendientes.Count > 0)
+                {
+                    <span style="font-size:13px">
+                        @_pendientes.Count @(_pendientes.Count == 1 ? "gasto anotado" : "gastos anotados") esperando subir.
+                        Se suben solos cuando vuelva la señal.
+                    </span>
+                }
+            </div>
+        </div>
+    }
+
+    @if (_pendientes.Count > 0)
+    {
+        <div class="card">
+            <div class="stack">
+                <div class="label">Esperando subir</div>
+                @foreach (var p in _pendientes)
+                {
+                    <div class="row-between" style="padding:6px 0">
+                        <div class="row" style="gap:10px">
+                            <span style="font-size:18px">@p.CategoriaIcono</span>
+                            <div>
+                                <div style="font-weight:600; font-size:14px">@p.CategoriaNombre</div>
+                                <div class="muted" style="font-size:12px">
+                                    @Formato.FechaHora(p.Fecha.ToLocalTime()) · @(string.IsNullOrEmpty(p.Nota) ? "sin nota" : p.Nota)
+                                </div>
+                            </div>
+                        </div>
+                        <span class="money" style="font-size:15px; color:var(--color-text-muted)">
+                            @Formato.Pesos(p.Monto)
+                        </span>
+                    </div>
+                }
+                <button class="btn btn-secondary btn-block" disabled="@_subiendo" @onclick="ReintentarSubida">
+                    @if (_subiendo) { <span class="spinner"></span> }
+                    <span>Intentar subirlos ahora</span>
+                </button>
+            </div>
+        </div>
+    }
 
     @if (_avisoAprendizaje is not null)
     {
@@ -438,6 +499,20 @@
     /// </summary>
     private string? _avisoAprendizaje;
 
+    private const string ClaveCache = "moneyback.diaadia";
+
+    private bool _sinConexion;
+    private DateTime? _guardadoEl;
+    private List<MovimientoPendiente> _pendientes = [];
+    private bool _subiendo;
+
+    /// <summary>Lo que se guarda en el teléfono para poder abrir sin señal.</summary>
+    private record CacheDiaADia(
+        ResumenDiaADiaResponse? Saldo,
+        List<MovimientoDiaADiaResponse> Movimientos,
+        ResumenDiaADiaResponse? Resumen,
+        DateTime GuardadoEl);
+
     private bool _pegandoSms;
     private bool _guardandoSms;
     private string? _textoSms;
@@ -465,15 +540,13 @@
         // las seis llamadas antes de mostrar nada, así que la más lenta
         // marcaba el tiempo de todas y la app se quedaba en "Cargando"
         // aunque los gastos ya hubieran llegado.
-        var saldoTask = Api.ObtenerResumenDiaADiaAsync();
-        var movimientosTask = Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
-        var resumenMesTask = Api.ObtenerResumenDiaADiaAsync(desde, hasta);
+        var saldoTask = Api.ObtenerResumenConEstadoAsync();
+        var movimientosTask = Api.ObtenerMovimientosConEstadoAsync(desde, hasta);
+        var resumenMesTask = Api.ObtenerResumenConEstadoAsync(desde, hasta);
 
         await Task.WhenAll(saldoTask, movimientosTask, resumenMesTask);
 
-        _saldoAcumulado = await saldoTask;
-        _movimientos = await movimientosTask;
-        _resumen = await resumenMesTask;
+        await AplicarOUsarGuardadoAsync(await saldoTask, await movimientosTask, await resumenMesTask);
         _cargando = false;
 
         // El resto llega después y se repinta solo. Las categorías y las
@@ -525,6 +598,73 @@
     /// Lo que no bloquea la primera pintada. Se trae en segundo plano y la
     /// pantalla se actualiza cuando llega.
     /// </summary>
+    /// <summary>
+    /// Usa lo que llegó del servidor y lo guarda para la próxima; si no
+    /// llegó, muestra lo guardado con el aviso de que puede estar viejo.
+    ///
+    /// Enseñar ceros porque no hubo conexión es peor que enseñar cifras de
+    /// hace dos horas: los ceros parecen un dato y llevan a decisiones
+    /// equivocadas, lo viejo con su fecha es información honesta.
+    /// </summary>
+    private async Task AplicarOUsarGuardadoAsync(
+        ApiResult<ResumenDiaADiaResponse> saldo,
+        ApiResult<List<MovimientoDiaADiaResponse>> movimientos,
+        ApiResult<ResumenDiaADiaResponse> resumenMes)
+    {
+        if (movimientos.Exito && saldo.Exito && resumenMes.Exito)
+        {
+            _saldoAcumulado = saldo.Valor;
+            _movimientos = movimientos.Valor!;
+            _resumen = resumenMes.Valor;
+            _sinConexion = false;
+            _guardadoEl = DateTime.Now;
+
+            await Almacen.GuardarAsync(ClaveCache, new CacheDiaADia(_saldoAcumulado, _movimientos, _resumen, _guardadoEl.Value));
+            await SubirPendientesAsync();
+            return;
+        }
+
+        if (!movimientos.EsFalloDeRed) return;
+
+        var guardado = await Almacen.LeerAsync<CacheDiaADia>(ClaveCache);
+        if (guardado is null) { _sinConexion = true; return; }
+
+        _saldoAcumulado = guardado.Saldo;
+        _movimientos = guardado.Movimientos;
+        _resumen = guardado.Resumen;
+        _guardadoEl = guardado.GuardadoEl;
+        _sinConexion = true;
+    }
+
+    private async Task ReintentarSubida()
+    {
+        _subiendo = true;
+        await SubirPendientesAsync();
+        _subiendo = false;
+    }
+
+    private async Task SubirPendientesAsync()
+    {
+        _pendientes = await Cola.ListarAsync();
+        if (_pendientes.Count == 0) return;
+
+        var subidos = await Cola.SubirPendientesAsync();
+        _pendientes = await Cola.ListarAsync();
+
+        if (subidos > 0)
+        {
+            _avisoAprendizaje = subidos == 1
+                ? "Se subió 1 gasto que quedó pendiente sin conexión."
+                : $"Se subieron {subidos} gastos que quedaron pendientes sin conexión.";
+
+            var desde = _mesActual;
+            var hasta = _mesActual.AddMonths(1).AddTicks(-1);
+            _movimientos = await Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
+            _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
+            _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
+        }
+    }
+
     private async Task CargarLoSecundarioAsync()
     {
         var categoriasTask = Api.ObtenerCategoriasAsync();
@@ -625,13 +765,26 @@
 
         if (resultado.Exito)
         {
-            _mostrarForm = false;
-            UiOverlay.CerrarModal();
-            _form.Monto = 0;
-            _form.Nota = "";
-            _form.TarjetaCreditoId = null;
+            CerrarFormulario();
             _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
             await CargarMesAsync();
+        }
+        else if (resultado.EsFalloDeRed)
+        {
+            // Sin señal el gasto NO se pierde: se guarda en el teléfono y
+            // sube solo cuando vuelva la conexión. Anotar tiene que
+            // funcionar siempre —uno registra en el ascensor, en un
+            // parqueadero, en el bus— y quien pierde un par de gastos por
+            // un error de red deja de confiar en los totales.
+            var categoria = _categorias.First(c => c.Id == _form.CategoriaId);
+
+            await Cola.AgregarAsync(new MovimientoPendiente(
+                Guid.NewGuid().ToString("N"), categoria.Id, categoria.Nombre, categoria.Icono,
+                categoria.Tipo, _form.Monto, DateTime.UtcNow, _form.Nota, _form.TarjetaCreditoId));
+
+            _pendientes = await Cola.ListarAsync();
+            _sinConexion = true;
+            CerrarFormulario();
         }
         else
         {
@@ -639,6 +792,15 @@
         }
 
         _guardando = false;
+    }
+
+    private void CerrarFormulario()
+    {
+        _mostrarForm = false;
+        UiOverlay.CerrarModal();
+        _form.Monto = 0;
+        _form.Nota = "";
+        _form.TarjetaCreditoId = null;
     }
 
     private async Task Eliminar(int id)

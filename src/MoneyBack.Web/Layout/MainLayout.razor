@@ -3,6 +3,8 @@
 @inject NavigationManager Nav
 @inject AuthService AuthService
 @inject ThemeService ThemeService
+@inject EstadoConexion Estado
+@inject ColaPendientes Cola
 @inject UiOverlayService UiOverlay
 @inject ApiClient Api
 @inject AuthenticationStateProvider AuthProvider
@@ -11,8 +13,14 @@
     <Authorized>
         <div class="app-shell">
             <div class="topbar @(UiOverlay.ModalPantallaCompletaAbierto ? "topbar-hidden" : "")">
+                @* El punto era decorativo; ahora dice si hay línea, como el
+                   LED de un router. Importa desde que la app funciona sin
+                   señal: sin esto no habría forma de notar la diferencia
+                   entre "quedó guardado en el servidor" y "quedó acá
+                   esperando". *@
                 <div class="topbar-brand">
-                    <span class="dot"></span>
+                    <span class="dot dot-@(Estado.Actual.ToString().ToLowerInvariant())"
+                          title="@Estado.Descripcion"></span>
                     <span>MoneyBack</span>
                 </div>
                 <div class="topbar-actions">
@@ -157,8 +165,15 @@
     {
         ThemeService.OnChange += StateHasChanged;
         UiOverlay.OnChange += StateHasChanged;
+        Estado.OnCambio += StateHasChanged;
         AuthProvider.AuthenticationStateChanged += OnAuthenticationChanged;
         await CargarPendientesAsync();
+
+        // El LED tiene que decir la verdad desde que abre la app: si quedaron
+        // gastos anotados sin señal en la sesión anterior, siguen pendientes
+        // aunque ahora sí haya conexión.
+        Estado.ActualizarPendientes((await Cola.ListarAsync()).Count);
+
         _ = SondearPendientesPeriodicamenteAsync();
     }
 
@@ -254,6 +269,7 @@
 
     public void Dispose()
     {
+        Estado.OnCambio -= StateHasChanged;
         ThemeService.OnChange -= StateHasChanged;
         UiOverlay.OnChange -= StateHasChanged;
         AuthProvider.AuthenticationStateChanged -= OnAuthenticationChanged;

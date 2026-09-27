@@ -10,6 +10,13 @@ public class ApiResult<T>
     public string? MensajeError { get; private init; }
     public Dictionary<string, string[]>? ErroresPorCampo { get; private init; }
 
+    /// <summary>
+    /// true cuando no se logró hablar con el servidor, a diferencia de cuando
+    /// el servidor contestó que no. La diferencia manda: lo que falló por red
+    /// se vuelve a intentar, lo que el servidor rechazó no.
+    /// </summary>
+    public bool EsFalloDeRed { get; private init; }
+
     public static async Task<ApiResult<T>> FromResponseAsync(HttpResponseMessage response, Func<HttpResponseMessage, Task<T>> leerExito)
     {
         if (response.IsSuccessStatusCode)
@@ -40,7 +47,14 @@ public class ApiResult<T>
             _ => "Ocurrió un error inesperado. Intenta de nuevo."
         };
 
-        return new ApiResult<T> { Exito = false, MensajeError = mensaje, ErroresPorCampo = errores };
+        return new ApiResult<T>
+        {
+            Exito = false,
+            MensajeError = mensaje,
+            ErroresPorCampo = errores,
+            // 503 es lo que pone FallosDeRedHandler cuando no hubo respuesta.
+            EsFalloDeRed = response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable
+        };
     }
 
     private static async Task<string?> SafeReadStringAsync(HttpResponseMessage response)
