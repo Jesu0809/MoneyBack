@@ -13,7 +13,17 @@ public class AuthService(IHttpClientFactory httpClientFactory, TokenStore tokenS
         var refreshToken = await tokenStore.ObtenerRefreshTokenAsync();
         if (string.IsNullOrEmpty(refreshToken)) return;
 
-        await IntentarRefrescarAsync(refreshToken);
+        if (await IntentarRefrescarAsync(refreshToken)) return;
+
+        // No se pudo refrescar. Si el token sigue guardado, es porque el
+        // servidor no dijo que fuera inválido —no hubo con quién hablar— así
+        // que se abre la sesión con lo último que se supo. Sin esto, abrir la
+        // app sin datos mandaba al login, y el login necesita servidor: toda
+        // la parte offline quedaba inalcanzable justo cuando hacía falta.
+        if (await tokenStore.ObtenerRefreshTokenAsync() is not null)
+        {
+            await tokenStore.RestaurarSesionOfflineAsync();
+        }
     }
 
     public async Task<ApiResult<AuthResponse>> RegistrarAsync(RegistrarUsuarioRequest request)
