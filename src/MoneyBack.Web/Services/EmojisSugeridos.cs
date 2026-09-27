@@ -73,14 +73,26 @@ public static class EmojisSugeridos
     /// <summary>
     /// Sin tildes y en minúscula: nadie escribe "matrícula" con tilde cuando
     /// va rápido, y "Viaje" con mayúscula debe encontrar lo mismo.
+    ///
+    /// Se reemplaza letra por letra en vez de usar String.Normalize, que en
+    /// Blazor WebAssembly lanza PlatformNotSupportedException: el runtime del
+    /// navegador no trae las tablas de normalización de Unicode. Escribir
+    /// "Japón" tumbaba la pantalla entera con "An unhandled error has
+    /// occurred", y el error solo aparecía al teclear una tilde.
     /// </summary>
     private static string Normalizar(string texto)
     {
-        var descompuesto = texto.ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
-        var sinTildes = descompuesto.Where(c =>
-            System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
-                != System.Globalization.UnicodeCategory.NonSpacingMark);
+        const string ConTilde = "áàäâãéèëêíìïîóòöôõúùüûñç";
+        const string SinTilde = "aaaaaeeeeiiiiooooouuuunc";
 
-        return string.Concat(sinTildes).Normalize(System.Text.NormalizationForm.FormC);
+        var construido = new System.Text.StringBuilder(texto.Length);
+
+        foreach (var c in texto.ToLowerInvariant())
+        {
+            var i = ConTilde.IndexOf(c);
+            construido.Append(i >= 0 ? SinTilde[i] : c);
+        }
+
+        return construido.ToString();
     }
 }
