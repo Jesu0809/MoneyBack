@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace MoneyBack.Web.Models;
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
 // TipoMeta se quitó: la gente ahorra para una lavadora, un viaje o la
 // matrícula, y un enum de dos valores obligaba a que todo eso fuera
 // "Apartamento". Ahora la meta lleva nombre e ícono libres.
