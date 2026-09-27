@@ -12,10 +12,74 @@
 else if (_hogar is not null)
 {
     <div class="stack">
-        <div>
-            <h2>Ahorro del hogar</h2>
-            <p class="muted">@string.Join(" · ", _hogar.Miembros.Select(m => m.Nombre))</p>
+        @* Con varios grupos hace falta saber en cuál estás parado y poder
+           cambiar sin ir a buscarlo a otra pantalla. Con uno solo, el
+           selector no aparece: sería una decisión inventada. *@
+        <div class="row-between">
+            <div style="min-width:0">
+                <h2>@_hogar.Nombre</h2>
+                <p class="muted">@string.Join(" · ", _hogar.Miembros.Select(m => m.Nombre))</p>
+            </div>
+            <button class="icon-btn glass" @onclick="() => _mostrandoGrupos = !_mostrandoGrupos" title="Mis grupos">
+                <Icon Name="@(_mostrandoGrupos ? "x" : "user")" Size="18" />
+            </button>
         </div>
+
+        @if (_mostrandoGrupos)
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="label">Mis grupos</div>
+                    @foreach (var grupo in _misGrupos)
+                    {
+                        <div class="row-between card-tap" style="padding:8px 0" @onclick="() => CambiarGrupo(grupo.Id)">
+                            <div>
+                                <div style="font-weight:600">@grupo.Nombre</div>
+                                <div class="muted" style="font-size:12.5px">
+                                    @grupo.Miembros.Count @(grupo.Miembros.Count == 1 ? "persona" : "personas")
+                                </div>
+                            </div>
+                            @if (grupo.Id == _hogar.Id)
+                            {
+                                <span class="pill">Viendo</span>
+                            }
+                            else
+                            {
+                                <Icon Name="chevron-right" Size="18" />
+                            }
+                        </div>
+                    }
+
+                    <div class="divider"></div>
+
+                    @if (_creandoGrupo)
+                    {
+                        <EditForm Model="_crearHogarForm" OnValidSubmit="CrearGrupo">
+                            <div class="stack">
+                                <div class="field">
+                                    <label>¿Cómo se llama el grupo nuevo?</label>
+                                    <InputText class="input" @bind-Value="_crearHogarForm.Nombre" placeholder="Los Nuncira" />
+                                </div>
+                                <AlertBox Mensaje="@_error" />
+                                <div class="row" style="gap:10px">
+                                    <button type="button" class="btn btn-secondary" @onclick="() => _creandoGrupo = false">Cancelar</button>
+                                    <button class="btn btn-primary btn-block" type="submit" disabled="@_guardando">
+                                        @if (_guardando) { <span class="spinner"></span> }
+                                        <span>Crear</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </EditForm>
+                    }
+                    else
+                    {
+                        <button class="btn btn-secondary btn-block" @onclick="() => _creandoGrupo = true">
+                            <Icon Name="plus" Size="17" /> Crear otro grupo
+                        </button>
+                    }
+                </div>
+            </div>
+        }
 
         @if (_metas.Count > 0)
         {
@@ -76,10 +140,8 @@ else if (_hogar is not null)
             </div>
         }
 
-        @if (true)
+        @if (_mostrandoFormNuevaMeta)
         {
-            @if (_mostrandoFormNuevaMeta)
-            {
                 <div class="card">
                     <div class="stack">
                         <h3>@(_metas.Count == 0 ? "Crea tu primera meta" : "Agregar otra meta")</h3>
@@ -91,11 +153,11 @@ else if (_hogar is not null)
                             <div class="stack">
                                 <div class="field">
                                     <label>¿Para qué están ahorrando?</label>
-                                    <InputText class="input" @bind-Value="_crearMetaForm.Nombre" placeholder="Nuestro apartamento" />
+                                    <InputText class="input" @bind-Value="_crearMetaForm.Nombre" @bind-Value:event="oninput" placeholder="Nuestro apartamento" />
                                 </div>
                                 <div class="field">
                                     <label>Ícono</label>
-                                    <SelectorEmoji @bind-Valor="_crearMetaForm.Icono" />
+                                    <SelectorEmoji @bind-Valor="_crearMetaForm.Icono" Sugeridos="EmojisSugeridos.Para(_crearMetaForm.Nombre)" />
                                 </div>
                                 <div class="field">
                                     <label>Meta en pesos</label>
@@ -261,6 +323,9 @@ else
     private bool _mostrandoFormNuevaMeta;
     private string? _error;
     private HogarResponse? _hogar;
+    private List<HogarResponse> _misGrupos = [];
+    private bool _mostrandoGrupos;
+    private bool _creandoGrupo;
     private InvitacionHogarResponse? _invitacionRecibida;
     private InvitacionHogarResponse? _invitacionEnviada;
     private List<MetaResponse> _metas = [];
@@ -295,7 +360,12 @@ else
     private async Task CargarAsync()
     {
         _cargando = true;
-        _hogar = await Api.ObtenerMiHogarAsync();
+
+        _misGrupos = await Api.ObtenerMisHogaresAsync();
+        // Se conserva el grupo que se estaba viendo tras crear otro o
+        // recargar; si no hay ninguno elegido, el primero.
+        _hogar = _misGrupos.FirstOrDefault(g => g.Id == _hogar?.Id) ?? _misGrupos.FirstOrDefault();
+
         if (_hogar is not null)
         {
             _metas = await Api.ObtenerMetasAsync(_hogar.Id);
@@ -429,6 +499,8 @@ else
         if (resultado.Exito)
         {
             _hogar = resultado.Valor;
+            _creandoGrupo = false;
+            _crearHogarForm.Nombre = "";
             await CargarAsync();
         }
         else
@@ -437,6 +509,24 @@ else
         }
 
         _guardando = false;
+    }
+
+    /// <summary>
+    /// Cambiar de grupo recarga todo: las metas, los aportes y el vuelto son
+    /// de cada grupo, y mezclarlos sería peor que no poder cambiar.
+    /// </summary>
+    private async Task CambiarGrupo(int grupoId)
+    {
+        if (_hogar?.Id == grupoId) { _mostrandoGrupos = false; return; }
+
+        _hogar = _misGrupos.FirstOrDefault(g => g.Id == grupoId);
+        _mostrandoGrupos = false;
+
+        if (_hogar is not null)
+        {
+            _metas = await Api.ObtenerMetasAsync(_hogar.Id);
+            _aportesPorUsuario = await CalcularAportesPorUsuarioAsync(_metas);
+        }
     }
 
     private async Task CrearMeta()

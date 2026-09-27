@@ -46,12 +46,12 @@
 
                         <div class="field">
                             <label>Ícono</label>
-                            <SelectorEmoji @bind-Valor="_form.Icono" Sugeridos="EmojisDeCategoria" />
+                            <SelectorEmoji @bind-Valor="_form.Icono" Sugeridos="EmojisSugeridos.Para(_form.Nombre)" />
                         </div>
 
                         <div class="field">
                             <label>Nombre</label>
-                            <InputText class="input" @bind-Value="_form.Nombre" placeholder="Mascotas" />
+                            <InputText class="input" @bind-Value="_form.Nombre" @bind-Value:event="oninput" placeholder="Mascotas" />
                         </div>
                         <AlertBox Mensaje="@_error" />
                         <div class="row">
