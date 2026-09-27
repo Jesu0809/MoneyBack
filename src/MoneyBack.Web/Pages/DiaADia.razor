@@ -26,6 +26,12 @@
             <button class="btn btn-secondary btn-block" @onclick="AportarAMeta">
                 <Icon Name="coin" Size="16" /> Aportar a nuestra meta
             </button>
+            @* Rescate cuando el atajo no alcanzó a registrar. Va acá y no
+               escondido en Más porque el momento en que hace falta es justo
+               cuando uno mira el saldo y no le cuadra. *@
+            <button class="btn btn-ghost btn-block" @onclick="AbrirPegarSms">
+                <Icon Name="credit-card" Size="16" /> Pegar SMS del banco
+            </button>
         </div>
     </div>
 
@@ -254,6 +260,67 @@
     <Icon Name="plus" Size="26" />
 </button>
 
+@if (_pegandoSms)
+{
+    <div class="fullscreen-modal">
+        <div class="fullscreen-header">
+            <button class="icon-btn" style="background:transparent;border:none" @onclick="() => _pegandoSms = false">
+                <Icon Name="x" Size="22" />
+            </button>
+            <strong>Pegar SMS del banco</strong>
+            <div style="width:40px"></div>
+        </div>
+
+        <div class="fullscreen-body">
+            <p class="muted" style="font-size:13.5px; margin:0">
+                Si el atajo no alcanzó a registrar algo, copia los mensajes del banco
+                —los que sean, de una— y pégalos aquí. Los que ya estén registrados
+                se ignoran solos.
+            </p>
+
+            <textarea class="input" rows="8" @bind="_textoSms" @bind:event="oninput"
+                      placeholder="DAVIbank: Realizaste transaccion en ..."></textarea>
+
+            @if (_resultadoSms is not null)
+            {
+                <div class="card">
+                    <div class="stack">
+                        <strong>
+                            @(_resultadoSms.Registrados == 0
+                                ? "No entró ninguno"
+                                : $"Entraron {_resultadoSms.Registrados} de {_resultadoSms.Resultados.Count}")
+                        </strong>
+                        @foreach (var r in _resultadoSms.Resultados)
+                        {
+                            <div class="row-between" style="gap:10px; padding:4px 0">
+                                <div style="min-width:0">
+                                    <div style="font-size:13px; font-weight:600">
+                                        @(r.Comercio ?? Recortar(r.Mensaje))
+                                    </div>
+                                    <div class="muted" style="font-size:12px">@r.Detalle</div>
+                                </div>
+                                <span class="money" style="font-size:14px; color:@(r.Registrado ? "var(--color-accent-strong)" : "var(--color-text-muted)")">
+                                    @(r.Monto > 0 ? Formato.Pesos(r.Monto) : "—")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <AlertBox Mensaje="@_errorSms" />
+        </div>
+
+        <div class="fullscreen-footer">
+            <button class="btn btn-primary btn-block" disabled="@(_guardandoSms || string.IsNullOrWhiteSpace(_textoSms))"
+                    @onclick="RegistrarDesdeSms">
+                @if (_guardandoSms) { <span class="spinner"></span> }
+                <span>Registrar</span>
+            </button>
+        </div>
+    </div>
+}
+
 @if (_mostrarForm)
 {
     <div class="fullscreen-modal">
@@ -370,6 +437,12 @@
     /// sin este aviso, el aprendizaje es invisible y parece que no pasó nada.
     /// </summary>
     private string? _avisoAprendizaje;
+
+    private bool _pegandoSms;
+    private bool _guardandoSms;
+    private string? _textoSms;
+    private string? _errorSms;
+    private RegistroDesdeSmsResponse? _resultadoSms;
     private readonly EdicionMovimientoModel _editForm = new();
     private ResumenDiaADiaResponse? _resumen;
     private ResumenDiaADiaResponse? _saldoAcumulado;
@@ -594,6 +667,39 @@
             // El globo es un extra. Si el navegador no lo soporta o el
             // módulo no carga, la pantalla tiene que seguir funcionando.
         }
+    }
+
+    private static string Recortar(string texto) =>
+        texto.Length <= 40 ? texto : texto[..40] + "…";
+
+    private void AbrirPegarSms()
+    {
+        _errorSms = null;
+        _resultadoSms = null;
+        _textoSms = "";
+        _pegandoSms = true;
+    }
+
+    private async Task RegistrarDesdeSms()
+    {
+        _errorSms = null;
+        _guardandoSms = true;
+
+        var resultado = await Api.RegistrarDesdeSmsAsync(_textoSms ?? "");
+
+        if (resultado.Exito)
+        {
+            _resultadoSms = resultado.Valor;
+            _textoSms = "";
+            _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
+            await CargarMesAsync();
+        }
+        else
+        {
+            _errorSms = resultado.TodosLosErrores();
+        }
+
+        _guardandoSms = false;
     }
 
     private async Task GuardarEdicion()

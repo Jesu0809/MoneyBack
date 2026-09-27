@@ -71,3 +71,15 @@ public record PresupuestoResponse(
 /// </param>
 public record ComercioAprendidoResponse(
     int Id, string Comercio, string CategoriaNombre, string CategoriaIcono, DateTime FechaAprendido);
+
+public record TextoBancoRequest(string Texto);
+
+/// <param name="Detalle">
+/// El nombre de la categoría si entró, o la razón si no. Se devuelve por
+/// mensaje y no solo un total: cuando alguien pega cinco SMS y entran tres,
+/// necesita saber cuáles dos faltaron para registrarlos a mano.
+/// </param>
+public record ResultadoMensajeBanco(
+    string Mensaje, bool Registrado, decimal Monto, string? Comercio, string? Detalle);
+
+public record RegistroDesdeSmsResponse(int Registrados, List<ResultadoMensajeBanco> Resultados);

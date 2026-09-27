@@ -26,10 +26,17 @@ builder.Services.AddAuthorizationCore();
 
 builder.Services.AddTransient<AuthorizedHttpMessageHandler>();
 
-builder.Services.AddHttpClient("ApiAnon", client => client.BaseAddress = new Uri(apiBaseUrl));
+builder.Services.AddTransient<FallosDeRedHandler>();
+
+// El manejador de fallos de red va en los dos clientes y de último en la
+// cadena del autenticado, para que envuelva también lo que pueda fallar al
+// refrescar el token.
+builder.Services.AddHttpClient("ApiAnon", client => client.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<FallosDeRedHandler>();
 
 builder.Services.AddHttpClient("Api", client => client.BaseAddress = new Uri(apiBaseUrl))
-    .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
+    .AddHttpMessageHandler<AuthorizedHttpMessageHandler>()
+    .AddHttpMessageHandler<FallosDeRedHandler>();
 
 var host = builder.Build();
 

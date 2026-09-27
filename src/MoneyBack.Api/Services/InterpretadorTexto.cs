@@ -234,6 +234,44 @@ public static partial class InterpretadorTexto
     private static readonly string[] PrefijosDeBanco =
         ["nu", "davibank", "davivienda", "bancolombia", "falabella", "nequi"];
 
+    /// <summary>
+    /// Parte un pegado con varios mensajes del banco en uno por transacción.
+    ///
+    /// Al copiar desde Mensajes, cada SMS puede venir partido en varias
+    /// líneas, así que cortar por salto de línea rompería los mensajes por la
+    /// mitad. Se corta donde empieza el nombre de un banco, que es lo único
+    /// que marca con seguridad el comienzo de uno nuevo.
+    ///
+    /// Si no se reconoce ningún banco, se devuelve el texto entero como un
+    /// solo mensaje: es preferible intentar registrar uno a no hacer nada.
+    /// </summary>
+    public static IReadOnlyList<string> SepararMensajes(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return [];
+
+        var patron = string.Join("|", PrefijosDeBanco.Select(Regex.Escape));
+        var inicios = Regex.Matches(texto, $@"(?im)^\s*({patron})\s*:", RegexOptions.None)
+            .Select(m => m.Index)
+            .ToList();
+
+        if (inicios.Count == 0)
+        {
+            var solo = texto.Trim();
+            return solo.Length == 0 ? [] : [solo];
+        }
+
+        var mensajes = new List<string>();
+        for (var i = 0; i < inicios.Count; i++)
+        {
+            var desde = inicios[i];
+            var hasta = i + 1 < inicios.Count ? inicios[i + 1] : texto.Length;
+            var trozo = texto[desde..hasta].Trim();
+            if (trozo.Length > 0) mensajes.Add(trozo);
+        }
+
+        return mensajes;
+    }
+
     private static string Limpiar(string valor)
     {
         var limpio = valor.Trim().Trim('.', ',', ':', '-').Trim();

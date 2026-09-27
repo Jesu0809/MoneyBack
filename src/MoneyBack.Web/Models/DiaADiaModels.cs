@@ -66,3 +66,10 @@ public record PresupuestoResponse(
 
 public record ComercioAprendidoResponse(
     int Id, string Comercio, string CategoriaNombre, string CategoriaIcono, DateTime FechaAprendido);
+
+public record TextoBancoRequest(string Texto);
+
+public record ResultadoMensajeBanco(
+    string Mensaje, bool Registrado, decimal Monto, string? Comercio, string? Detalle);
+
+public record RegistroDesdeSmsResponse(int Registrados, List<ResultadoMensajeBanco> Resultados);

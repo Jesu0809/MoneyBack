@@ -26,7 +26,24 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), npgsql =>
+    {
+        // Sin esto, cualquier tropiezo momentáneo con la base —un reinicio de
+        // Neon, un corte de red de dos segundos, la conexión que se durmió—
+        // se convertía en un error para quien estaba usando la app en ese
+        // instante. No hay nada roto que arreglar en esos casos: hay que
+        // volver a intentar, y eso es justo lo que no se estaba haciendo.
+        //
+        // Importa el doble acá porque el atajo del banco tiene una sola
+        // oportunidad: si su llamada falla, ese gasto no se registra nunca y
+        // nadie se entera hasta que cuadra cuentas y no le da.
+        npgsql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorCodesToAdd: null);
+
+        npgsql.CommandTimeout(30);
+    }));
 
 builder.Services.Configure<SubsidiosOptions>(builder.Configuration.GetSection(SubsidiosOptions.SectionName));
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));

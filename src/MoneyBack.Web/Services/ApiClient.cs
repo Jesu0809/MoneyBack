@@ -152,6 +152,12 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<ApiResult<RegistroDesdeSmsResponse>> RegistrarDesdeSmsAsync(string texto)
+    {
+        var response = await Api.PostAsJsonAsync("api/movimientos-diaadia/desde-sms", new TextoBancoRequest(texto));
+        return await ApiResult<RegistroDesdeSmsResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<RegistroDesdeSmsResponse>()!);
+    }
+
     public async Task<List<ComercioAprendidoResponse>> ObtenerComerciosAprendidosAsync()
     {
         var response = await Api.GetAsync("api/comercios-aprendidos");

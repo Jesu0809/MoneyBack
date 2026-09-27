@@ -21,7 +21,11 @@ primary_region = "iad"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "256mb"
+  # 256mb le quedaba corto a .NET con EF Core: el recolector de basura
+  # trabaja al límite y una consulta pesada puede tumbar la máquina sin
+  # dejar rastro en los logs. Subir a 512mb cuesta centavos y quita de la
+  # mesa toda una familia de caídas imposibles de diagnosticar.
+  memory = "512mb"
 
 [[http_service.checks]]
   interval = "30s"

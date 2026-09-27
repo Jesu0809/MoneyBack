@@ -212,6 +212,109 @@ public static class MovimientosDiaADiaEndpoints
                 reclasificados));
         });
 
+        // Rescate para cuando el atajo no alcanzó a registrar: si el API
+        // estaba caído o la automatización no se disparó, ese gasto se
+        // pierde y nadie se entera hasta que cuadra cuentas. Acá se pegan los
+        // mensajes del banco —los que sean— y entran todos de una.
+        //
+        // Autenticado con la sesión normal, no con el token del atajo: esto
+        // lo usa una persona desde la app, no una automatización.
+        group.MapPost("/desde-sms", async (
+            TextoBancoRequest request, ClaimsPrincipal principal,
+            ApplicationDbContext db, PushNotificationSender sender) =>
+        {
+            var usuarioId = principal.GetUsuarioId();
+
+            var categorias = await db.Categorias
+                .Where(c => c.UsuarioId == usuarioId && c.Activa)
+                .ToListAsync();
+
+            var mensajes = InterpretadorTexto.SepararMensajes(request.Texto);
+            if (mensajes.Count == 0)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["texto"] = ["Pega al menos un mensaje del banco."]
+                });
+            }
+
+            var resultados = new List<ResultadoMensajeBanco>();
+            var categoriasAfectadas = new HashSet<int>();
+
+            foreach (var mensaje in mensajes)
+            {
+                var interpretacion = InterpretadorTexto.Interpretar(
+                    mensaje, categorias, categoriaForzada: CategoriasPredefinidas.SinClasificar);
+
+                if (!interpretacion.Exito)
+                {
+                    resultados.Add(new ResultadoMensajeBanco(Recortar(mensaje), false, 0, null, interpretacion.Razon));
+                    continue;
+                }
+
+                var categoria = interpretacion.Categoria!;
+                var comercio = InterpretadorTexto.ExtraerComercio(mensaje);
+
+                if (comercio is not null)
+                {
+                    var clave = InterpretadorTexto.Normalizar(comercio);
+                    var aprendido = await db.ComerciosCategoria
+                        .Include(c => c.Categoria)
+                        .FirstOrDefaultAsync(c => c.UsuarioId == usuarioId && c.Comercio == clave);
+
+                    if (aprendido is not null && aprendido.Categoria.Activa) categoria = aprendido.Categoria;
+                }
+
+                // Los duplicados son el riesgo real de pegar a mano: puede que
+                // el atajo sí registrara alguno y la persona pegue todos por
+                // si acaso. Mismo comercio, mismo monto y mismo día se toma
+                // como el mismo gasto — cobrar dos veces lo mismo destruye la
+                // confianza en los números mucho más que perder uno.
+                var hoy = DateTime.UtcNow.Date;
+                var yaEsta = await db.MovimientosDiaADia.AnyAsync(m =>
+                    m.UsuarioId == usuarioId
+                    && m.Monto == interpretacion.Monto
+                    && m.Comercio == comercio
+                    && m.Fecha >= hoy);
+
+                if (yaEsta)
+                {
+                    resultados.Add(new ResultadoMensajeBanco(
+                        Recortar(mensaje), false, interpretacion.Monto, comercio, "Ya estaba registrado."));
+                    continue;
+                }
+
+                var movimiento = new MovimientoDiaADia
+                {
+                    UsuarioId = usuarioId,
+                    CategoriaId = categoria.Id,
+                    Monto = interpretacion.Monto,
+                    Nota = comercio,
+                    Comercio = comercio
+                };
+                db.MovimientosDiaADia.Add(movimiento);
+
+                if (categoria.Tipo == TipoCategoria.Gasto)
+                {
+                    await RedondeoService.AplicarSiCorrespondeAsync(movimiento, db);
+                    categoriasAfectadas.Add(categoria.Id);
+                }
+
+                resultados.Add(new ResultadoMensajeBanco(
+                    Recortar(mensaje), true, interpretacion.Monto, comercio, categoria.Nombre));
+            }
+
+            await db.SaveChangesAsync();
+
+            foreach (var categoriaId in categoriasAfectadas)
+            {
+                await AlertasPresupuestoService.RevisarAsync(usuarioId, categoriaId, db, sender);
+            }
+
+            return Results.Ok(new RegistroDesdeSmsResponse(
+                resultados.Count(r => r.Registrado), resultados));
+        });
+
         group.MapDelete("/{id:int}", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var usuarioId = principal.GetUsuarioId();
@@ -296,6 +399,9 @@ public static class MovimientosDiaADiaEndpoints
     /// Npgsql exige Kind=Utc explícito para comparar contra una columna
     /// timestamptz — sin esto, cualquier filtro de fecha tira 500.
     /// </summary>
+    private static string Recortar(string texto) =>
+        texto.Length <= 70 ? texto : texto[..70] + "…";
+
     private static DateTime AComoUtc(DateTime valor) =>
         valor.Kind == DateTimeKind.Utc ? valor : DateTime.SpecifyKind(valor, DateTimeKind.Utc);
 }
