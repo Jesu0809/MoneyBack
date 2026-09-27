@@ -461,29 +461,26 @@
         var desde = _mesActual;
         var hasta = _mesActual.AddMonths(1).AddTicks(-1);
 
-        var categoriasTask = Api.ObtenerCategoriasAsync();
-        var tarjetasTask = Api.ObtenerTarjetasCreditoAsync();
+        // Solo lo que hace falta para pintar la pantalla. Antes se esperaban
+        // las seis llamadas antes de mostrar nada, así que la más lenta
+        // marcaba el tiempo de todas y la app se quedaba en "Cargando"
+        // aunque los gastos ya hubieran llegado.
         var saldoTask = Api.ObtenerResumenDiaADiaAsync();
         var movimientosTask = Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
         var resumenMesTask = Api.ObtenerResumenDiaADiaAsync(desde, hasta);
-        var hogarTask = Api.ObtenerMiHogarAsync();
 
-        await Task.WhenAll(categoriasTask, tarjetasTask, saldoTask, movimientosTask, resumenMesTask, hogarTask);
+        await Task.WhenAll(saldoTask, movimientosTask, resumenMesTask);
 
-        _categorias = await categoriasTask;
-        _tarjetas = (await tarjetasTask).Where(t => t.Activa).ToList();
         _saldoAcumulado = await saldoTask;
         _movimientos = await movimientosTask;
         _resumen = await resumenMesTask;
         _cargando = false;
 
-        var hogar = await hogarTask;
-        if (hogar is not null)
-        {
-            _metasActivas = (await Api.ObtenerMetasAsync(hogar.Id)).Where(m => m.Activa).ToList();
-        }
-
-        AbrirDesdeAtajoSiCorresponde();
+        // El resto llega después y se repinta solo. Las categorías y las
+        // tarjetas solo se necesitan al abrir el formulario, y las metas al
+        // tocar "Aportar": nada de eso justifica retrasar lo que la persona
+        // vino a ver.
+        await CargarLoSecundarioAsync();
     }
 
     /// <summary>
@@ -522,6 +519,34 @@
         _vista = vista;
         if (vista == VistaResumen.Mes) await CargarMesAsync();
         else await CargarAnioAsync();
+    }
+
+    /// <summary>
+    /// Lo que no bloquea la primera pintada. Se trae en segundo plano y la
+    /// pantalla se actualiza cuando llega.
+    /// </summary>
+    private async Task CargarLoSecundarioAsync()
+    {
+        var categoriasTask = Api.ObtenerCategoriasAsync();
+        var tarjetasTask = Api.ObtenerTarjetasCreditoAsync();
+        var hogarTask = Api.ObtenerMiHogarAsync();
+
+        await Task.WhenAll(categoriasTask, tarjetasTask, hogarTask);
+
+        _categorias = await categoriasTask;
+        _tarjetas = (await tarjetasTask).Where(t => t.Activa).ToList();
+        StateHasChanged();
+
+        var hogar = await hogarTask;
+        if (hogar is not null)
+        {
+            _metasActivas = (await Api.ObtenerMetasAsync(hogar.Id)).Where(m => m.Activa).ToList();
+            StateHasChanged();
+        }
+
+        // Va de último porque abre el formulario, y para eso necesita las
+        // categorías ya cargadas.
+        AbrirDesdeAtajoSiCorresponde();
     }
 
     private async Task CargarMesAsync()

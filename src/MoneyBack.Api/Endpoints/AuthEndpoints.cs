@@ -13,6 +13,17 @@ namespace MoneyBack.Api.Endpoints;
 
 public static class AuthEndpoints
 {
+    /// <summary>
+    /// Cuánto se acepta que un cliente vuelva a presentar el token que
+    /// acaba de rotar. Es el tiempo que puede pasar entre que el servidor
+    /// responde y el teléfono alcanza a guardar el token nuevo: si iOS
+    /// suspende la app justo ahí, el intento siguiente llega con el viejo.
+    ///
+    /// Un minuto cubre de sobra ese caso y sigue dejando el robo a la vista:
+    /// un token robado se usa mucho después, no en el mismo minuto.
+    /// </summary>
+    private static readonly TimeSpan GraciaPorReusoInmediato = TimeSpan.FromMinutes(1);
+
     public static void MapAuthEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
@@ -163,13 +174,45 @@ public static class AuthEndpoints
 
             if (tokenGuardado.RevocadoEn is not null)
             {
-                // Reuso de un refresh token ya rotado: posible robo. Se revoca toda la sesión del usuario.
-                var tokensDelUsuario = await db.RefreshTokens
-                    .Where(t => t.UsuarioId == tokenGuardado.UsuarioId && t.RevocadoEn == null)
+                // Presentar un token ya rotado es la señal clásica de robo,
+                // pero también le pasa a un cliente honesto todo el tiempo:
+                // el servidor rota el token y responde, y si el teléfono se
+                // suspende, pierde señal o cierra la app en ese instante, el
+                // token nuevo nunca se guarda. Al volver a abrir presenta el
+                // viejo, sin haber hecho nada malo.
+                //
+                // Tratar eso como robo cerraba la sesión de raíz y obligaba a
+                // escribir la contraseña otra vez. Pasa seguido en un celular,
+                // donde iOS suspende la app sin avisar.
+                //
+                // Por eso hay una ventana de gracia: un reuso inmediato se
+                // toma como reintento y se le entrega una sesión nueva. Pasado
+                // ese rato ya no hay explicación inocente, y ahí sí se revoca
+                // todo.
+                var dentroDeLaGracia =
+                    DateTime.UtcNow - tokenGuardado.RevocadoEn.Value <= GraciaPorReusoInmediato;
+
+                if (!dentroDeLaGracia)
+                {
+                    var tokensDelUsuario = await db.RefreshTokens
+                        .Where(t => t.UsuarioId == tokenGuardado.UsuarioId && t.RevocadoEn == null)
+                        .ToListAsync();
+                    foreach (var t in tokensDelUsuario) t.RevocadoEn = DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                    return Results.Unauthorized();
+                }
+
+                // Se anula el reemplazo que el cliente nunca llegó a recibir,
+                // para que quede una sola cadena viva y el siguiente reuso sí
+                // se pueda leer como lo que sea.
+                var huerfanos = await db.RefreshTokens
+                    .Where(t => t.UsuarioId == tokenGuardado.UsuarioId
+                        && t.RevocadoEn == null
+                        && t.TokenHash == tokenGuardado.ReemplazadoPorTokenHash)
                     .ToListAsync();
-                foreach (var t in tokensDelUsuario) t.RevocadoEn = DateTime.UtcNow;
-                await db.SaveChangesAsync();
-                return Results.Unauthorized();
+                foreach (var t in huerfanos) t.RevocadoEn = DateTime.UtcNow;
+
+                tokenGuardado.RevocadoEn = null;
             }
 
             if (DateTime.UtcNow >= tokenGuardado.ExpiraEn)
