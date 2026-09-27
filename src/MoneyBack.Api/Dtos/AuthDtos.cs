@@ -28,3 +28,16 @@ public record InvitacionAppResponse(
 /// el servidor puede volver a armar el enlace.
 /// </param>
 public record InvitacionAppCreadaResponse(int Id, string Token, DateTime ExpiraEn);
+
+/// <param name="Codigos">
+/// En claro y una sola vez. Después solo queda el hash, así que ni el
+/// servidor puede volver a mostrarlos: o se guardan ahora, o hay que generar
+/// una lista nueva.
+/// </param>
+public record CodigosRecuperacionResponse(List<string> Codigos);
+
+public record CodigosRestantesResponse(int Quedan);
+
+public record RecuperarCuentaRequest(string Email, string Codigo, string NuevaPassword);
+
+public record RecuperacionExitosaResponse(int CodigosQueQuedan);

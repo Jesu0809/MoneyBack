@@ -164,6 +164,7 @@ app.MapCategoriasEndpoints();
 app.MapMovimientosDiaADiaEndpoints();
 app.MapComerciosAprendidosEndpoints();
 app.MapInvitacionesAppEndpoints();
+app.MapRecuperacionEndpoints();
 app.MapPresupuestosEndpoints();
 app.MapSuscripcionesEndpoints();
 app.MapDeudasEndpoints();

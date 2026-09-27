@@ -20,3 +20,8 @@ public record InvitacionAppResponse(
     int Id, string Estado, DateTime CreadoEn, DateTime ExpiraEn, string? UsadaPorNombre);
 
 public record InvitacionAppCreadaResponse(int Id, string Token, DateTime ExpiraEn);
+
+public record CodigosRecuperacionResponse(List<string> Codigos);
+public record CodigosRestantesResponse(int Quedan);
+public record RecuperarCuentaRequest(string Email, string Codigo, string NuevaPassword);
+public record RecuperacionExitosaResponse(int CodigosQueQuedan);

@@ -1,0 +1,106 @@
+@page "/recuperar"
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Recuperar cuenta · MoneyBack</PageTitle>
+
+<div class="center-screen">
+    <div class="stack" style="width:100%; max-width:380px">
+        <div style="text-align:center">
+            <h2>Recuperar tu cuenta</h2>
+            <p class="muted">
+                Usa una de las claves de recuperación que guardaste. Cada una sirve una sola vez.
+            </p>
+        </div>
+
+        @if (_listo)
+        {
+            <div class="card">
+                <div class="stack">
+                    <AlertBox Tipo="accent" Mensaje="Listo, ya puedes entrar con tu contraseña nueva." />
+                    @if (_quedan == 0)
+                    {
+                        @* Quedarse sin claves significa que el próximo olvido
+                           no tiene salida. Decirlo acá, que es cuando la
+                           persona está pensando en esto. *@
+                        <AlertBox Tipo="warning" Mensaje="Esa era tu última clave. Entra y genera claves nuevas en Perfil antes de que se te olvide." />
+                    }
+                    else
+                    {
+                        <p class="muted" style="font-size:13px; margin:0">Te quedan @_quedan claves de recuperación.</p>
+                    }
+                    <button class="btn btn-primary btn-block" @onclick='() => Nav.NavigateTo("/login")'>Ir a entrar</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <EditForm Model="_form" OnValidSubmit="CambiarContrasena">
+                    <div class="stack">
+                        <div class="field">
+                            <label>Correo</label>
+                            <InputText class="input" @bind-Value="_form.Email" placeholder="tucorreo@ejemplo.com" />
+                        </div>
+                        <div class="field">
+                            <label>Clave de recuperación</label>
+                            <InputText class="input" @bind-Value="_form.Codigo" placeholder="K7M2-PQ4X"
+                                       autocapitalize="characters" autocomplete="off" />
+                        </div>
+                        <div class="field">
+                            <label>Contraseña nueva</label>
+                            <InputText class="input" type="password" @bind-Value="_form.NuevaPassword" placeholder="Mínimo 10 caracteres" />
+                        </div>
+
+                        <AlertBox Mensaje="@_error" />
+
+                        <button class="btn btn-primary btn-block" type="submit" disabled="@_cargando">
+                            @if (_cargando) { <span class="spinner"></span> }
+                            <span>Cambiar contraseña</span>
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+
+            <p class="muted" style="text-align:center; font-size:13px">
+                <a href="/login">Volver a entrar</a>
+            </p>
+        }
+    </div>
+</div>
+
+@code {
+    private bool _cargando;
+    private bool _listo;
+    private int _quedan;
+    private string? _error;
+    private readonly FormModel _form = new();
+
+    private async Task CambiarContrasena()
+    {
+        _error = null;
+        _cargando = true;
+
+        var resultado = await AuthService.RecuperarCuentaAsync(
+            new RecuperarCuentaRequest(_form.Email, _form.Codigo, _form.NuevaPassword));
+
+        if (resultado.Exito)
+        {
+            _quedan = resultado.Valor!.CodigosQueQuedan;
+            _listo = true;
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _cargando = false;
+    }
+
+    private class FormModel
+    {
+        public string Email { get; set; } = "";
+        public string Codigo { get; set; } = "";
+        public string NuevaPassword { get; set; } = "";
+    }
+}

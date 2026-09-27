@@ -6,6 +6,7 @@ namespace MoneyBack.Web.Services;
 public class AuthService(IHttpClientFactory httpClientFactory, TokenStore tokenStore)
 {
     private HttpClient Anon => httpClientFactory.CreateClient("ApiAnon");
+    private HttpClient Api => httpClientFactory.CreateClient("Api");
 
     public async Task InicializarAsync()
     {
@@ -106,6 +107,25 @@ public class AuthService(IHttpClientFactory httpClientFactory, TokenStore tokenS
         {
             await IntentarRefrescarAsync(refreshToken);
         }
+    }
+
+    public async Task<ApiResult<CodigosRecuperacionResponse>> GenerarCodigosRecuperacionAsync()
+    {
+        var response = await Api.PostAsync("api/auth/codigos-recuperacion", null);
+        return await ApiResult<CodigosRecuperacionResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<CodigosRecuperacionResponse>()!);
+    }
+
+    public async Task<int> CodigosRecuperacionRestantesAsync()
+    {
+        var response = await Api.GetAsync("api/auth/codigos-recuperacion/cuantos-quedan");
+        if (!response.IsSuccessStatusCode) return 0;
+        return (await response.Content.ReadFromJsonAsync<CodigosRestantesResponse>())?.Quedan ?? 0;
+    }
+
+    public async Task<ApiResult<RecuperacionExitosaResponse>> RecuperarCuentaAsync(RecuperarCuentaRequest request)
+    {
+        var response = await Anon.PostAsJsonAsync("api/auth/recuperar", request);
+        return await ApiResult<RecuperacionExitosaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<RecuperacionExitosaResponse>()!);
     }
 
     public async Task LogoutAsync()

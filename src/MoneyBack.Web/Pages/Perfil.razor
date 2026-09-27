@@ -275,6 +275,62 @@
         <div class="card">
             <div class="stack">
                 <div>
+                    <div style="font-weight:600">Claves de recuperación</div>
+                    <div class="muted" style="font-size:13px">
+                        Si olvidas la contraseña, con una de estas vuelves a entrar sin depender de nadie.
+                        Guárdalas donde puedas encontrarlas: una foto, tu gestor de contraseñas, un papel.
+                    </div>
+                </div>
+
+                @if (_codigosNuevos is not null)
+                {
+                    <div class="card" style="border-left:3px solid var(--color-warning)">
+                        <div class="stack" style="gap:6px">
+                            <strong style="font-size:13.5px">Cópialas ahora</strong>
+                            @* Solo se pueden ver en este momento: el servidor
+                               guarda el hash, así que ni él puede volver a
+                               mostrarlas. *@
+                            <div style="font-family:ui-monospace,monospace; font-size:15px; line-height:1.9; letter-spacing:0.04em">
+                                @foreach (var codigo in _codigosNuevos)
+                                {
+                                    <div>@codigo</div>
+                                }
+                            </div>
+                            <button class="btn btn-secondary btn-block" @onclick="CopiarCodigos">Copiar todas</button>
+                            <span class="muted" style="font-size:12px">
+                                No las vas a poder volver a ver. Si las pierdes, genera una lista nueva.
+                            </span>
+                        </div>
+                    </div>
+                }
+                else if (_codigosQuedan == 0)
+                {
+                    <AlertBox Tipo="warning" Mensaje="No tienes claves de recuperación. Si olvidas la contraseña, no vas a poder entrar." />
+                }
+                else
+                {
+                    <p class="muted" style="font-size:13px; margin:0">
+                        Te quedan <strong>@_codigosQuedan</strong> claves sin usar.
+                    </p>
+                }
+
+                <AlertBox Mensaje="@_errorCodigos" />
+
+                <button class="btn @(_codigosQuedan == 0 ? "btn-primary" : "btn-secondary") btn-block"
+                        disabled="@_generandoCodigos" @onclick="GenerarCodigos">
+                    @if (_generandoCodigos) { <span class="spinner"></span> }
+                    <span>@(_codigosQuedan == 0 ? "Generar claves de recuperación" : "Generar claves nuevas")</span>
+                </button>
+                @if (_codigosQuedan > 0)
+                {
+                    <span class="muted" style="font-size:12px">Generar nuevas invalida las anteriores.</span>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stack">
+                <div>
                     <div style="font-weight:600">Invita a alguien a MoneyBack</div>
                     <div class="muted" style="font-size:13px">
                         Le mandas el enlace y se registra directo, sin pedirte ningún código.
@@ -398,6 +454,11 @@
     private const string EnlaceAtajoBancos = "https://www.icloud.com/shortcuts/744cf37baa914e91a860446c41563103";
 
 
+    private List<string>? _codigosNuevos;
+    private int _codigosQuedan;
+    private bool _generandoCodigos;
+    private string? _errorCodigos;
+
     private List<LlamadaAtajoResponse> _llamadas = [];
     private bool _cargandoLlamadas;
 
@@ -433,10 +494,12 @@
         var tokens = Api.ObtenerTokensAtajoAsync();
         var invitaciones = Api.ObtenerInvitacionesAppAsync();
         var llamadas = Api.ObtenerLlamadasAtajoAsync();
-        await Task.WhenAll(tokens, invitaciones, llamadas);
+        var codigos = AuthService.CodigosRecuperacionRestantesAsync();
+        await Task.WhenAll(tokens, invitaciones, llamadas, codigos);
         _tokens = tokens.Result;
         _invitaciones = invitaciones.Result;
         _llamadas = llamadas.Result;
+        _codigosQuedan = codigos.Result;
     }
 
     private async Task GenerarToken()
@@ -469,6 +532,32 @@
     {
         if (_tokenNuevo is null) return;
         await Copiar(_tokenNuevo);
+    }
+
+    private async Task GenerarCodigos()
+    {
+        _errorCodigos = null;
+        _generandoCodigos = true;
+
+        var resultado = await AuthService.GenerarCodigosRecuperacionAsync();
+
+        if (resultado.Exito)
+        {
+            _codigosNuevos = resultado.Valor!.Codigos;
+            _codigosQuedan = _codigosNuevos.Count;
+        }
+        else
+        {
+            _errorCodigos = resultado.TodosLosErrores();
+        }
+
+        _generandoCodigos = false;
+    }
+
+    private async Task CopiarCodigos()
+    {
+        if (_codigosNuevos is null) return;
+        await Copiar(string.Join("\n", _codigosNuevos));
     }
 
     private async Task CargarLlamadas()
