@@ -101,6 +101,18 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return await ApiResult<int>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<int>());
     }
 
+    public async Task<bool> DesarchivarMetaAsync(int metaId)
+    {
+        var response = await Api.PostAsync($"api/metas/{metaId}/desarchivar", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<ApiResult<MetaResponse>> ActualizarMetaAsync(int metaId, ActualizarMetaRequest request)
+    {
+        var response = await Api.PutAsJsonAsync($"api/metas/{metaId}", request);
+        return await ApiResult<MetaResponse>.FromResponseAsync(response, r => r.Content.ReadFromJsonAsync<MetaResponse>()!);
+    }
+
     public async Task<bool> ArchivarMetaAsync(int metaId)
     {
         var response = await Api.PostAsync($"api/metas/{metaId}/archivar", null);

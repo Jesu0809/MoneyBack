@@ -156,6 +156,56 @@ public static class MetasEndpoints
             await db.SaveChangesAsync();
             return Results.NoContent();
         });
+
+        // Solo existía archivar. Como la pantalla lista únicamente las metas
+        // activas, archivar una por error la hacía desaparecer sin forma de
+        // recuperarla — con su historial de aportes adentro. Archivar tiene
+        // que ser reversible, o es borrar con otro nombre.
+        metas.MapPost("/{id:int}/desarchivar", async (int id, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var meta = await db.MetasAhorro.Include(m => m.Hogar).FirstOrDefaultAsync(m => m.Id == id);
+            if (meta is null) return Results.NotFound();
+            if (!meta.Hogar.PerteneceAlHogar(principal)) return Results.Forbid();
+
+            meta.Activa = true;
+            await db.SaveChangesAsync();
+            return Results.Ok(ToResponse(meta));
+        });
+
+        // Editar: con metas de nombre e ícono libres, equivocarse al
+        // escribirlas es cuestión de tiempo, y la única salida era archivar y
+        // crear otra — perdiendo el historial de aportes.
+        metas.MapPut("/{id:int}", async (
+            int id, ActualizarMetaRequest request, ClaimsPrincipal principal, ApplicationDbContext db) =>
+        {
+            var meta = await db.MetasAhorro.Include(m => m.Hogar).FirstOrDefaultAsync(m => m.Id == id);
+            if (meta is null) return Results.NotFound();
+            if (!meta.Hogar.PerteneceAlHogar(principal)) return Results.Forbid();
+
+            if (string.IsNullOrWhiteSpace(request.Nombre))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["nombre"] = ["Ponle un nombre a la meta."]
+                });
+            }
+
+            if (request.MontoObjetivo <= 0)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["montoObjetivo"] = ["La meta debe ser mayor a cero."]
+                });
+            }
+
+            meta.Nombre = request.Nombre.Trim();
+            meta.MontoObjetivo = request.MontoObjetivo;
+            meta.Icono = string.IsNullOrWhiteSpace(request.Icono) ? meta.Icono : request.Icono;
+            meta.PorcentajeRedondeo = Math.Clamp(request.PorcentajeRedondeo, 0, 100);
+
+            await db.SaveChangesAsync();
+            return Results.Ok(ToResponse(meta));
+        });
     }
 
     private static MetaResponse ToResponse(MetaAhorro meta) => new(

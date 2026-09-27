@@ -1,0 +1,132 @@
+@page "/vuelto"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Ahorrar con el vuelto · MoneyBack</PageTitle>
+
+@*
+    Esto vivía dentro de Hogar, y ahí estorbaba: esa pantalla es el ahorro
+    compartido —cuánto llevan, para qué— y el vuelto es un ajuste sobre cómo
+    se gasta. Son dos cabezas distintas.
+*@
+
+<div class="stack">
+    <div class="row">
+        <button class="btn-ghost btn" @onclick='() => Nav.NavigateTo("/mas")'><Icon Name="chevron-left" Size="18" /> Más</button>
+    </div>
+
+    <div>
+        <h2>Ahorrar con el vuelto</h2>
+        <p class="muted">Cada gasto se redondea al siguiente $1.000 y la diferencia se ahorra sola.</p>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="center-screen"><div class="spinner spinner-accent"></div></div>
+    }
+    else if (_hogar is null)
+    {
+        <div class="card">
+            <p class="muted">Necesitas un hogar para esto: el vuelto va a las metas compartidas. Créalo en <a href="/hogar">Hogar</a>.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="stack">
+                <div class="switch-row">
+                    <div>
+                        <div style="font-weight:600">Redondear mis gastos</div>
+                        <div class="muted">Aplica a los gastos de los dos.</div>
+                    </div>
+                    <button type="button" class="switch @(_hogar.RedondeoActivo ? "on" : "")"
+                            @onclick="Alternar" disabled="@_guardando">
+                        <div class="knob"></div>
+                    </button>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="stack" style="gap:4px">
+                    <span class="label">Cómo funciona</span>
+                    <div class="row-between"><span class="muted">Compras un almuerzo de</span><span>$13.500</span></div>
+                    <div class="row-between"><span class="muted">Se redondea a</span><span>$14.000</span></div>
+                    <div class="row-between">
+                        <span style="font-weight:600">Se ahorran</span>
+                        <span class="money" style="color:var(--color-accent-strong)">$500</span>
+                    </div>
+                    <span class="muted" style="font-size:12.5px; margin-top:4px">
+                        Nunca más de $999 por gasto, pero con treinta compras al mes suma sin que lo sientas.
+                        Si el gasto ya termina en $000, no aporta nada.
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        @if (_total > 0)
+        {
+            <div class="hero-balance">
+                <div class="stack" style="gap:8px">
+                    <span class="label">Llevan ahorrado así</span>
+                    <AnimatedMoney Valor="_total" Class="money money-lg" />
+                    <span class="muted" style="font-size:12.5px">Sin haberlo decidido ni una sola vez.</span>
+                </div>
+            </div>
+        }
+
+        @if (_metas.Count > 0)
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="label">A dónde va</div>
+                    @foreach (var meta in _metas.OrderByDescending(m => m.PorcentajeRedondeo))
+                    {
+                        <div class="row-between" style="padding:5px 0">
+                            <span>@meta.Icono @meta.Nombre</span>
+                            <span class="@(meta.PorcentajeRedondeo > 0 ? "" : "muted")" style="font-weight:600">
+                                @(meta.PorcentajeRedondeo > 0 ? $"{meta.PorcentajeRedondeo:N0}%" : "nada")
+                            </span>
+                        </div>
+                    }
+                    <span class="muted" style="font-size:12.5px">
+                        Se ajusta en cada meta. No tiene que sumar 100: lo que haya se reparte proporcional.
+                    </span>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private bool _guardando;
+    private HogarResponse? _hogar;
+    private decimal _total;
+    private List<MetaResponse> _metas = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hogar = await Api.ObtenerMiHogarAsync();
+
+        if (_hogar is not null)
+        {
+            _total = await Api.ObtenerTotalRedondeoAsync();
+            _metas = (await Api.ObtenerMetasAsync(_hogar.Id)).Where(m => m.Activa).ToList();
+        }
+
+        _cargando = false;
+    }
+
+    private async Task Alternar()
+    {
+        if (_hogar is null) return;
+        _guardando = true;
+
+        var resultado = await Api.ActualizarHogarAsync(
+            new ActualizarHogarRequest(_hogar.AplicaTope150, !_hogar.RedondeoActivo));
+
+        if (resultado.Exito) _hogar = resultado.Valor;
+        _guardando = false;
+    }
+}

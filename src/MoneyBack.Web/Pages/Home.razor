@@ -48,62 +48,7 @@ else if (_hogar is not null)
             </div>
         }
 
-        <div class="card">
-            <div class="stack">
-                <div class="switch-row">
-                    <div>
-                        <div style="font-weight:600">Ahorrar con el vuelto</div>
-                        @* Se explicaba con la palabra "redondeo", que no dice
-                           nada si uno no la conoce ya. Un ejemplo con plata
-                           de verdad se entiende sin explicar el concepto. *@
-                        <div class="muted">
-                            Cada gasto se redondea al siguiente $1.000 y la diferencia se ahorra sola.
-                        </div>
-                    </div>
-                    <button type="button" class="switch @(_hogar.RedondeoActivo ? "on" : "")" @onclick="AlternarRedondeo" disabled="@_actualizandoRedondeo">
-                        <div class="knob"></div>
-                    </button>
-                </div>
-
-                @if (_hogar.RedondeoActivo)
-                {
-                    <div class="divider"></div>
-
-                    <div class="card" style="background:var(--color-surface-2)">
-                        <div class="stack" style="gap:4px">
-                            <span class="label">Un ejemplo</span>
-                            <div class="row-between"><span class="muted">Compras un almuerzo de</span><span>$13.500</span></div>
-                            <div class="row-between"><span class="muted">Se redondea a</span><span>$14.000</span></div>
-                            <div class="row-between">
-                                <span style="font-weight:600">Se ahorran</span>
-                                <span class="money" style="color:var(--color-accent-strong)">$500</span>
-                            </div>
-                            <span class="muted" style="font-size:12.5px; margin-top:4px">
-                                Nunca son más de $999 por gasto, pero con treinta compras al mes suma sin que lo sientas.
-                                Solo aplica a gastos, y solo si no terminan en $000.
-                            </span>
-                        </div>
-                    </div>
-
-                    @if (_aportadoPorRedondeo > 0)
-                    {
-                        <div class="row-between">
-                            <span class="muted">Llevan ahorrado así</span>
-                            <span class="money money-md">@Formato.Pesos(_aportadoPorRedondeo)</span>
-                        </div>
-                    }
-
-                    @* El reparto se edita en cada meta, no acá: antes eran dos
-                       campos fijos —apartamento y emergencia— y por eso no se
-                       podía tener una tercera meta. *@
-                    <span class="muted" style="font-size:12.5px">
-                        Cuánto del vuelto va a cada meta se ajusta en la meta misma, abajo.
-                    </span>
-                }
-            </div>
-        </div>
-
-        @foreach (var meta in _metas)
+        @foreach (var meta in _metas.Where(m => m.Activa))
         {
             <div class="card card-tap" @onclick="() => IrAMeta(meta.Id)">
                 <div class="stack">
@@ -150,15 +95,27 @@ else if (_hogar is not null)
                                 </div>
                                 <div class="field">
                                     <label>Ícono</label>
-                                    <div class="row" style="gap:6px; flex-wrap:wrap">
-                                        @foreach (var emoji in Emojis)
-                                        {
-                                            <button type="button"
-                                                    class="btn @(_crearMetaForm.Icono == emoji ? "btn-primary" : "btn-secondary")"
-                                                    style="font-size:19px; padding:6px 10px; min-width:0"
-                                                    @onclick="() => _crearMetaForm.Icono = emoji">@emoji</button>
-                                        }
+                                    <div class="row" style="gap:8px; align-items:center">
+                                        @* El campo acepta cualquier emoji: se toca y se abre el
+                                           teclado del teléfono, donde está toda la variedad de
+                                           iOS. Los de al lado son solo atajos para los comunes,
+                                           no la lista completa — limitar a ocho íconos obligaba
+                                           a que una meta de mascota fuera un blanco de tiro. *@
+                                        <input class="input" maxlength="4" inputmode="text"
+                                               style="width:64px; text-align:center; font-size:26px; padding:6px"
+                                               value="@_crearMetaForm.Icono"
+                                               @onchange="e => ElegirIcono(e.Value?.ToString())" />
+                                        <div class="row" style="gap:5px; flex-wrap:wrap; flex:1">
+                                            @foreach (var emoji in Emojis)
+                                            {
+                                                <button type="button"
+                                                        class="btn @(_crearMetaForm.Icono == emoji ? "btn-primary" : "btn-secondary")"
+                                                        style="font-size:18px; padding:5px 9px; min-width:0"
+                                                        @onclick="() => _crearMetaForm.Icono = emoji">@emoji</button>
+                                            }
+                                        </div>
                                     </div>
+                                    <span class="muted">Toca el cuadro y elige el que quieras del teclado.</span>
                                 </div>
                                 <div class="field">
                                     <label>Meta en pesos</label>
@@ -203,6 +160,36 @@ else if (_hogar is not null)
             }
             else
             {
+                var archivadas = _metas.Where(m => !m.Activa).ToList();
+                if (archivadas.Count > 0)
+                {
+                    @* Antes una meta archivada desaparecía y no había forma de
+                       traerla de vuelta, con su historial de aportes adentro.
+                       Archivar sin poder deshacer es borrar con otro nombre. *@
+                    <div class="card">
+                        <div class="stack">
+                            <div class="label">Archivadas</div>
+                            @foreach (var meta in archivadas)
+                            {
+                                <div class="row-between" style="padding:5px 0">
+                                    <div class="row" style="gap:10px">
+                                        <span style="font-size:18px; opacity:0.6">@meta.Icono</span>
+                                        <div>
+                                            <div style="font-weight:600; font-size:14px">@meta.Nombre</div>
+                                            <div class="muted" style="font-size:12px">@Formato.Pesos(meta.MontoActual) guardados</div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-ghost" disabled="@(_desarchivando == meta.Id)"
+                                            @onclick="() => Desarchivar(meta.Id)">
+                                        @if (_desarchivando == meta.Id) { <span class="spinner"></span> }
+                                        else { <span style="font-size:13px">Recuperar</span> }
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 <button type="button" class="card card-tap add-meta-card" @onclick="AbrirFormNuevaMeta">
                     <div class="icon-bubble icon-bubble-accent"><Icon Name="plus" Size="18" /></div>
                     <span>@(_metas.Count == 0 ? "Crear nuestra primera meta" : "Agregar otra meta")</span>
@@ -286,7 +273,6 @@ else
 @code {
     private bool _cargando = true;
     private bool _guardando;
-    private bool _actualizandoRedondeo;
     private bool _mostrandoFormNuevaMeta;
     private string? _error;
     private HogarResponse? _hogar;
@@ -294,7 +280,6 @@ else
     private InvitacionHogarResponse? _invitacionEnviada;
     private List<MetaResponse> _metas = [];
     private List<AportePorUsuario> _aportesPorUsuario = [];
-    private decimal _aportadoPorRedondeo;
 
     private readonly CrearHogarFormModel _crearHogarForm = new();
     private readonly CrearMetaFormModel _crearMetaForm = new();
@@ -304,6 +289,25 @@ else
     /// completo por algo que se decide en un segundo.
     /// </summary>
     private static readonly string[] Emojis = ["🏠", "🛟", "🧺", "✈️", "🚗", "🎓", "💍", "🎯"];
+
+    /// <summary>
+    /// Se queda con el primer emoji de lo que hayan escrito. Si alguien
+    /// teclea una palabra en vez de un emoji, no se guarda basura: se deja
+    /// el que estaba.
+    /// </summary>
+    private void ElegirIcono(string? valor)
+    {
+        var limpio = valor?.Trim();
+        if (string.IsNullOrEmpty(limpio)) return;
+
+        var enumerador = System.Globalization.StringInfo.GetTextElementEnumerator(limpio);
+        if (!enumerador.MoveNext()) return;
+
+        var primero = enumerador.GetTextElement();
+        if (primero.Any(char.IsLetterOrDigit)) return;
+
+        _crearMetaForm.Icono = primero;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -320,18 +324,6 @@ else
         _mostrandoFormNuevaMeta = true;
     }
 
-    private async Task AlternarRedondeo()
-    {
-        if (_hogar is null) return;
-        _actualizandoRedondeo = true;
-
-        var resultado = await Api.ActualizarHogarAsync(new ActualizarHogarRequest(
-            _hogar.AplicaTope150, !_hogar.RedondeoActivo,
-            _hogar.PorcentajeRedondeoEmergencia, _hogar.PorcentajeRedondeoApartamento));
-
-        if (resultado.Exito) _hogar = resultado.Valor;
-        _actualizandoRedondeo = false;
-    }
 
 
     private async Task CargarAsync()
@@ -341,7 +333,6 @@ else
         if (_hogar is not null)
         {
             _metas = await Api.ObtenerMetasAsync(_hogar.Id);
-            _aportadoPorRedondeo = await Api.ObtenerTotalRedondeoAsync();
             _aportesPorUsuario = await CalcularAportesPorUsuarioAsync(_metas);
         }
         else
@@ -444,6 +435,18 @@ else
             .ToList();
     }
 
+    private int? _desarchivando;
+
+    private async Task Desarchivar(int metaId)
+    {
+        _desarchivando = metaId;
+        if (await Api.DesarchivarMetaAsync(metaId) && _hogar is not null)
+        {
+            _metas = await Api.ObtenerMetasAsync(_hogar.Id);
+        }
+        _desarchivando = null;
+    }
+
     private async Task CrearMeta()
     {
         if (_hogar is null) return;
@@ -457,7 +460,6 @@ else
         if (resultado.Exito)
         {
             _metas = await Api.ObtenerMetasAsync(_hogar.Id);
-            _aportadoPorRedondeo = await Api.ObtenerTotalRedondeoAsync();
             _mostrandoFormNuevaMeta = false;
         }
         else
