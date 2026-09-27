@@ -222,7 +222,7 @@
                             <div style="font-weight:600">@(t.Nombre ?? "Token para Atajos")</div>
                             <div class="muted" style="font-size:12px">
                                 Creado @Formato.FechaCorta(t.FechaCreacion)
-                                @(t.UltimoUso is not null ? $"· usado por última vez {Formato.FechaCorta(t.UltimoUso.Value)}" : "· nunca usado")
+                                @(t.UltimoUso is not null ? $"· última vez {Formato.FechaHora(t.UltimoUso.Value.ToLocalTime())}" : "· nunca usado")
                             </div>
                         </div>
                         <button class="icon-btn" style="width:30px;height:30px;background:transparent;border:none" @onclick="() => EliminarToken(t.Id)">
@@ -231,6 +231,15 @@
                     </div>
                     <div class="divider"></div>
                 }
+
+                @* Con la hora exacta, "el atajo no hizo nada" deja de ser un
+                   misterio: si la última vez es de ayer, la automatización ni
+                   siquiera se disparó y el problema está en el disparador, no
+                   en el servidor. Si es de hace un minuto, sí llegó. *@
+                <p class="muted" style="font-size:12.5px; margin:0">
+                    Si un gasto no se registró, mira la hora de arriba: si no coincide con el momento
+                    de la compra, la automatización no se disparó y hay que revisar su disparador en Atajos.
+                </p>
 
                 <button class="btn btn-primary btn-block" disabled="@_generandoToken" @onclick="GenerarToken">
                     @if (_generandoToken) { <span class="spinner"></span> }
