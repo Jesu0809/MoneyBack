@@ -69,8 +69,35 @@ reales del mercado colombiano. Viven en `Domain/Subsidios/ParametrosVivienda.cs`
 año; una cifra vieja presentada como actual puede arruinar una compra de cien
 millones.
 
-## Deuda conocida
+## Pruebas
 
-Cero pruebas de interfaz. 17 pantallas, ~165 pruebas, todas del backend. Ya
-causó tres errores en producción que las pruebas no podían ver. Es lo próximo
-que vale la pena hacer.
+Dos proyectos: `MoneyBack.Api.Tests` (xUnit + `WebApplicationFactory` + EF
+InMemory) y `MoneyBack.Web.Tests` (bUnit). El segundo arma el mismo árbol de
+servicios que `Program.cs` —incluido `FallosDeRedHandler`, sin el cual las
+pruebas ven excepciones de red que en la app nunca ocurren— y reemplaza el
+cable por `ServidorFalso`, que serializa JSON de verdad para que la
+deserialización también quede cubierta.
+
+`CoherenciaVisualTests` vigila reglas que ningún compilador revisa y que ya
+fallaron una vez: que todo `<Icon Name>` exista (hay un `default` que dibuja
+un círculo vacío, así que un nombre mal escrito no rompe nada), que toda
+`var(--color-…)` esté definida (una var() indefinida invalida la declaración
+entera y el borde simplemente no se pinta), que el tema oscuro redefina todo
+lo del claro, que ningún `Api.Eliminar…Async` se salte la hoja de
+confirmación, y que no haya datos personales en los marcadores de posición.
+
+Cuidado con cambiar `CurrentCulture` dentro de una prueba async: al primer
+await el cambio se queda pegado en el hilo del pool y contamina lo que corra
+después. Hacerlo en un `Thread` propio (ver `CulturaTests`).
+
+## Dónde vive cada cosa
+
+API en Fly `iad` (Virginia), base en Neon `us-east-2` (Ohio): entre ellos hay
+~15 ms, por eso `/health` y un login tardan casi lo mismo. **Fly no tiene
+región en Colombia ni en Chile**; lo más cerca que ofrece es `iad`, `dfw` y
+`gru`, y ninguna queda más cerca de Bogotá que la actual. Mover de región no
+es una mejora disponible.
+
+Desde Bogotá, la primera petición cuesta ~0,30 s (0,09 s de TCP + 0,11 s de
+TLS) y las siguientes, reusando la conexión, ~0,12 s. Al medir con `curl`
+suelto se mide siempre el caso caro; el navegador no.
