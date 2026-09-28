@@ -65,7 +65,7 @@ public static class InsightsService
 
         var diasHastaProximoPago = DiasHastaProximoPago(hoy, diasPago);
 
-        var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+        var inicioMes = HoraColombia.InicioDelMesUtc(hoy);
         var gastoDelMes = await db.MovimientosDiaADia
             .Include(m => m.Categoria)
             .Where(m => m.UsuarioId == usuarioId && m.Categoria.Tipo == TipoCategoria.Gasto && m.Fecha >= inicioMes)
@@ -93,7 +93,10 @@ public static class InsightsService
         foreach (var dia in diasPago)
         {
             var diaAjustado = Math.Min(dia, DateTime.DaysInMonth(hoy.Year, hoy.Month));
-            var fecha = new DateTime(hoy.Year, hoy.Month, diaAjustado);
+            // Unspecified explícito: esto es aritmética de calendario para
+            // contar días, nunca llega a una consulta. Declararlo evita que
+            // alguien lo use más adelante creyendo que es un instante.
+            var fecha = new DateTime(hoy.Year, hoy.Month, diaAjustado, 0, 0, 0, DateTimeKind.Unspecified);
             if (fecha < hoy.Date) fecha = fecha.AddMonths(1);
             candidatos.Add(fecha);
         }
@@ -103,7 +106,7 @@ public static class InsightsService
 
     private static async Task<string?> TipComparacionHistoricaAsync(int usuarioId, ApplicationDbContext db, DateTime hoy)
     {
-        var inicioMesActual = new DateTime(hoy.Year, hoy.Month, 1);
+        var inicioMesActual = HoraColombia.InicioDelMesUtc(hoy);
         var inicioComparacion = inicioMesActual.AddMonths(-3);
 
         var gastoMesesAnteriores = await db.MovimientosDiaADia

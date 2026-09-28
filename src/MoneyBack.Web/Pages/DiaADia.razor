@@ -321,7 +321,8 @@
     }
 </div>
 
-<button class="fab" @onclick="AbrirPantallaCompleta">
+<button class="fab @(_fabApartado ? "fab-apartado" : "")" @onclick="AbrirPantallaCompleta"
+        aria-label="Agregar un movimiento">
     <Icon Name="plus" Size="26" />
 </button>
 
@@ -772,9 +773,44 @@
         UiOverlay.CerrarModal();
     }
 
+    /// <summary>
+    /// El botón flotante se aparta mientras se baja por la lista: tapaba el
+    /// lápiz y la X de la fila que uno estaba mirando. El relleno de abajo
+    /// ya garantiza que ninguna fila quede atrapada debajo de él; esto es
+    /// para que además no estorbe de paso.
+    /// </summary>
+    private bool _fabApartado;
+    private DotNetObjectReference<DiaADia>? _referencia;
+    private IJSObjectReference? _dejarDeVigilar;
+
+    [JSInvokable]
+    public void AlCambiarDireccionDelScroll(bool apartado)
+    {
+        if (_fabApartado == apartado) return;
+        _fabApartado = apartado;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (!primeraVez) return;
+
+        try
+        {
+            _referencia = DotNetObjectReference.Create(this);
+            _dejarDeVigilar = await JS.InvokeAsync<IJSObjectReference>("moneyback.vigilarScroll", _referencia);
+        }
+        catch (JSException)
+        {
+            // Que el botón no se aparte es cosmético; que reviente la
+            // pantalla más usada de la app por eso, no.
+        }
+    }
+
     public void Dispose()
     {
         if (_mostrarForm) UiOverlay.CerrarModal();
+        _referencia?.Dispose();
     }
 
     private void CambiarTipo(TipoCategoria tipo)

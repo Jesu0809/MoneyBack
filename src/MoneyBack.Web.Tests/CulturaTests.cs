@@ -24,12 +24,21 @@ public class CulturaTests
             .Responde("POST", "api/metas/10/movimientos", 1, System.Net.HttpStatusCode.Created);
 
         var pantalla = ctx.RenderComponent<MetaDetalle>(p => p.Add(m => m.MetaId, 10));
+
+        // Esperar a que la meta haya cargado antes de tocar nada: RenderComponent
+        // vuelve apenas se pinta el esqueleto, y con la máquina ocupada el clic
+        // llegaba antes que el formulario. Fallaba una de cada tantas y parecía
+        // un problema de cultura.
+        pantalla.WaitForAssertion(() => Assert.NotEmpty(pantalla.FindAll("button.btn-primary")));
         pantalla.Find("button.btn-primary").Click();
+        pantalla.WaitForAssertion(() => Assert.NotEmpty(pantalla.FindAll("input[type=number]")));
         pantalla.Find("input[type=number]").Change("500000");
         pantalla.Find("form").Submit();
 
-        var llamada = ctx.Servidor.Llamadas.LastOrDefault(l => l.Ruta == "api/metas/10/movimientos");
-        Assert.NotEqual(default, llamada);
+        pantalla.WaitForAssertion(() => Assert.Contains(
+            ctx.Servidor.Llamadas, l => l.Ruta == "api/metas/10/movimientos"));
+
+        var llamada = ctx.Servidor.Llamadas.Last(l => l.Ruta == "api/metas/10/movimientos");
         Assert.Contains("500000", llamada.Cuerpo);
     });
 
@@ -54,12 +63,18 @@ public class CulturaTests
 
         var pantalla = ctx.RenderComponent<DiaADia>();
         pantalla.Find("button.fab").Click();
+
+        // Las categorías llegan en una segunda tanda de peticiones; sin
+        // esperarlas, la cuadrícula está vacía y no hay nada que tocar.
+        pantalla.WaitForAssertion(() => Assert.NotEmpty(pantalla.FindAll(".category-tile")));
         pantalla.Find(".amount-entry input").Change("47300");
         pantalla.Find(".category-tile").Click();
         pantalla.Find("form").Submit();
 
-        var llamada = ctx.Servidor.Llamadas.LastOrDefault(l => l is { Metodo: "POST", Ruta: "api/movimientos-diaadia" });
-        Assert.NotEqual(default, llamada);
+        pantalla.WaitForAssertion(() => Assert.Contains(
+            ctx.Servidor.Llamadas, l => l is { Metodo: "POST", Ruta: "api/movimientos-diaadia" }));
+
+        var llamada = ctx.Servidor.Llamadas.Last(l => l is { Metodo: "POST", Ruta: "api/movimientos-diaadia" });
         Assert.Contains("47300", llamada.Cuerpo);
     });
 

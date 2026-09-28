@@ -182,4 +182,57 @@ public class CoherenciaVisualTests
 
         Assert.Empty(conSpinner);
     }
+
+    /// <summary>
+    /// El botón flotante es fijo y tapa lo que quede debajo. Si el relleno
+    /// inferior de la página no llega más arriba que el botón, la última
+    /// fila de cualquier lista queda atrapada: sus controles —el lápiz y la
+    /// X— no se pueden tocar y no hay forma de sacarla scrolleando.
+    ///
+    /// Pasó de verdad. Esta prueba compara los dos números.
+    /// </summary>
+    [Fact]
+    public void ElRellenoInferiorDejaPasarAlBotonFlotante()
+    {
+        var css = Css();
+
+        var fab = Regex.Match(css, @"\.fab\s*\{[^}]*?bottom:\s*calc\((\d+)px");
+        var alto = Regex.Match(css, @"\.fab\s*\{[^}]*?width:\s*(\d+)px");
+        var relleno = Regex.Match(css, @"\.app-shell\s*\{.*?calc\((\d+)px \+ env\(safe-area-inset-bottom\)\)",
+            RegexOptions.Singleline);
+
+        Assert.True(fab.Success && alto.Success, "No pude leer la posición del botón flotante.");
+        Assert.True(relleno.Success,
+            "El relleno inferior de .app-shell debe ser un calc() que incluya env(safe-area-inset-bottom): "
+            + "el botón sí lo cuenta, así que si el relleno no, en un iPhone con barra de inicio descuadra.");
+
+        var bordeSuperiorDelBoton = int.Parse(fab.Groups[1].Value) + int.Parse(alto.Groups[1].Value);
+        var rellenoInferior = int.Parse(relleno.Groups[1].Value);
+
+        Assert.True(
+            rellenoInferior >= bordeSuperiorDelBoton + 12,
+            $"El botón llega hasta {bordeSuperiorDelBoton}px y el relleno solo reserva {rellenoInferior}px: "
+            + "la última fila queda debajo del botón y no se puede destapar.");
+    }
+
+    /// <summary>
+    /// El botón se aparta al bajar, y eso lo decide un escucha de scroll en
+    /// JS. Si el nombre de la función deja de coincidir, la llamada falla en
+    /// silencio (está envuelta en try/catch a propósito) y nadie se entera.
+    /// </summary>
+    [Fact]
+    public void LaFuncionQueVigilaElScrollExisteConEseNombre()
+    {
+        var js = File.ReadAllText(Path.Combine(Raiz, "wwwroot", "js", "interop.js"));
+        var usos = Razors()
+            .SelectMany(a => Regex.Matches(File.ReadAllText(a), @"InvokeAsync<[^>]+>\(""(moneyback\.[a-zA-Z]+)"""))
+            .Select(m => m.Groups[1].Value)
+            .Distinct();
+
+        foreach (var uso in usos)
+        {
+            var nombre = uso.Split('.')[1];
+            Assert.True(js.Contains($"window.moneyback.{nombre}"), $"interop.js no define {uso}.");
+        }
+    }
 }

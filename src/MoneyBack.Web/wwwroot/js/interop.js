@@ -132,3 +132,40 @@ export async function marcarPendientes(cantidad) {
         return false;
     }
 }
+
+// Avisa a Blazor cuándo el dedo está bajando por la página, para que el
+// botón flotante se aparte. Se hace en JS y no en C# porque un evento de
+// scroll dispara decenas de veces por segundo y cruzarlos todos a .NET por
+// interop sería carísimo: acá solo cruza el cambio de estado.
+window.moneyback = window.moneyback || {};
+
+window.moneyback.vigilarScroll = (referencia) => {
+    let ultimo = window.scrollY;
+    let apartado = false;
+    let quieto;
+
+    const avisar = (valor) => {
+        if (valor === apartado) return;
+        apartado = valor;
+        referencia.invokeMethodAsync("AlCambiarDireccionDelScroll", valor);
+    };
+
+    const alScrollear = () => {
+        const actual = window.scrollY;
+
+        // Un umbral de 6px para que el rebote del scroll elástico de iOS no
+        // encienda y apague el botón mientras el dedo está quieto.
+        if (actual > ultimo + 6 && actual > 120) avisar(true);
+        else if (actual < ultimo - 6) avisar(false);
+
+        ultimo = actual;
+
+        // Al detenerse vuelve entero: si alguien paró de bajar, muy
+        // probablemente es porque ya va a tocar algo.
+        clearTimeout(quieto);
+        quieto = setTimeout(() => avisar(false), 900);
+    };
+
+    window.addEventListener("scroll", alScrollear, { passive: true });
+    return () => window.removeEventListener("scroll", alScrollear);
+};

@@ -25,7 +25,6 @@ public class ResumenSemanalService(IServiceScopeFactory scopeFactory, ILogger<Re
     : BackgroundService
 {
     private static readonly TimeSpan Intervalo = TimeSpan.FromHours(1);
-    private static readonly TimeZoneInfo ZonaBogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -34,7 +33,7 @@ public class ResumenSemanalService(IServiceScopeFactory scopeFactory, ILogger<Re
         {
             try
             {
-                var horaBogota = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ZonaBogota);
+                var horaBogota = HoraColombia.Hoy();
                 if (horaBogota.DayOfWeek == DayOfWeek.Sunday && horaBogota.Hour is >= 19 and < 21)
                 {
                     using var scope = scopeFactory.CreateScope();
@@ -52,7 +51,11 @@ public class ResumenSemanalService(IServiceScopeFactory scopeFactory, ILogger<Re
 
     private static async Task EnviarResumenesAsync(ApplicationDbContext db, PushNotificationSender sender, DateTime hoyBogota, CancellationToken ct)
     {
-        var haceUnaSemana = hoyBogota.AddDays(-6);
+        // Todo lo que toque la base va en UTC. hoyBogota viene con
+        // Kind=Unspecified y Postgres rechaza eso contra una columna
+        // "timestamp with time zone": era lo que tumbaba este servicio
+        // entero en su primera consulta, cada domingo.
+        var haceUnaSemana = DateTime.UtcNow.AddDays(-6);
 
         var usuarios = await db.Users
             .Where(u => u.UltimoResumenEnviado == null || u.UltimoResumenEnviado < haceUnaSemana)
@@ -60,7 +63,7 @@ public class ResumenSemanalService(IServiceScopeFactory scopeFactory, ILogger<Re
 
         foreach (var usuario in usuarios)
         {
-            var inicioSemana = hoyBogota.Date.AddDays(-6);
+            var inicioSemana = HoraColombia.InicioDelDiaUtc(hoyBogota.AddDays(-6));
 
             var movimientos = await db.MovimientosDiaADia
                 .Include(m => m.Categoria)
@@ -80,7 +83,7 @@ public class ResumenSemanalService(IServiceScopeFactory scopeFactory, ILogger<Re
             var cuerpo = $"Esta semana gastaste ${totalSemana:N0}, la mayoría en {categoriaTop.Key} (${categoriaTop.Sum(m => m.Monto):N0}).";
             if (tip is not null) cuerpo += $" {tip}";
 
-            usuario.UltimoResumenEnviado = hoyBogota;
+            usuario.UltimoResumenEnviado = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
 
             await sender.EnviarATodosLosDispositivosAsync(usuario.Id, "Tu resumen de la semana", cuerpo,

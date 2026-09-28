@@ -110,7 +110,16 @@ h1:focus { outline: none; }
 .app-shell {
   max-width: 640px;
   margin: 0 auto;
-  padding: 0 max(20px, env(safe-area-inset-right)) 96px max(20px, env(safe-area-inset-left));
+  /* El relleno de abajo tiene que dejar pasar al FAB, no solo a la barra.
+     El FAB va de 84px a 144px desde el borde inferior; con 96px de relleno
+     la última fila quedaba justo debajo del botón y no había forma de
+     sacarla scrolleando: el lápiz y la X de ese movimiento eran
+     intocables. Y el FAB cuenta env(safe-area-inset-bottom) mientras que
+     el relleno no lo hacía, así que en un iPhone con barra de inicio el
+     descuadre era todavía mayor. */
+  padding: 0 max(20px, env(safe-area-inset-right))
+           calc(164px + env(safe-area-inset-bottom))
+           max(20px, env(safe-area-inset-left));
   min-height: 100vh;
 }
 
@@ -396,6 +405,21 @@ h1:focus { outline: none; }
   transition: transform 200ms var(--ease-spring), box-shadow 200ms var(--ease-smooth);
 }
 .fab:active { transform: scale(0.9) rotate(90deg); }
+
+/* Al bajar por una lista larga el botón estorba: tapa los controles de la
+   fila que uno está mirando. Se encoge y se apaga mientras se baja, y
+   vuelve entero al subir o al detenerse — que es cuando uno ya decidió
+   agregar algo. No se oculta del todo para que no parezca que se fue. */
+.fab-apartado {
+  transform: scale(0.62);
+  opacity: 0.32;
+  box-shadow: none;
+}
+.fab-apartado:active { transform: scale(0.62); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fab { transition: none; }
+}
 .fab:hover {
   box-shadow:
     0 1px 1px rgba(255,255,255,0.5) inset,

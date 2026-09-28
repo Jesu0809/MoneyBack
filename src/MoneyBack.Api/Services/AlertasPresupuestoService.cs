@@ -40,8 +40,8 @@ public static class AlertasPresupuestoService
         // día siguiente, así que el último día del mes las compras de la noche
         // contarían contra el mes entrante y el aviso hablaría de un tope que
         // la persona siente que apenas empieza.
-        var inicioMes = AInstanteUtc(new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0));
-        var finMes = AInstanteUtc(new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0).AddMonths(1));
+        var inicioMes = HoraColombia.InicioDelMesUtc(hoy);
+        var finMes = HoraColombia.InicioDelMesUtc(hoy.AddMonths(1));
 
         var gastado = await db.MovimientosDiaADia
             .Where(m => m.UsuarioId == usuarioId && m.CategoriaId == categoriaId
@@ -142,10 +142,10 @@ public static class AlertasPresupuestoService
     /// con un número distinto al del calendario de quien lo lee, y peor: el
     /// último día del mes contaría el gasto contra el mes entrante.
     /// </summary>
-    private static readonly TimeZoneInfo Bogota = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
+    // La conversión vive en HoraColombia, que es el único lugar donde se
+    // hace: acá estaba bien pero el resumen semanal la había resuelto por su
+    // cuenta y mal, y nadie notó la diferencia hasta que falló en producción.
+    private static DateTime FechaBogota() => HoraColombia.Hoy();
 
-    private static DateTime FechaBogota() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Bogota);
-
-    private static DateTime AInstanteUtc(DateTime horaLocal) =>
-        TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(horaLocal, DateTimeKind.Unspecified), Bogota);
+    private static DateTime AInstanteUtc(DateTime horaLocal) => HoraColombia.AInstanteUtc(horaLocal);
 }
