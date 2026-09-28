@@ -95,62 +95,54 @@ public static class ReportesEndpoints
         group.MapGet("/exportar/pdf", async (DateTime? desde, DateTime? hasta, ClaimsPrincipal principal, ApplicationDbContext db) =>
         {
             var movimientos = await ObtenerMovimientosAsync(desde, hasta, principal, db);
-            var totalIngresos = movimientos.Where(m => m.Categoria.Tipo == TipoCategoria.Ingreso).Sum(m => m.Monto);
-            var totalGastos = movimientos.Where(m => m.Categoria.Tipo == TipoCategoria.Gasto).Sum(m => m.Monto);
+            var ingresos = movimientos.Where(m => m.Categoria.Tipo == TipoCategoria.Ingreso).ToList();
+            var gastos = movimientos.Where(m => m.Categoria.Tipo == TipoCategoria.Gasto).ToList();
+            var totalIngresos = ingresos.Sum(m => m.Monto);
+            var totalGastos = gastos.Sum(m => m.Monto);
+            var balance = totalIngresos - totalGastos;
+
+            var porCategoria = gastos
+                .GroupBy(m => m.Categoria.Nombre)
+                .Select(g => (Nombre: g.Key, Total: g.Sum(m => m.Monto), Cuantos: g.Count()))
+                .OrderByDescending(g => g.Total)
+                .ToList();
+
+            var generadoEl = DateTime.UtcNow.AddHours(-5); // Bogotá: el servidor corre en UTC.
 
             var documento = Document.Create(contenedor =>
             {
                 contenedor.Page(pagina =>
                 {
                     pagina.Size(PageSizes.A4);
-                    pagina.Margin(30);
-                    pagina.DefaultTextStyle(estilo => estilo.FontSize(10));
+                    pagina.Margin(34);
+                    pagina.DefaultTextStyle(e => e.FontSize(9.5f).FontColor(Tinta));
 
-                    pagina.Header().Column(col =>
+                    pagina.Header().Element(c => Encabezado(c, desde, hasta, generadoEl));
+
+                    pagina.Content().PaddingTop(18).Column(col =>
                     {
-                        col.Item().Text("Reporte MoneyBack").FontSize(18).Bold();
-                        col.Item().Text(DescripcionRango(desde, hasta)).FontSize(11);
-                    });
+                        col.Spacing(18);
 
-                    pagina.Content().PaddingTop(15).Table(tabla =>
-                    {
-                        tabla.ColumnsDefinition(columnas =>
-                        {
-                            columnas.RelativeColumn(2);
-                            columnas.RelativeColumn(2);
-                            columnas.RelativeColumn(3);
-                            columnas.RelativeColumn(2);
-                            columnas.RelativeColumn(4);
-                        });
+                        col.Item().Element(c => Resumen(c, totalIngresos, totalGastos, balance));
 
-                        tabla.Header(encabezado =>
+                        if (movimientos.Count == 0)
                         {
-                            encabezado.Cell().Text("Fecha").Bold();
-                            encabezado.Cell().Text("Tipo").Bold();
-                            encabezado.Cell().Text("Categoría").Bold();
-                            encabezado.Cell().Text("Monto").Bold();
-                            encabezado.Cell().Text("Nota").Bold();
-                        });
-
-                        foreach (var m in movimientos)
-                        {
-                            tabla.Cell().Text(m.Fecha.ToLocalTime().ToString("yyyy-MM-dd"));
-                            tabla.Cell().Text(m.Categoria.Tipo == TipoCategoria.Ingreso ? "Ingreso" : "Gasto");
-                            tabla.Cell().Text(m.Categoria.Nombre);
-                            tabla.Cell().Text(FormatoPesos(m.Monto));
-                            tabla.Cell().Text(m.Nota ?? "");
+                            // Un PDF con una tabla vacía parece un archivo roto.
+                            col.Item().PaddingTop(40).AlignCenter().Text(
+                                "No hay movimientos registrados en este período.")
+                                .FontSize(11).FontColor(Gris);
+                            return;
                         }
+
+                        if (porCategoria.Count > 0)
+                        {
+                            col.Item().Element(c => EnQueSeFue(c, porCategoria, totalGastos));
+                        }
+
+                        col.Item().Element(c => Detalle(c, movimientos));
                     });
 
-                    pagina.Footer().PaddingTop(15).Column(col =>
-                    {
-                        col.Item().LineHorizontal(0.5f);
-                        col.Item().Row(fila =>
-                        {
-                            fila.RelativeItem().Text($"Total ingresos: {FormatoPesos(totalIngresos)}").Bold();
-                            fila.RelativeItem().AlignRight().Text($"Total gastos: {FormatoPesos(totalGastos)}").Bold();
-                        });
-                    });
+                    pagina.Footer().Element(Pie);
                 });
             });
 
@@ -158,9 +150,214 @@ public static class ReportesEndpoints
         });
     }
 
+    // --- Paleta. Los mismos verdes y rojos de la app, para que el PDF se
+    // --- reconozca como suyo y no como la salida de una herramienta aparte.
+    private static readonly Color Verde = Color.FromHex("#2f6f5e");
+    private static readonly Color VerdeSuave = Color.FromHex("#e4f0ec");
+    private static readonly Color Rojo = Color.FromHex("#b5493f");
+    private static readonly Color RojoSuave = Color.FromHex("#fbe9e7");
+    private static readonly Color Tinta = Color.FromHex("#22201c");
+    private static readonly Color Gris = Color.FromHex("#756f66");
+    private static readonly Color Linea = Color.FromHex("#e8e5df");
+    private static readonly Color Cebra = Color.FromHex("#faf9f7");
+
+    private static void Encabezado(IContainer contenedor, DateTime? desde, DateTime? hasta, DateTime generadoEl)
+    {
+        contenedor.Column(col =>
+        {
+            col.Item().Row(fila =>
+            {
+                fila.RelativeItem().Column(izq =>
+                {
+                    izq.Item().Text("MoneyBack").FontSize(20).Bold().FontColor(Verde);
+                    izq.Item().PaddingTop(1).Text(DescripcionRango(desde, hasta)).FontSize(11).FontColor(Tinta);
+                });
+
+                fila.ConstantItem(150).AlignRight().Column(der =>
+                {
+                    der.Item().AlignRight().Text("Generado").FontSize(7.5f).FontColor(Gris);
+                    der.Item().AlignRight().Text(FechaLarga(generadoEl)).FontSize(9).FontColor(Gris);
+                });
+            });
+
+            col.Item().PaddingTop(10).LineHorizontal(1.4f).LineColor(Verde);
+        });
+    }
+
+    /// <summary>
+    /// Lo primero que uno busca al abrir un reporte es el balance. Antes
+    /// estaba al pie de la última página, después de cientos de filas.
+    /// </summary>
+    private static void Resumen(IContainer contenedor, decimal ingresos, decimal gastos, decimal balance)
+    {
+        contenedor.Row(fila =>
+        {
+            fila.Spacing(10);
+            fila.RelativeItem().Element(c => Cifra(c, "Ingresos", FormatoPesos(ingresos), Verde, VerdeSuave));
+            fila.RelativeItem().Element(c => Cifra(c, "Gastos", FormatoPesos(gastos), Rojo, RojoSuave));
+            fila.RelativeItem().Element(c => Cifra(
+                c, "Balance",
+                // El mismo signo menos tipográfico que llevan las filas del
+                // detalle: con el guion ASCII de FormatoPesos, el balance se
+                // veía distinto a todo lo demás del documento.
+                (balance < 0 ? "−" : "") + FormatoPesos(Math.Abs(balance)),
+                balance >= 0 ? Verde : Rojo,
+                balance >= 0 ? VerdeSuave : RojoSuave));
+        });
+    }
+
+    private static void Cifra(IContainer contenedor, string rotulo, string valor, Color color, Color fondo) =>
+        contenedor.Background(fondo).Padding(12).Column(col =>
+        {
+            col.Item().Text(rotulo.ToUpperInvariant()).FontSize(7.5f).Bold().FontColor(Gris).LetterSpacing(0.08f);
+            col.Item().PaddingTop(3).Text(valor).FontSize(15).Bold().FontColor(color);
+        });
+
+    /// <summary>
+    /// La pregunta que sigue al balance es en qué se fue. Con una barra al
+    /// lado del número se ve de un vistazo cuál categoría pesa, algo que una
+    /// columna de cifras no muestra.
+    /// </summary>
+    private static void EnQueSeFue(
+        IContainer contenedor,
+        List<(string Nombre, decimal Total, int Cuantos)> porCategoria,
+        decimal totalGastos)
+    {
+        contenedor.Column(col =>
+        {
+            col.Item().Text("En qué se fue").FontSize(12).Bold();
+            col.Item().PaddingTop(8).Column(filas =>
+            {
+                filas.Spacing(6);
+                foreach (var (nombre, total, cuantos) in porCategoria.Take(10))
+                {
+                    var porcentaje = totalGastos > 0 ? (float)(total / totalGastos) : 0f;
+                    filas.Item().Row(fila =>
+                    {
+                        fila.ConstantItem(130).Text(nombre).FontSize(9.5f);
+                        fila.ConstantItem(34).Text($"{porcentaje * 100:0}%").FontSize(8.5f).FontColor(Gris);
+                        fila.RelativeItem().AlignMiddle().Height(7).Background(Cebra)
+                            .Row(barra =>
+                            {
+                                // Las barras con 0% no pueden pedir ancho 0:
+                                // QuestPDF rechaza un RelativeItem sin peso.
+                                barra.RelativeItem(Math.Max(porcentaje, 0.0001f)).Background(Verde);
+                                barra.RelativeItem(Math.Max(1 - porcentaje, 0.0001f));
+                            });
+                        fila.ConstantItem(90).AlignRight().Text(FormatoPesos(total)).FontSize(9.5f).Bold();
+                        fila.ConstantItem(52).AlignRight().Text($"{cuantos} mov.").FontSize(8).FontColor(Gris);
+                    });
+                }
+
+                if (porCategoria.Count > 10)
+                {
+                    var resto = porCategoria.Skip(10).Sum(c => c.Total);
+                    filas.Item().PaddingTop(2).Text(
+                        $"y {porCategoria.Count - 10} categorías más por {FormatoPesos(resto)}")
+                        .FontSize(8.5f).FontColor(Gris);
+                }
+            });
+        });
+    }
+
+    private static void Detalle(IContainer contenedor, List<MovimientoDiaADia> movimientos)
+    {
+        var hayDonde = movimientos.Any(m => !string.IsNullOrWhiteSpace(m.Comercio) || !string.IsNullOrWhiteSpace(m.Nota));
+
+        contenedor.Column(col =>
+        {
+            col.Item().Text($"Movimiento por movimiento ({movimientos.Count})").FontSize(12).Bold();
+
+            col.Item().PaddingTop(8).Table(tabla =>
+            {
+                tabla.ColumnsDefinition(c =>
+                {
+                    c.ConstantColumn(66);   // Fecha
+                    c.RelativeColumn(3);    // Categoría
+                    if (hayDonde) c.RelativeColumn(4);
+                    c.ConstantColumn(82);   // Monto
+                });
+
+                tabla.Header(encabezado =>
+                {
+                    static IContainer Celda(IContainer c) =>
+                        c.BorderBottom(1).BorderColor(Tinta).PaddingVertical(5).PaddingHorizontal(4);
+
+                    encabezado.Cell().Element(Celda).Text("Fecha").FontSize(8).Bold();
+                    encabezado.Cell().Element(Celda).Text("Categoría").FontSize(8).Bold();
+                    if (hayDonde) encabezado.Cell().Element(Celda).Text("Dónde").FontSize(8).Bold();
+                    encabezado.Cell().Element(Celda).AlignRight().Text("Monto").FontSize(8).Bold();
+                });
+
+                var fila = 0;
+                foreach (var m in movimientos)
+                {
+                    // Cebra: con doscientas filas seguidas el ojo se salta de
+                    // renglón y se lee el monto de otro movimiento.
+                    var fondo = fila++ % 2 == 1 ? Cebra : Colors.White;
+                    var esIngreso = m.Categoria.Tipo == TipoCategoria.Ingreso;
+
+                    IContainer Celda(IContainer c) =>
+                        c.Background(fondo).BorderBottom(0.5f).BorderColor(Linea)
+                         .PaddingVertical(4).PaddingHorizontal(4);
+
+                    tabla.Cell().Element(Celda).Text(FechaCorta(m.Fecha.ToLocalTime())).FontSize(8.5f);
+                    tabla.Cell().Element(Celda).Text(m.Categoria.Nombre).FontSize(8.5f);
+                    if (hayDonde)
+                    {
+                        tabla.Cell().Element(Celda).Text(m.Comercio ?? m.Nota ?? "—").FontSize(8.5f).FontColor(Gris);
+                    }
+                    tabla.Cell().Element(Celda).AlignRight()
+                        // Con el signo se distingue un ingreso de un gasto sin
+                        // tener que leer la categoría — y sirve impreso en
+                        // blanco y negro, donde el color no dice nada.
+                        .Text((esIngreso ? "+" : "−") + FormatoPesos(m.Monto))
+                        .FontSize(8.5f).Bold().FontColor(esIngreso ? Verde : Rojo);
+                }
+            });
+        });
+    }
+
+    private static void Pie(IContainer contenedor) =>
+        contenedor.PaddingTop(10).Column(col =>
+        {
+            col.Item().LineHorizontal(0.5f).LineColor(Linea);
+            col.Item().PaddingTop(5).Row(fila =>
+            {
+                fila.RelativeItem().Text("MoneyBack").FontSize(8).FontColor(Gris);
+                fila.RelativeItem().AlignRight().Text(t =>
+                {
+                    t.DefaultTextStyle(e => e.FontSize(8).FontColor(Gris));
+                    t.Span("Página ");
+                    t.CurrentPageNumber();
+                    t.Span(" de ");
+                    t.TotalPages();
+                });
+            });
+        });
+
+    /// <summary>
+    /// Los meses se escriben a mano y no con formato de fecha: el servidor
+    /// corre en UTC y con cultura invariante, así que "MMM" daba "Dec" y
+    /// "Aug" en un reporte que solo se lee en español.
+    /// </summary>
+    private static readonly string[] MesesLargos =
+    [
+        "enero", "febrero", "marzo", "abril", "mayo", "junio",
+        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    ];
+
+    private static readonly string[] MesesCortos =
+        ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+    private static string FechaLarga(DateTime f) =>
+        $"{f.Day} de {MesesLargos[f.Month - 1]} de {f.Year}, {(f.Hour % 12 == 0 ? 12 : f.Hour % 12)}:{f.Minute:D2} {(f.Hour < 12 ? "a.m." : "p.m.")}";
+
+    private static string FechaCorta(DateTime f) => $"{f.Day:D2} {MesesCortos[f.Month - 1]} {f.Year % 100:D2}";
+
     private static string DescripcionRango(DateTime? desde, DateTime? hasta) =>
         desde is not null && hasta is not null
-            ? $"Del {desde.Value:d MMM yyyy} al {hasta.Value:d MMM yyyy}"
+            ? $"Del {desde.Value.Day} de {MesesLargos[desde.Value.Month - 1]} al {hasta.Value.Day} de {MesesLargos[hasta.Value.Month - 1]} de {hasta.Value.Year}"
             : "Todo el historial";
 
     private static string FormatoPesos(decimal valor)

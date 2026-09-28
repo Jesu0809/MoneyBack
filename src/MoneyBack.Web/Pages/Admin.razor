@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "SuperAdmin")]
 @inject ApiClient Api
 @inject ConfirmacionService Confirmacion
+@inject AuthenticationStateProvider AuthProvider
 
 <PageTitle>Admin · MoneyBack</PageTitle>
 
@@ -50,6 +51,10 @@
                                 {
                                     <span class="pill" style="margin-left:6px">@string.Join(", ", usuario.Roles)</span>
                                 }
+                                @if (usuario.Id == _miUsuarioId)
+                                {
+                                    <span class="pill" style="margin-left:6px">esta es la tuya</span>
+                                }
                             </div>
                             <div class="muted">@usuario.Email · desde @Formato.FechaCorta(usuario.FechaCreacion)</div>
                         </div>
@@ -78,7 +83,14 @@
                                     @_claveGenerada
                                 </div>
                                 <p class="muted" style="margin:0; font-size:13px">
-                                    Pásasela a @usuario.Nombre para que entre y se ponga la suya desde Perfil.
+                                    @if (usuario.Id == _miUsuarioId)
+                                    {
+                                        <text>Anótala: tu sesión ya se cerró y la vas a necesitar para volver a entrar.</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Pásasela a @usuario.Nombre para que entre y se ponga la suya desde Perfil.</text>
+                                    }
                                     @if (_sesionesCerradas > 0)
                                     {
                                         <text>Se cerraron @_sesionesCerradas sesión(es) que tenía abiertas.</text>
@@ -107,6 +119,7 @@
     private string? _errorCodigo;
     private string? _mensajeRevocacion;
     private int? _revocandoId;
+    private int? _miUsuarioId;
     private int? _cambiandoClaveId;
     private string? _claveGenerada;
     private int? _claveGeneradaPara;
@@ -117,6 +130,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var estado = await AuthProvider.GetAuthenticationStateAsync();
+        // El id viene en el claim "sub" del token, tal cual lo escribe el API.
+        _miUsuarioId = int.TryParse(estado.User.FindFirst("sub")?.Value, out var id) ? id : null;
+
         _usuarios = await Api.ObtenerUsuariosAdminAsync();
         _cargando = false;
     }
@@ -152,10 +169,19 @@
     /// </summary>
     private async Task CambiarClave(UsuarioAdminResponse usuario)
     {
+        // Cambiarse la clave a uno mismo cierra la propia sesión: si nadie
+        // avisa, uno confirma, se sale la app y la clave nueva quedó en una
+        // pantalla que ya no existe. En la única cuenta con Admin eso es
+        // quedarse afuera sin nadie que abra.
+        var esMiCuenta = usuario.Id == _miUsuarioId;
+
         var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
-            $"¿Cambiarle la contraseña a {usuario.Nombre}?",
-            $"Se le pone una clave temporal y se cierran sus sesiones. La que tenía deja de servir, "
-            + $"y {usuario.Nombre} no podrá entrar hasta que le pases la nueva. Sus códigos de recuperación también se borran.",
+            esMiCuenta ? "¿Cambiarte la contraseña a ti mismo?" : $"¿Cambiarle la contraseña a {usuario.Nombre}?",
+            esMiCuenta
+                ? "Se cierra tu sesión y tendrás que volver a entrar con la clave nueva. Se muestra una sola vez: "
+                  + "anótala antes de cerrar la pantalla, porque si la pierdes nadie puede recuperarla por ti."
+                : $"Se le pone una clave temporal y se cierran sus sesiones. La que tenía deja de servir, "
+                  + $"y {usuario.Nombre} no podrá entrar hasta que le pases la nueva. Sus códigos de recuperación también se borran.",
             "Sí, cambiarla"));
         if (!confirmado) return;
 
