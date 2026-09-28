@@ -98,6 +98,53 @@ public static class AdminEndpoints
             return Results.Ok(new ClaveTemporalResponse(temporal, sesiones.Count));
         });
 
+        // Quitarle la administración a una cuenta. Hacía falta y no existía:
+        // el rol se le daba a la primera cuenta registrada y no había forma
+        // de retirárselo, así que una cuenta de prueba que lo recibiera por
+        // accidente se quedaba con él para siempre. Pasó.
+        group.MapPost("/usuarios/{id:int}/quitar-administracion", async (
+            int id,
+            ClaimsPrincipal principal,
+            UserManager<Usuario> userManager,
+            ApplicationDbContext db,
+            ILoggerFactory loggerFactory) =>
+        {
+            var usuario = await userManager.FindByIdAsync(id.ToString());
+            if (usuario is null) return Results.NotFound();
+
+            // Quitársela a uno mismo dejaría el sistema sin nadie que pueda
+            // devolverla: la única salida sería un secreto de Fly y un
+            // reinicio. Se bloquea acá para que no sea un clic de distancia.
+            if (id == principal.GetUsuarioId())
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["usuario"] = ["No puedes quitarte la administración a ti mismo. Pídeselo a otro administrador."]
+                });
+            }
+
+            if (!await userManager.IsInRoleAsync(usuario, Roles.SuperAdmin))
+            {
+                return Results.Conflict("Esa cuenta no es administradora.");
+            }
+
+            await userManager.RemoveFromRoleAsync(usuario, Roles.SuperAdmin);
+
+            // El rol viaja dentro del token de acceso, así que sin cerrar las
+            // sesiones seguiría administrando hasta que el suyo caduque.
+            var sesiones = await db.RefreshTokens
+                .Where(t => t.UsuarioId == usuario.Id && t.RevocadoEn == null)
+                .ToListAsync();
+            foreach (var sesion in sesiones) sesion.RevocadoEn = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+
+            loggerFactory.CreateLogger("Admin").LogWarning(
+                "El usuario {Admin} le quitó la administración a la cuenta {Objetivo}.",
+                principal.GetUsuarioId(), usuario.Id);
+
+            return Results.Ok(new { sesionesCerradas = sesiones.Count });
+        });
+
         group.MapGet("/codigo-invitacion", async (ApplicationDbContext db) =>
         {
             var actual = await db.CodigosInvitacion

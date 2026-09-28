@@ -189,8 +189,20 @@ public static class AuthEndpoints
                 // toma como reintento y se le entrega una sesión nueva. Pasado
                 // ese rato ya no hay explicación inocente, y ahí sí se revoca
                 // todo.
-                var dentroDeLaGracia =
-                    DateTime.UtcNow - tokenGuardado.RevocadoEn.Value <= GraciaPorReusoInmediato;
+                // La gracia es SOLO para tokens que se revocaron al rotarse
+                // —los que tienen a qué token dieron paso—. Un token revocado
+                // a mano no tiene reemplazo, y ahí no hay nada inocente que
+                // explicar: alguien cerró esa sesión a propósito.
+                //
+                // Sin esta distinción, cerrar las sesiones de una cuenta (al
+                // reajustarle la contraseña, al quitarle la administración,
+                // al sacar a alguien) dejaba un minuto entero en el que el
+                // token viejo seguía sirviendo para pedir uno nuevo. O sea,
+                // cerrar sesiones no cerraba nada durante ese minuto.
+                var seRevocoAlRotarse = tokenGuardado.ReemplazadoPorTokenHash is not null;
+
+                var dentroDeLaGracia = seRevocoAlRotarse
+                    && DateTime.UtcNow - tokenGuardado.RevocadoEn.Value <= GraciaPorReusoInmediato;
 
                 if (!dentroDeLaGracia)
                 {

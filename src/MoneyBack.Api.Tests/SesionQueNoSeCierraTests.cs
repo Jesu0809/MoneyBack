@@ -113,4 +113,38 @@ public class SesionQueNoSeCierraTests : IClassFixture<ApiFactory>
         var respuesta = await RefrescarAsync(cliente, "esto-no-es-un-token");
         Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
     }
+
+    /// <summary>
+    /// La ventana de gracia existe para el cliente honesto que reintenta con
+    /// un token que ya se rotó. NO puede aplicarse a una revocación hecha a
+    /// mano: durante ese minuto, cerrarle las sesiones a alguien —al
+    /// reajustarle la contraseña, al quitarle la administración— no cerraba
+    /// nada, porque su token viejo seguía sirviendo para pedir uno nuevo.
+    /// </summary>
+    [Fact]
+    public async Task CerrarLasSesionesAManoNoTieneVentanaDeGracia()
+    {
+        var (admin, _) = await _factory.CrearAdminAutenticadoAsync();
+        var correo = $"{Guid.NewGuid():N}@test.moneyback";
+        await _factory.CrearClienteAutenticadoAsync(correo);
+
+        var login = await _factory.CreateClient()
+            .PostAsJsonAsync("/api/auth/login", new LoginRequest(correo, "ClaveSegura#2026"));
+        var sesion = (await login.Content.ReadFromJsonAsync<AuthResponse>())!;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider
+                .GetRequiredService<MoneyBack.Api.Data.ApplicationDbContext>();
+            var usuario = db.Users.First(u => u.Email == correo);
+            var respuesta = await admin.PostAsync($"/api/admin/usuarios/{usuario.Id}/revocar-sesiones", null);
+            respuesta.EnsureSuccessStatusCode();
+        }
+
+        // Inmediatamente después: dentro del minuto de gracia.
+        var refrescar = await _factory.CreateClient()
+            .PostAsJsonAsync("/api/auth/refresh", new RefrescarTokenRequest(sesion.RefreshToken));
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, refrescar.StatusCode);
+    }
 }
