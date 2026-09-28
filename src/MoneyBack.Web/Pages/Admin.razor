@@ -1,6 +1,7 @@
 @page "/admin"
 @attribute [Authorize(Roles = "SuperAdmin")]
 @inject ApiClient Api
+@inject ConfirmacionService Confirmacion
 
 <PageTitle>Admin · MoneyBack</PageTitle>
 
@@ -35,7 +36,7 @@
             <div class="label">Cuentas registradas</div>
             @if (_cargando)
             {
-                <div class="spinner spinner-accent"></div>
+                <Esqueleto Filas="2" />
             }
             else
             {
@@ -52,10 +53,40 @@
                             </div>
                             <div class="muted">@usuario.Email · desde @Formato.FechaCorta(usuario.FechaCreacion)</div>
                         </div>
-                        <button class="btn btn-secondary" @onclick="() => RevocarSesiones(usuario.Id)" disabled="@(_revocandoId == usuario.Id)">
-                            @if (_revocandoId == usuario.Id) { <span class="spinner"></span> } else { <span>Cerrar sesiones</span> }
-                        </button>
+                        <div class="row" style="gap:6px">
+                            <button class="btn btn-secondary" @onclick="() => RevocarSesiones(usuario.Id)" disabled="@(_revocandoId == usuario.Id)">
+                                @if (_revocandoId == usuario.Id) { <span class="spinner"></span> } else { <span>Cerrar sesiones</span> }
+                            </button>
+                            <button class="btn btn-secondary" @onclick="() => CambiarClave(usuario)" disabled="@(_cambiandoClaveId == usuario.Id)">
+                                @if (_cambiandoClaveId == usuario.Id) { <span class="spinner"></span> } else { <span>Cambiar clave</span> }
+                            </button>
+                        </div>
                     </div>
+
+                    @if (_claveGenerada is not null && _claveGeneradaPara == usuario.Id)
+                    {
+                        @* Se muestra acá y una sola vez: al recargar la página
+                           se pierde, porque el servidor solo guarda el hash y
+                           no hay forma de volver a pedirla. *@
+                        <div class="card" style="border-left:3px solid var(--color-warning)">
+                            <div class="stack" style="gap:8px">
+                                <div class="row" style="gap:8px">
+                                    <Icon Name="alert-triangle" Size="17" />
+                                    <strong>Anótala ahora: no se puede volver a ver</strong>
+                                </div>
+                                <div class="money" style="font-size:26px; letter-spacing:0.04em; user-select:all">
+                                    @_claveGenerada
+                                </div>
+                                <p class="muted" style="margin:0; font-size:13px">
+                                    Pásasela a @usuario.Nombre para que entre y se ponga la suya desde Perfil.
+                                    @if (_sesionesCerradas > 0)
+                                    {
+                                        <text>Se cerraron @_sesionesCerradas sesión(es) que tenía abiertas.</text>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    }
                 }
             }
         </div>
@@ -65,6 +96,7 @@
     {
         <AlertBox Tipo="accent" Mensaje="@_mensajeRevocacion" />
     }
+    <AlertBox Mensaje="@_errorClave" />
 </div>
 
 @code {
@@ -75,6 +107,11 @@
     private string? _errorCodigo;
     private string? _mensajeRevocacion;
     private int? _revocandoId;
+    private int? _cambiandoClaveId;
+    private string? _claveGenerada;
+    private int? _claveGeneradaPara;
+    private int _sesionesCerradas;
+    private string? _errorClave;
     private List<UsuarioAdminResponse> _usuarios = [];
     private readonly CodigoFormModel _codigoForm = new();
 
@@ -105,6 +142,41 @@
         }
 
         _rotando = false;
+    }
+
+    /// <summary>
+    /// La contraseña anterior no se puede "ver": el servidor solo guarda su
+    /// hash, así que lo único posible es reemplazarla. Se genera una
+    /// temporal, se muestra una sola vez y la persona se pone la suya
+    /// después.
+    /// </summary>
+    private async Task CambiarClave(UsuarioAdminResponse usuario)
+    {
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Cambiarle la contraseña a {usuario.Nombre}?",
+            $"Se le pone una clave temporal y se cierran sus sesiones. La que tenía deja de servir, "
+            + $"y {usuario.Nombre} no podrá entrar hasta que le pases la nueva. Sus códigos de recuperación también se borran.",
+            "Sí, cambiarla"));
+        if (!confirmado) return;
+
+        _cambiandoClaveId = usuario.Id;
+        _claveGenerada = null;
+        _errorClave = null;
+
+        var resultado = await Api.GenerarClaveTemporalAsync(usuario.Id);
+
+        if (resultado.Exito)
+        {
+            _claveGenerada = resultado.Valor!.Clave;
+            _claveGeneradaPara = usuario.Id;
+            _sesionesCerradas = resultado.Valor.SesionesCerradas;
+        }
+        else
+        {
+            _errorClave = resultado.TodosLosErrores();
+        }
+
+        _cambiandoClaveId = null;
     }
 
     private async Task RevocarSesiones(int usuarioId)

@@ -20,6 +20,9 @@ public record RotarCodigoInvitacionRequest(string NuevoCodigo);
 
 public record UsuarioAdminResponse(int Id, string Nombre, string Email, DateTime FechaCreacion, IReadOnlyList<string> Roles);
 
+/// <param name="Clave">En claro una sola vez: después solo queda el hash.</param>
+public record ClaveTemporalResponse(string Clave, int SesionesCerradas);
+
 public record InvitacionAppResponse(
     int Id, string Estado, DateTime CreadoEn, DateTime ExpiraEn, string? UsadaPorNombre);
 

@@ -173,6 +173,13 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return result?.GetValueOrDefault("sesionesRevocadas") ?? 0;
     }
 
+    public async Task<ApiResult<ClaveTemporalResponse>> GenerarClaveTemporalAsync(int usuarioId)
+    {
+        var response = await Api.PostAsync($"api/admin/usuarios/{usuarioId}/clave-temporal", null);
+        return await ApiResult<ClaveTemporalResponse>.FromResponseAsync(
+            response, r => r.Content.ReadFromJsonAsync<ClaveTemporalResponse>()!);
+    }
+
     public async Task<ApiResult<object?>> RotarCodigoInvitacionAsync(RotarCodigoInvitacionRequest request)
     {
         var response = await Api.PostAsJsonAsync("api/admin/codigo-invitacion/rotar", request);

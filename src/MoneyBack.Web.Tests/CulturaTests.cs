@@ -12,25 +12,7 @@ namespace MoneyBack.Web.Tests;
 /// </summary>
 public class CulturaTests
 {
-    /// <summary>
-    /// En un hilo aparte para que no se filtre a las demás pruebas: cambiar
-    /// la cultura del hilo actual dentro de un test async la deja pegada en
-    /// el hilo del pool y contamina lo que corra después.
-    /// </summary>
-    private static void EnEsCO(Action prueba)
-    {
-        Exception? falla = null;
-        var hilo = new Thread(() =>
-        {
-            CultureInfo.CurrentCulture = new CultureInfo("es-CO");
-            CultureInfo.CurrentUICulture = new CultureInfo("es-CO");
-            try { prueba(); }
-            catch (Exception e) { falla = e; }
-        });
-        hilo.Start();
-        hilo.Join();
-        if (falla is not null) throw falla;
-    }
+    private static void EnEsCO(Action prueba) => Cultura.ComoEnColombia(prueba);
 
     [Fact]
     public void RegistrarUnAporteFuncionaConElTelefonoEnEspanol() => EnEsCO(() =>

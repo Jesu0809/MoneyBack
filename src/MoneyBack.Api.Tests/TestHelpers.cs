@@ -40,6 +40,35 @@ public static class TestHelpers
         return (cliente, usuario);
     }
 
+    /// <summary>
+    /// Como el anterior, pero con el rol SuperAdmin en el token. El rol se
+    /// mete en el token y no en la base porque la autorización de /api/admin
+    /// se resuelve por claim: es exactamente el mismo camino que sigue una
+    /// petición real.
+    /// </summary>
+    public static async Task<(HttpClient Cliente, Usuario Usuario)> CrearAdminAutenticadoAsync(
+        this ApiFactory factory, string? email = null)
+    {
+        email ??= $"{Guid.NewGuid():N}@test.moneyback";
+
+        using var scope = factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Usuario>>();
+        var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
+
+        var usuario = new Usuario { UserName = email, Email = email, Nombre = "Administrador" };
+        var resultado = await userManager.CreateAsync(usuario, "ClaveSegura#2026");
+        if (!resultado.Succeeded)
+        {
+            throw new InvalidOperationException(string.Join(", ", resultado.Errors.Select(e => e.Description)));
+        }
+
+        var token = tokenService.GenerarAccessToken(usuario, [MoneyBack.Api.Models.Auth.Roles.SuperAdmin]);
+
+        var cliente = factory.CreateClient();
+        cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return (cliente, usuario);
+    }
+
     public static async Task<CategoriaResponse> CrearCategoriaAsync(this HttpClient cliente, string nombre, MoneyBack.Api.Models.DiaADia.TipoCategoria tipo)
     {
         var respuesta = await cliente.PostAsJsonAsync("/api/categorias", new CrearCategoriaRequest(nombre, tipo, "📦"));

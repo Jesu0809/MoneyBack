@@ -54,31 +54,18 @@ public class AnilloYRitmoTests : PruebaDePantalla
     /// contamina lo que corra después (ya rompió otra prueba así).
     /// </summary>
     [Fact]
-    public void ElArcoSeEscribeConPuntoDecimalSiempre()
+    public void ElArcoSeEscribeConPuntoDecimalSiempre() => Cultura.ComoEnColombia(() =>
     {
-        string? offset = null;
-        Exception? falla = null;
+        using var ctx = new TestContext();
+        var anillo = ctx.RenderComponent<AnilloProgreso>(p => p.Add(a => a.Porcentaje, 33m));
 
-        var hilo = new Thread(() =>
+        anillo.WaitForAssertion(() =>
         {
-            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("es-CO");
-            try
-            {
-                using var ctx = new TestContext();
-                var anillo = ctx.RenderComponent<AnilloProgreso>(p => p.Add(a => a.Porcentaje, 33m));
-                anillo.WaitForAssertion(() =>
-                    Assert.NotEqual("0", anillo.FindAll("circle").Last().GetAttribute("stroke-dashoffset")));
-                offset = anillo.FindAll("circle").Last().GetAttribute("stroke-dashoffset");
-            }
-            catch (Exception e) { falla = e; }
+            var offset = anillo.FindAll("circle").Last().GetAttribute("stroke-dashoffset")!;
+            Assert.NotEqual("0", offset);
+            Assert.DoesNotContain(",", offset);
         });
-        hilo.Start();
-        hilo.Join();
-
-        if (falla is not null) throw falla;
-        Assert.NotNull(offset);
-        Assert.DoesNotContain(",", offset);
-    }
+    });
 
     // ---------- El ritmo de ahorro ----------
 
