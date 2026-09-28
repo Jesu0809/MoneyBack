@@ -7,6 +7,8 @@ using MoneyBack.Api.Models;
 using MoneyBack.Api.Models.Metas;
 using MoneyBack.Api.Services;
 
+using MoneyBack.Api.Models.Notificaciones;
+
 namespace MoneyBack.Api.Endpoints;
 
 public static class InvitacionesHogarEndpoints
@@ -81,7 +83,8 @@ public static class InvitacionesHogarEndpoints
             await sender.EnviarATodosLosDispositivosAsync(
                 pareja.Id,
                 "Invitación a un hogar",
-                $"{yo!.Nombre} te invitó a crear un hogar en MoneyBack para ahorrar juntos.");
+                $"{yo!.Nombre} te invitó a crear un hogar en MoneyBack para ahorrar juntos.",
+            tipo: TipoNotificacion.Invitacion);
 
             return Results.Created($"/api/invitaciones-hogar/{invitacion.Id}", ToResponse(invitacion, yo.Nombre, pareja.Nombre));
         });

@@ -156,6 +156,7 @@ app.MapHealthChecks("/health");
 
 app.MapAuthEndpoints();
 app.MapAdminEndpoints();
+app.MapNotificacionesEndpoints();
 app.MapHogaresEndpoints();
 app.MapInvitacionesHogarEndpoints();
 app.MapMetasEndpoints();

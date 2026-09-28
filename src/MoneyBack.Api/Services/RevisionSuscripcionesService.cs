@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Models.Suscripciones;
 
+using MoneyBack.Api.Models.Notificaciones;
+
 namespace MoneyBack.Api.Services;
 
 /// <summary>
@@ -90,7 +92,8 @@ public class RevisionSuscripcionesService(IServiceScopeFactory scopeFactory, ILo
             await sender.EnviarATodosLosDispositivosAsync(
                 suscripcion.UsuarioId,
                 "Cobro próximo",
-                $"{suscripcion.Nombre} se cobra el {suscripcion.ProximoCobro:d MMM} — confirma en MoneyBack si pasó.");
+                $"{suscripcion.Nombre} se cobra el {suscripcion.ProximoCobro:d MMM} — confirma en MoneyBack si pasó.",
+            tipo: TipoNotificacion.CobroFijo);
         }
     }
 }

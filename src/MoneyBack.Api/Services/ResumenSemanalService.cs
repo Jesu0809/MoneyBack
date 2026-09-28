@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Models.DiaADia;
 
+using MoneyBack.Api.Models.Notificaciones;
+
 namespace MoneyBack.Api.Services;
 
 /// <summary>
@@ -81,7 +83,8 @@ public class ResumenSemanalService(IServiceScopeFactory scopeFactory, ILogger<Re
             usuario.UltimoResumenEnviado = hoyBogota;
             await db.SaveChangesAsync(ct);
 
-            await sender.EnviarATodosLosDispositivosAsync(usuario.Id, "Tu resumen de la semana", cuerpo);
+            await sender.EnviarATodosLosDispositivosAsync(usuario.Id, "Tu resumen de la semana", cuerpo,
+            tipo: TipoNotificacion.Resumen);
         }
     }
 }

@@ -8,6 +8,8 @@ using MoneyBack.Api.Models.Auth;
 using MoneyBack.Api.Models.DiaADia;
 using MoneyBack.Api.Services;
 
+using MoneyBack.Api.Models.Notificaciones;
+
 namespace MoneyBack.Api.Endpoints;
 
 /// <summary>
@@ -266,7 +268,8 @@ public static partial class AtajosEndpoints
             // salen de la misma app, silenciar uno silenciaba los dos.
             if (avisarPorPush == true)
             {
-                await sender.EnviarATodosLosDispositivosAsync(usuarioId.Value, "Gasto registrado", confirmacion);
+                await sender.EnviarATodosLosDispositivosAsync(usuarioId.Value, "Gasto registrado", confirmacion,
+                    tipo: TipoNotificacion.GastoAutomatico);
             }
 
             await DejarConstanciaAsync(usuarioId.Value, texto, true, confirmacion, db);

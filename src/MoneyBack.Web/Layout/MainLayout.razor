@@ -34,9 +34,9 @@
                     </div>
                     <button class="icon-btn notif-bell" @onclick="ToggleNotificaciones" title="Notificaciones">
                         <Icon Name="bell" Size="20" />
-                        @if (_pendientes.Count > 0)
+                        @if (TotalEnLaCampana > 0)
                         {
-                            <span class="notif-badge">@_pendientes.Count</span>
+                            <span class="notif-badge">@TotalEnLaCampana</span>
                         }
                     </button>
                     <button class="avatar-btn" @onclick="ToggleMenu" title="@context.User.Identity?.Name">
@@ -47,28 +47,39 @@
 
             @if (_panelNotifAbierto)
             {
+                @* Dos cosas distintas en un solo panel: arriba lo que pide
+                   una respuesta, abajo lo que solo informa. Antes acá solo
+                   vivían los cobros por confirmar y todo lo demás —topes,
+                   resumen semanal, gastos que entraron solos— salía por push
+                   y no dejaba rastro: si no viste la notificación, el aviso
+                   nunca existió para ti. *@
                 <div class="card" style="margin-bottom: 14px;">
                     <div class="stack">
                         <div class="row-between">
-                            <strong>Cobros por confirmar</strong>
-                            <button class="icon-btn" style="width:28px;height:28px;background:transparent;border:none" @onclick="() => _panelNotifAbierto = false">
-                                <Icon Name="x" Size="16" />
-                            </button>
+                            <strong>Notificaciones</strong>
+                            <div class="row" style="gap:4px">
+                                @if (_sinLeer > 0)
+                                {
+                                    <button class="btn btn-ghost" style="font-size:12.5px; padding:6px 10px"
+                                            @onclick="MarcarTodasLeidas">Marcar todas</button>
+                                }
+                                <button class="icon-btn" style="width:28px;height:28px;background:transparent;border:none" @onclick="() => _panelNotifAbierto = false">
+                                    <Icon Name="x" Size="16" />
+                                </button>
+                            </div>
                         </div>
+
                         @if (_errorCargando)
                         {
                             <p class="muted">No pudimos cargar tus notificaciones. <button style="background:none;border:none;padding:0;color:var(--color-accent-strong);text-decoration:underline;font:inherit;cursor:pointer" @onclick="CargarPendientesAsync">Reintentar</button></p>
                         }
-                        else if (_pendientes.Count == 0)
+
+                        @if (_pendientes.Count > 0)
                         {
-                            <p class="muted">No hay cobros pendientes de confirmar.</p>
-                        }
-                        else
-                        {
+                            <div class="label">Necesitan tu respuesta</div>
                             @foreach (var p in _pendientes)
                             {
-                                <div class="divider"></div>
-                                <div class="stack" style="gap:8px">
+                                <div class="stack" style="gap:8px; padding:6px 0">
                                     <div class="row">
                                         <span style="font-size:18px">@p.CategoriaIcono</span>
                                         <div>
@@ -82,7 +93,41 @@
                                         <button class="btn btn-primary" style="flex:1" @onclick="() => Resolver(p, true)">Sí</button>
                                     </div>
                                 </div>
+                                <div class="divider"></div>
                             }
+                        }
+
+                        @if (_notificaciones.Count > 0)
+                        {
+                            <div class="label">Lo que ha pasado</div>
+                            @foreach (var n in _notificaciones)
+                            {
+                                <div class="row card-tap" style="gap:10px; align-items:flex-start; padding:9px 0"
+                                     @onclick="() => AbrirNotificacion(n)">
+                                    @* El punto es la única marca de "no leída":
+                                       pintar la fila entera de color convierte
+                                       una lista de avisos en una alarma. *@
+                                    <div class="icon-bubble" style="background:var(--color-surface-2); position:relative">
+                                        <Icon Name="@IconoDe(n.Tipo)" Size="16" />
+                                        @if (!n.Leida)
+                                        {
+                                            <span class="punto-sin-leer"></span>
+                                        }
+                                    </div>
+                                    <div style="min-width:0; flex:1">
+                                        <div style="font-weight:@(n.Leida ? "500" : "650"); font-size:14px">@n.Titulo</div>
+                                        <div class="muted" style="font-size:12.5px">@n.Cuerpo</div>
+                                        <div class="muted" style="font-size:11.5px; margin-top:2px">@HaceCuanto(n.CreadaEn)</div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else if (_pendientes.Count == 0 && !_errorCargando)
+                        {
+                            <p class="muted" style="margin:0">
+                                Nada por ahora. Acá van a aparecer los avisos de topes, los cobros
+                                que se vienen y el resumen de cada semana.
+                            </p>
                         }
                     </div>
                 </div>
@@ -155,6 +200,15 @@
     private bool _panelNotifAbierto;
     private bool _errorCargando;
     private List<ConfirmacionPendienteResponse> _pendientes = [];
+    private List<NotificacionResponse> _notificaciones = [];
+    private int _sinLeer;
+
+    /// <summary>
+    /// Lo que pide respuesta más lo que no se ha leído. Son dos cosas
+    /// distintas pero una sola campanita: partir el número en dos badges
+    /// obligaría a entender la diferencia antes de poder mirar de reojo.
+    /// </summary>
+    private int TotalEnLaCampana => _pendientes.Count + _sinLeer;
     private readonly CancellationTokenSource _cts = new();
 
     private static readonly TimeSpan IntervaloRefresco = TimeSpan.FromMinutes(2);
@@ -212,7 +266,20 @@
 
     private async Task CargarPendientesAsync()
     {
-        var resultado = await Api.ObtenerConfirmacionesPendientesAsync();
+        // En paralelo: son dos consultas independientes y el panel las
+        // necesita a las dos para pintarse.
+        var confirmacionesTask = Api.ObtenerConfirmacionesPendientesAsync();
+        var bandejaTask = Api.ObtenerNotificacionesAsync();
+        await Task.WhenAll(confirmacionesTask, bandejaTask);
+
+        var bandeja = await bandejaTask;
+        if (bandeja is not null)
+        {
+            _notificaciones = bandeja.Notificaciones;
+            _sinLeer = bandeja.SinLeer;
+        }
+
+        var resultado = await confirmacionesTask;
         if (resultado is null)
         {
             // Se deja _pendientes como estaba (el badge no desaparece de
@@ -227,6 +294,68 @@
     }
 
     private void ToggleMenu() => _menuAbierto = !_menuAbierto;
+
+    /// <summary>
+    /// Tocar una notificación la marca leída y, si lleva a algún lado, va.
+    /// Se actualiza el contador en el acto y no se espera al servidor: si
+    /// la petición falla, lo peor que pasa es que vuelva a salir sin leer
+    /// en la próxima carga.
+    /// </summary>
+    private async Task AbrirNotificacion(NotificacionResponse n)
+    {
+        if (!n.Leida)
+        {
+            var i = _notificaciones.IndexOf(n);
+            if (i >= 0) _notificaciones[i] = n with { Leida = true };
+            _sinLeer = Math.Max(0, _sinLeer - 1);
+
+            await Api.MarcarNotificacionLeidaAsync(n.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(n.Url))
+        {
+            _panelNotifAbierto = false;
+            Nav.NavigateTo(n.Url);
+        }
+    }
+
+    private async Task MarcarTodasLeidas()
+    {
+        _notificaciones = _notificaciones.Select(n => n with { Leida = true }).ToList();
+        _sinLeer = 0;
+        await Api.MarcarTodasLasNotificacionesLeidasAsync();
+    }
+
+    private static string IconoDe(string tipo) => tipo switch
+    {
+        "Tope" => "wallet",
+        "CobroFijo" => "bell",
+        "Resumen" => "pie-chart",
+        "GastoAutomatico" => "credit-card",
+        "Invitacion" => "user",
+        _ => "bell"
+    };
+
+    /// <summary>
+    /// "Hace 3 horas" se entiende de un vistazo; una fecha completa obliga a
+    /// restar mentalmente. Pasada la semana sí se muestra la fecha, porque
+    /// "hace 23 días" ya no le dice nada a nadie.
+    /// </summary>
+    private static string HaceCuanto(DateTime cuando)
+    {
+        var minutos = (DateTime.UtcNow - cuando).TotalMinutes;
+
+        return minutos switch
+        {
+            < 2 => "ahora mismo",
+            < 60 => $"hace {(int)minutos} minutos",
+            < 120 => "hace una hora",
+            < 1440 => $"hace {(int)(minutos / 60)} horas",
+            < 2880 => "ayer",
+            < 10080 => $"hace {(int)(minutos / 1440)} días",
+            _ => Formato.FechaCorta(cuando)
+        };
+    }
 
     private async Task ToggleNotificaciones()
     {

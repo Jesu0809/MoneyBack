@@ -173,6 +173,26 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return result?.GetValueOrDefault("sesionesRevocadas") ?? 0;
     }
 
+    public async Task<BandejaNotificacionesResponse?> ObtenerNotificacionesAsync()
+    {
+        var response = await Api.GetAsync("api/notificaciones");
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<BandejaNotificacionesResponse>()
+            : null;
+    }
+
+    public async Task<bool> MarcarNotificacionLeidaAsync(int id)
+    {
+        var response = await Api.PostAsync($"api/notificaciones/{id}/leer", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> MarcarTodasLasNotificacionesLeidasAsync()
+    {
+        var response = await Api.PostAsync("api/notificaciones/leer-todas", null);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<ApiResult<ClaveTemporalResponse>> GenerarClaveTemporalAsync(int usuarioId)
     {
         var response = await Api.PostAsync($"api/admin/usuarios/{usuarioId}/clave-temporal", null);

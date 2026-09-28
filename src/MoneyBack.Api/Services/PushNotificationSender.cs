@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MoneyBack.Api.Config;
 using MoneyBack.Api.Data;
+using MoneyBack.Api.Models.Notificaciones;
 using WebPush;
 
 namespace MoneyBack.Api.Services;
@@ -17,8 +18,25 @@ namespace MoneyBack.Api.Services;
 /// </summary>
 public class PushNotificationSender(ApplicationDbContext db, IOptions<PushOptions> opciones, ILogger<PushNotificationSender> logger)
 {
-    public async Task EnviarATodosLosDispositivosAsync(int usuarioId, string titulo, string cuerpo, string? url = null)
+    public async Task EnviarATodosLosDispositivosAsync(
+        int usuarioId, string titulo, string cuerpo, string? url = null,
+        TipoNotificacion tipo = TipoNotificacion.General)
     {
+        // Se guarda ANTES de intentar mandarla, y pase lo que pase con el
+        // envío. Un push que no se ve se pierde para siempre: si el teléfono
+        // estaba en silencio, si se descartó sin leer, si el permiso estaba
+        // negado, el aviso de que un tope se pasó nunca ocurrió para esa
+        // persona. El push es el aviso; esto es el registro.
+        db.Notificaciones.Add(new Notificacion
+        {
+            UsuarioId = usuarioId,
+            Tipo = tipo,
+            Titulo = titulo,
+            Cuerpo = cuerpo,
+            Url = url
+        });
+        await db.SaveChangesAsync();
+
         var opts = opciones.Value;
         if (string.IsNullOrEmpty(opts.VapidPublicKey) || string.IsNullOrEmpty(opts.VapidPrivateKey))
         {

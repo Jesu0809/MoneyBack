@@ -958,3 +958,15 @@ h1:focus { outline: none; }
 .empty-state h3 { margin-bottom: 6px; color: var(--color-text); }
 .empty-state p { margin: 0 auto; max-width: 300px; line-height: 1.5; }
 .empty-state .btn { margin-top: 18px; }
+
+/* El punto de "no leída" sobre el ícono del aviso. Va encima y no como
+   fondo de la fila entera: teñir toda la fila convierte una lista de
+   avisos en una pantalla de alarmas, y entonces ninguno resalta. */
+.punto-sin-leer {
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  border: 2px solid var(--color-surface);
+}

@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using MoneyBack.Api.Data;
 using MoneyBack.Api.Models.DiaADia;
 
+using MoneyBack.Api.Models.Notificaciones;
+
 namespace MoneyBack.Api.Services;
 
 /// <summary>
@@ -86,7 +88,8 @@ public static class AlertasPresupuestoService
             usuarioId,
             Titulo(categoria, umbral),
             Cuerpo(categoria, gastado, tope.MontoLimite, porcentaje, umbral, hoy),
-            "/presupuestos");
+            "/presupuestos",
+            tipo: TipoNotificacion.Tope);
     }
 
     /// <summary>

@@ -42,6 +42,7 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
     public DbSet<TokenAtajo> TokensAtajo => Set<TokenAtajo>();
     public DbSet<TarjetaCredito> TarjetasCredito => Set<TarjetaCredito>();
     public DbSet<PagoTarjeta> PagosTarjeta => Set<PagoTarjeta>();
+    public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -73,5 +74,6 @@ public class ApplicationDbContext : IdentityDbContext<Usuario, IdentityRole<int>
         builder.ApplyConfiguration(new SuscripcionPushConfiguration());
         builder.ApplyConfiguration(new TokenAtajoConfiguration());
         builder.ApplyConfiguration(new TarjetaCreditoConfiguration());
+        builder.ApplyConfiguration(new NotificacionConfiguration());
     }
 }
