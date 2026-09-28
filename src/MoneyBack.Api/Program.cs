@@ -177,6 +177,7 @@ app.MapTarjetasCreditoEndpoints();
 
 await app.SembrarCodigoInvitacionAsync();
 await app.PromoverSuperAdminSiSePidioAsync();
+await app.CrearAdminInicialAsync();
 
 app.Run();
 

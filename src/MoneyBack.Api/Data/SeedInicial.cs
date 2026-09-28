@@ -90,4 +90,84 @@ public static class SeedInicial
             "Se le dio el rol SuperAdmin a la cuenta {UsuarioId} por Auth:PromoverASuperAdmin. Quitar el ajuste.",
             usuario.Id);
     }
+
+    /// <summary>
+    /// Crea la cuenta de administración si hace falta, con el rol puesto.
+    ///
+    /// No pasa por /registro a propósito: ese camino pide código de
+    /// invitación, crea categorías predefinidas y le daría el rol solo si
+    /// fuera la primera cuenta del sistema. Esto es otra cosa — una cuenta
+    /// de administración, no una persona usando la app.
+    ///
+    /// Es idempotente y conservador: si el correo ya existe, no le toca la
+    /// contraseña, solo se asegura del rol. Un ajuste que quede olvidado en
+    /// la configuración no puede reescribirle la clave a nadie en cada
+    /// reinicio de la máquina.
+    /// </summary>
+    public static async Task CrearAdminInicialAsync(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var authOptions = scope.ServiceProvider.GetRequiredService<IOptions<AuthOptions>>().Value;
+
+        var correo = authOptions.AdminInicialEmail?.Trim();
+        var clave = authOptions.AdminInicialPassword;
+
+        if (string.IsNullOrWhiteSpace(correo)) return;
+
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<Usuario>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
+
+        if (!await roleManager.RoleExistsAsync(Roles.SuperAdmin))
+        {
+            await roleManager.CreateAsync(new IdentityRole<int>(Roles.SuperAdmin));
+        }
+
+        var existente = await userManager.FindByEmailAsync(correo);
+        if (existente is not null)
+        {
+            if (!await userManager.IsInRoleAsync(existente, Roles.SuperAdmin))
+            {
+                await userManager.AddToRoleAsync(existente, Roles.SuperAdmin);
+                app.Logger.LogWarning(
+                    "Auth:AdminInicialEmail apunta a una cuenta que ya existía; se le dio el rol SuperAdmin.");
+            }
+            else
+            {
+                app.Logger.LogWarning(
+                    "Auth:AdminInicialEmail sigue configurado y esa cuenta ya está lista. Conviene quitar el ajuste.");
+            }
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(clave))
+        {
+            app.Logger.LogWarning(
+                "Auth:AdminInicialEmail está configurado pero falta Auth:AdminInicialPassword. No se creó nada.");
+            return;
+        }
+
+        var admin = new Usuario
+        {
+            UserName = correo,
+            Email = correo,
+            Nombre = "Administración",
+            EmailConfirmed = true
+        };
+
+        var resultado = await userManager.CreateAsync(admin, clave);
+        if (!resultado.Succeeded)
+        {
+            // Sin los detalles del error: van al registro del servidor y ahí
+            // podrían quedar pistas de la contraseña que se intentó usar.
+            app.Logger.LogWarning(
+                "No se pudo crear la cuenta de Auth:AdminInicialEmail: la contraseña no cumple las reglas.");
+            return;
+        }
+
+        await userManager.AddToRoleAsync(admin, Roles.SuperAdmin);
+
+        app.Logger.LogWarning(
+            "Se creó la cuenta de administración {UsuarioId} por Auth:AdminInicialEmail. Quitar el ajuste.",
+            admin.Id);
+    }
 }

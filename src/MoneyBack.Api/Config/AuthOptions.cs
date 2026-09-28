@@ -26,4 +26,24 @@ public class AuthOptions
     /// Se deja vacío en operación normal. Al usarlo, quitarlo después.
     /// </summary>
     public string PromoverASuperAdmin { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Correo de una cuenta de administración a crear al arrancar, si no
+    /// existe ya. Va junto con <see cref="AdminInicialPassword"/>.
+    ///
+    /// Sirve para tener una cuenta de administración separada de la
+    /// personal: así se puede entrar a administrar sin cerrar la sesión del
+    /// día a día, y si algún día hay que revocarla, no se pierde el acceso
+    /// a las propias metas y gastos.
+    ///
+    /// Nunca le cambia la contraseña a una cuenta que ya exista: si el
+    /// correo ya está registrado, solo se asegura de que tenga el rol. Un
+    /// ajuste olvidado en la configuración no puede reescribir la clave de
+    /// nadie en cada reinicio.
+    ///
+    /// Se deja vacío en operación normal. Al usarlo, quitarlo después.
+    /// </summary>
+    public string AdminInicialEmail { get; set; } = string.Empty;
+
+    public string AdminInicialPassword { get; set; } = string.Empty;
 }
