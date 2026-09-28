@@ -174,4 +174,55 @@ public class PanelNotificacionesTests : PruebaDePantalla
             < marcado.IndexOf("Lo que ha pasado", StringComparison.Ordinal));
         Assert.Contains("¿Se cobró?", marcado);
     }
+
+    /// <summary>
+    /// El panel tiene que flotar anclado al encabezado, no ocupar un lugar
+    /// en el flujo de la página.
+    ///
+    /// Como tarjeta en el flujo, tocar la campanita con la página bajada
+    /// abría el panel en su posición del documento —más arriba de lo que se
+    /// está viendo— y parecía que el botón no servía. Pasó en producción y
+    /// desde el escritorio, sin scroll, era invisible.
+    /// </summary>
+    [Fact]
+    public void ElPanelFlotaYNoSeAbreFueraDeLaPantalla()
+    {
+        ConBandeja(1, Aviso(1, "Un aviso"));
+
+        var layout = AbrirPanel();
+
+        layout.WaitForAssertion(() => Assert.Single(layout.FindAll(".panel-flotante")));
+    }
+
+    [Fact]
+    public void TocarPorFueraCierraElPanel()
+    {
+        ConBandeja(1, Aviso(1, "Un aviso"));
+
+        var layout = AbrirPanel();
+        layout.WaitForAssertion(() => Assert.Single(layout.FindAll(".panel-telon")));
+
+        layout.Find(".panel-telon").Click();
+
+        Assert.Empty(layout.FindAll(".panel-flotante"));
+        Assert.Empty(layout.FindAll(".panel-telon"));
+    }
+
+    /// <summary>
+    /// Los dos paneles del encabezado no pueden estar abiertos a la vez:
+    /// ocupan el mismo lugar y encimados no se lee ninguno.
+    /// </summary>
+    [Fact]
+    public void AbrirElMenuDeLaCuentaCierraElDeNotificaciones()
+    {
+        ConBandeja(1, Aviso(1, "Un aviso"));
+
+        var layout = AbrirPanel();
+        layout.WaitForAssertion(() => Assert.Contains("Notificaciones", layout.Markup));
+
+        layout.Find("button.avatar-btn").Click();
+
+        Assert.Single(layout.FindAll(".panel-flotante"));
+        Assert.Contains("Cerrar sesión", layout.Markup);
+    }
 }

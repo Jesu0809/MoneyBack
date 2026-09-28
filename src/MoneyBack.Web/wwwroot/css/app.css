@@ -994,3 +994,41 @@ h1:focus { outline: none; }
   background: var(--color-danger);
   border: 2px solid var(--color-surface);
 }
+
+/* --- Paneles del encabezado (notificaciones y menú de la cuenta) ---
+   Flotan anclados debajo del encabezado en vez de ocupar un lugar en el
+   flujo de la página. Así estaban antes, y el problema no se veía desde
+   arriba: con la página bajada, tocar la campanita abría el panel en su
+   posición del documento —o sea, más arriba de lo que se está viendo— y
+   parecía que el botón estaba muerto. */
+.panel-flotante {
+  position: fixed;
+  top: calc(70px + env(safe-area-inset-top));
+  left: max(14px, calc(50% - 306px));
+  right: max(14px, calc(50% - 306px));
+  z-index: 30;
+  max-height: calc(100vh - 170px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: var(--shadow-card-hover);
+  animation: panelBaja 220ms var(--ease-smooth) both;
+}
+
+@keyframes panelBaja {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-flotante { animation: fadeIn 160ms both; }
+}
+
+/* Por debajo del panel y por encima de todo lo demás, incluida la barra de
+   abajo (20): si la barra quedara encima, se podría cambiar de pestaña con
+   el panel abierto y este se quedaría flotando sobre otra pantalla. */
+.panel-telon {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(10, 12, 11, 0.18);
+}
