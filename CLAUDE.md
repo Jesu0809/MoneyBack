@@ -34,6 +34,16 @@ no sabría traducir. Ante una consulta LINQ dudosa, verificarla con
 `ToQueryString()` sobre un contexto configurado con `UseNpgsql` (no hace falta
 conectarse).
 
+**Fechas: `HoraColombia` o nada.** Postgres guarda `timestamp with time zone`
+y solo acepta `DateTimeKind.Utc`; `TimeZoneInfo.ConvertTimeFromUtc` devuelve
+`Unspecified`. Mezclar las dos cosas no falla al compilar y EF InMemory no lo
+ve —solo Postgres—, así que llega a producción intacto: el resumen semanal
+llevaba desde que se escribió muriendo en su primera consulta, cada domingo,
+sin enviar uno solo. La regla es `HoraColombia.Hoy()` para razonar sobre el
+calendario de acá y `AInstanteUtc`/`InicioDelDiaUtc`/`InicioDelMesUtc` para
+todo lo que toque una consulta o una columna. `HoraColombiaTests` tiene un
+linter que revisa que ningún servicio arme fechas por su cuenta.
+
 ## Convenciones
 
 Entidades mutables en `Models/<Feature>/`, DTOs como records posicionales en
