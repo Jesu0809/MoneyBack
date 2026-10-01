@@ -92,7 +92,7 @@
                         {
                             var alturaPct = mes.TotalGastos / maxGasto * 100;
                             <div class="bar-chart-col" title="@NombreMesCorto(mes.Mes): @Formato.Pesos(mes.TotalGastos)">
-                                <div class="bar-chart-bar" style="height: @(Math.Max(2, alturaPct))%"></div>
+                                <div class="bar-chart-bar" style="height: @(Css.Numero(Math.Max(2, alturaPct)))%"></div>
                                 <span class="bar-chart-label">@NombreMesCorto(mes.Mes)</span>
                             </div>
                         }

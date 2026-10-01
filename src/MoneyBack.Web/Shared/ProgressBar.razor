@@ -1,5 +1,7 @@
 <div class="progress-track">
-    <div class="progress-fill" style="width: @(_anchoAnimado)%"></div>
+    @* Css.Numero y no el valor directo: en un teléfono en español
+       "45,5%" es inválido y la barra se queda vacía. *@
+    <div class="progress-fill" style="width: @(Css.Numero(_anchoAnimado))%"></div>
 </div>
 
 @code {

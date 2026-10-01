@@ -1027,7 +1027,11 @@
             var inicio = acumulado / _resumen.TotalGastos * 360;
             acumulado += cat.Total;
             var fin = acumulado / _resumen.TotalGastos * 360;
-            partes.Add($"{color} {inicio:0.##}deg {fin:0.##}deg");
+            // Con punto decimal siempre: en un teléfono en español,
+            // "163,8deg" invalida el conic-gradient entero y la torta no se
+            // dibuja. Con una sola categoría los grados salen redondos y
+            // parecía que funcionaba.
+            partes.Add($"{color} {Css.Numero(inicio)}deg {Css.Numero(fin)}deg");
         }
         return $"conic-gradient({string.Join(", ", partes)})";
     }
