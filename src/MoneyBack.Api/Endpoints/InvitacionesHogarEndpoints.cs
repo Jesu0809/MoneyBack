@@ -26,7 +26,7 @@ public static class InvitacionesHogarEndpoints
         {
             var usuarioId = principal.GetUsuarioId();
 
-            var pareja = await userManager.FindByEmailAsync(request.EmailPareja);
+            var pareja = await userManager.FindByEmailAsync(request.EmailPareja.Trim());
             if (pareja is null)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>

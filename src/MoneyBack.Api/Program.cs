@@ -68,6 +68,10 @@ builder.Services
         options.User.RequireUniqueEmail = true;
     })
     .AddRoles<IdentityRole<int>>()
+    // Sin esto, los errores de Identity salen en inglés y escritos para
+    // quien programa: alguien intentando registrarse vio "Username
+    // 'correo@gmail.com ' is invalid, can only contain letters or digits".
+    .AddErrorDescriber<ErroresEnEspanol>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();

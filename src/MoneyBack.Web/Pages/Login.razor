@@ -23,7 +23,7 @@
                 <div class="stack">
                     <div class="field">
                         <label>Correo</label>
-                        <InputText class="input" @bind-Value="_form.Email" placeholder="tucorreo@ejemplo.com" />
+                        <InputText class="input" type="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" @bind-Value="_form.Email" placeholder="tucorreo@ejemplo.com" />
                     </div>
                     <div class="field">
                         <label>Contraseña</label>
@@ -70,7 +70,7 @@
         _error = null;
         _cargando = true;
 
-        var resultado = await AuthService.LoginAsync(new LoginRequest(_form.Email, _form.Password));
+        var resultado = await AuthService.LoginAsync(new LoginRequest(_form.Email.Trim(), _form.Password));
 
         if (resultado.Exito)
         {

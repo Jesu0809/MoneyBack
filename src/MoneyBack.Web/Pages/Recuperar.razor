@@ -40,7 +40,7 @@
                     <div class="stack">
                         <div class="field">
                             <label>Correo</label>
-                            <InputText class="input" @bind-Value="_form.Email" placeholder="tucorreo@ejemplo.com" />
+                            <InputText class="input" type="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" @bind-Value="_form.Email" placeholder="tucorreo@ejemplo.com" />
                         </div>
                         <div class="field">
                             <label>Clave de recuperación</label>
@@ -82,7 +82,7 @@
         _cargando = true;
 
         var resultado = await AuthService.RecuperarCuentaAsync(
-            new RecuperarCuentaRequest(_form.Email, _form.Codigo, _form.NuevaPassword));
+            new RecuperarCuentaRequest(_form.Email.Trim(), _form.Codigo, _form.NuevaPassword));
 
         if (resultado.Exito)
         {

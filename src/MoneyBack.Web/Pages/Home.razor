@@ -77,7 +77,7 @@ else if (_hogar is not null)
                             <div class="stack">
                                 <div class="field">
                                     <label>Correo de quien quieres sumar</label>
-                                    <InputText class="input" @bind-Value="_crearHogarForm.EmailPareja" placeholder="correo@ejemplo.com" />
+                                    <InputText class="input" type="email" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" @bind-Value="_crearHogarForm.EmailPareja" placeholder="correo@ejemplo.com" />
                                     <span class="muted">Tiene que estar registrada y aceptar la invitación.</span>
                                 </div>
                                 <AlertBox Mensaje="@_error" />

@@ -89,7 +89,12 @@ public static class AuthEndpoints
                 }
             }
 
-            var usuario = new Usuario { UserName = request.Email, Email = request.Email, Nombre = request.Nombre };
+            // Con Trim: el teclado del teléfono le mete un espacio al final
+            // del correo sin que la persona lo vea, y Identity lo rechaza
+            // porque el espacio no es un caracter válido para el nombre de
+            // usuario. El error no daba ninguna pista de eso.
+            var correo = request.Email.Trim();
+            var usuario = new Usuario { UserName = correo, Email = correo, Nombre = request.Nombre.Trim() };
             var resultado = await userManager.CreateAsync(usuario, request.Password);
 
             if (!resultado.Succeeded)
@@ -140,7 +145,10 @@ public static class AuthEndpoints
             ApplicationDbContext db,
             TokenService tokenService) =>
         {
-            var usuario = await userManager.FindByEmailAsync(request.Email);
+            // Igual que al registrarse: si el teclado agregó un espacio, la
+            // cuenta existe pero no se encuentra, y el mensaje diría que la
+            // contraseña está mal.
+            var usuario = await userManager.FindByEmailAsync(request.Email.Trim());
             if (usuario is null)
             {
                 return Results.Unauthorized();
