@@ -1,5 +1,24 @@
-﻿@page "/not-found"
+@page "/not-found"
 @layout MainLayout
+@inject NavigationManager Nav
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+@*
+    Era la página que trae la plantilla de Blazor: en inglés, sin explicar
+    nada y sin salida. Alguien a quien le pasaron un enlace de invitación
+    roto llegaba acá y no tenía ni idea de qué hacer — ni siquiera de que
+    esto era MoneyBack.
+*@
+
+<PageTitle>No encontramos esa página · MoneyBack</PageTitle>
+
+<div class="stack" style="padding-top:40px">
+    <Vacio Icono="alert-triangle" Titulo="No encontramos esa página"
+           Detalle="Puede que el enlace esté incompleto o que lo hayan copiado a medias. Si te invitaron a MoneyBack, pídele a quien te invitó que te mande el enlace otra vez.">
+        <ContenidoExtra>
+            <div class="stack" style="gap:10px; max-width:280px; margin:0 auto">
+                <button class="btn btn-primary btn-block" @onclick='() => Nav.NavigateTo("/")'>Ir al inicio</button>
+                <button class="btn btn-secondary btn-block" @onclick='() => Nav.NavigateTo("/registro")'>Crear una cuenta</button>
+            </div>
+        </ContenidoExtra>
+    </Vacio>
+</div>

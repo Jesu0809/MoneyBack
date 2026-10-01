@@ -595,7 +595,7 @@
             // El enlace se arma acá y no en el servidor: el API no sabe en qué
             // dominio está montada la app, y adivinarlo produciría enlaces que
             // no abren.
-            _enlaceNuevo = $"{Nav.BaseUri}register?invitacion={resultado.Valor!.Token}";
+            _enlaceNuevo = $"{Nav.BaseUri}registro?invitacion={resultado.Valor!.Token}";
             _invitaciones = await Api.ObtenerInvitacionesAppAsync();
         }
         else

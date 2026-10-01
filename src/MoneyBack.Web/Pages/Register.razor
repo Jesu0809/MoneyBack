@@ -1,4 +1,9 @@
 @page "/registro"
+@* Los enlaces de invitación se generaron un tiempo apuntando a /register,
+   que no era una ruta, y quien los recibía caía en "Not Found". Se arregló
+   el generador, pero los que ya salieron por WhatsApp no se pueden
+   corregir: esta segunda ruta es para que esos sigan sirviendo. *@
+@page "/register"
 @inject AuthService AuthService
 @inject NavigationManager Nav
 
