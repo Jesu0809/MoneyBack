@@ -480,8 +480,10 @@
     private bool _mostrarForm;
     private string? _error;
     private VistaResumen _vista = VistaResumen.Mes;
-    private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-    private int _anioActual = DateTime.UtcNow.Year;
+    // El mes del calendario de acá, no el de UTC. Con UtcNow, a las 7 de la
+    // noche del último día del mes la app ya abría en el mes siguiente.
+    private DateTime _mesActual = HoraLocal.InicioDeMes(HoraLocal.Hoy());
+    private int _anioActual = HoraLocal.Hoy().Year;
     private List<CategoriaResponse> _categorias = [];
     private List<TarjetaCreditoResponse> _tarjetas = [];
     /// <summary>
@@ -537,8 +539,8 @@
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        var desde = _mesActual;
-        var hasta = _mesActual.AddMonths(1).AddTicks(-1);
+        var desde = HoraLocal.InicioDeMesUtc(_mesActual);
+        var hasta = HoraLocal.FinDeMesUtc(_mesActual);
 
         // Solo lo que hace falta para pintar la pantalla. Antes se esperaban
         // las seis llamadas antes de mostrar nada, así que la más lenta
@@ -689,8 +691,8 @@
                 ? "Se subió 1 gasto que quedó pendiente sin conexión."
                 : $"Se subieron {subidos} gastos que quedaron pendientes sin conexión.";
 
-            var desde = _mesActual;
-            var hasta = _mesActual.AddMonths(1).AddTicks(-1);
+            var desde = HoraLocal.InicioDeMesUtc(_mesActual);
+            var hasta = HoraLocal.FinDeMesUtc(_mesActual);
             _movimientos = await Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
             _saldoAcumulado = await Api.ObtenerResumenDiaADiaAsync();
             _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
@@ -723,8 +725,8 @@
     private async Task CargarMesAsync()
     {
         _cargando = true;
-        var desde = _mesActual;
-        var hasta = _mesActual.AddMonths(1).AddTicks(-1);
+        var desde = HoraLocal.InicioDeMesUtc(_mesActual);
+        var hasta = HoraLocal.FinDeMesUtc(_mesActual);
         _movimientos = await Api.ObtenerMovimientosDiaADiaAsync(desde, hasta);
         _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
         _cargando = false;
@@ -735,8 +737,8 @@
     private async Task CargarAnioAsync()
     {
         _cargando = true;
-        var desde = new DateTime(_anioActual, 1, 1);
-        var hasta = new DateTime(_anioActual, 12, 31, 23, 59, 59);
+        var desde = HoraLocal.AInstanteUtc(HoraLocal.InicioDeAnio(_anioActual));
+        var hasta = HoraLocal.AInstanteUtc(HoraLocal.InicioDeAnio(_anioActual + 1)).AddTicks(-1);
         _resumen = await Api.ObtenerResumenDiaADiaAsync(desde, hasta);
         _cargando = false;
     }
@@ -1040,7 +1042,7 @@
     {
         string[] dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
         string[] meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-        var hoy = DateTime.UtcNow.ToLocalTime().Date;
+        var hoy = HoraLocal.Hoy().Date;
         if (fecha == hoy) return "Hoy";
         if (fecha == hoy.AddDays(-1)) return "Ayer";
         return $"{dias[(int)fecha.DayOfWeek]} {fecha.Day} {meses[fecha.Month - 1]}";

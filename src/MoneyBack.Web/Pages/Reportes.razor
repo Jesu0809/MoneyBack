@@ -148,10 +148,10 @@
     private bool _descargando;
     private string? _errorDescarga;
 
-    private DateTime _mesActual = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-    private int _anioActual = DateTime.UtcNow.Year;
-    private DateTime _desdePersonalizado = DateTime.UtcNow.Date.AddMonths(-1);
-    private DateTime _hastaPersonalizado = DateTime.UtcNow.Date;
+    private DateTime _mesActual = HoraLocal.InicioDeMes(HoraLocal.Hoy());
+    private int _anioActual = HoraLocal.Hoy().Year;
+    private DateTime _desdePersonalizado = HoraLocal.Hoy().Date.AddMonths(-1);
+    private DateTime _hastaPersonalizado = HoraLocal.Hoy().Date;
 
     private decimal _totalIngresos;
     private decimal _totalGastos;

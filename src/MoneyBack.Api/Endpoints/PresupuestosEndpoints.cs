@@ -29,8 +29,14 @@ public static class PresupuestosEndpoints
                 .Select(g => g.OrderByDescending(p => p.Anio).ThenByDescending(p => p.Mes).First())
                 .ToListAsync();
 
-            var inicioMes = new DateTime(anio, mes, 1, 0, 0, 0, DateTimeKind.Utc);
-            var finMes = inicioMes.AddMonths(1);
+            // La medianoche de Bogotá, no la de UTC. Con UTC, los gastos
+            // hechos entre las 7 p.m. y la medianoche del último día del mes
+            // caían en el mes siguiente — y peor: AlertasPresupuestoService
+            // ya usaba el corte colombiano, así que el aviso push y esta
+            // pantalla hablaban de meses distintos y no cuadraban.
+            var primeroLocal = new DateTime(anio, mes, 1, 0, 0, 0);
+            var inicioMes = HoraColombia.AInstanteUtc(primeroLocal);
+            var finMes = HoraColombia.AInstanteUtc(primeroLocal.AddMonths(1));
 
             var gastosDelMes = await db.MovimientosDiaADia
                 .Where(m => m.UsuarioId == usuarioId && m.Fecha >= inicioMes && m.Fecha < finMes)

@@ -193,6 +193,47 @@ public class ApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<ResumenAdminResponse?> ObtenerResumenAdminAsync()
+    {
+        var response = await Api.GetAsync("api/admin/resumen");
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<ResumenAdminResponse>()
+            : null;
+    }
+
+    public async Task<List<CuentaAdminResponse>> ObtenerCuentasAdminAsync()
+    {
+        var response = await Api.GetAsync("api/admin/usuarios");
+        if (!response.IsSuccessStatusCode) return [];
+        return await response.Content.ReadFromJsonAsync<List<CuentaAdminResponse>>() ?? [];
+    }
+
+    public async Task<ApiResult<object?>> DarAdministracionAsync(int usuarioId)
+    {
+        var response = await Api.PostAsync($"api/admin/usuarios/{usuarioId}/dar-administracion", null);
+        return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
+    }
+
+    public async Task<ApiResult<object?>> QuitarAdministracionAsync(int usuarioId)
+    {
+        var response = await Api.PostAsync($"api/admin/usuarios/{usuarioId}/quitar-administracion", null);
+        return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
+    }
+
+    public async Task<QueSeBorrariaResponse?> ConsultarQueSeBorrariaAsync(int usuarioId)
+    {
+        var response = await Api.GetAsync($"api/admin/usuarios/{usuarioId}/que-se-borraria");
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<QueSeBorrariaResponse>()
+            : null;
+    }
+
+    public async Task<ApiResult<object?>> BorrarCuentaAsync(int usuarioId)
+    {
+        var response = await Api.DeleteAsync($"api/admin/usuarios/{usuarioId}");
+        return await ApiResult<object?>.FromResponseAsync(response, _ => Task.FromResult<object?>(null));
+    }
+
     public async Task<ApiResult<ClaveTemporalResponse>> GenerarClaveTemporalAsync(int usuarioId)
     {
         var response = await Api.PostAsync($"api/admin/usuarios/{usuarioId}/clave-temporal", null);

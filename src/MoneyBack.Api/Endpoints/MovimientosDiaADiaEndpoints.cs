@@ -402,6 +402,13 @@ public static class MovimientosDiaADiaEndpoints
     private static string Recortar(string texto) =>
         texto.Length <= 70 ? texto : texto[..70] + "…";
 
-    private static DateTime AComoUtc(DateTime valor) =>
-        valor.Kind == DateTimeKind.Utc ? valor : DateTime.SpecifyKind(valor, DateTimeKind.Utc);
+    private static DateTime AComoUtc(DateTime valor) => valor.Kind switch
+    {
+        DateTimeKind.Utc => valor,
+        // El cliente ahora manda instantes UTC de verdad (con la Z), y según
+        // cómo los interprete el enlazador pueden llegar como Local. Marcarlos
+        // como UTC sin convertir correría el filtro cinco horas.
+        DateTimeKind.Local => valor.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(valor, DateTimeKind.Utc)
+    };
 }

@@ -44,3 +44,26 @@ public record CodigosRestantesResponse(int Quedan);
 public record RecuperarCuentaRequest(string Email, string Codigo, string NuevaPassword);
 
 public record RecuperacionExitosaResponse(int CodigosQueQuedan);
+
+// --- Panel de administración ---
+
+/// <param name="UltimaActividad">Lo más reciente que hizo: un gasto, un aporte o entrar.</param>
+public record CuentaAdminResponse(
+    int Id, string Nombre, string Email, DateTime FechaCreacion, IReadOnlyList<string> Roles,
+    int SesionesActivas, int Movimientos, int Grupos, DateTime? UltimaActividad, bool EsMiCuenta);
+
+public record ResumenAdminResponse(
+    int Cuentas, int Administradores, int SesionesActivas,
+    int Movimientos, int MovimientosSinClasificar,
+    int Grupos, int MetasActivas,
+    DateTime? UltimaLlamadaAtajo, bool UltimaLlamadaAtajoFueBien, int LlamadasAtajoFallidas,
+    int NotificacionesSinLeer);
+
+/// <param name="Bloqueo">Por qué no se puede borrar, o null si sí se puede.</param>
+public record QueSeBorrariaResponse(
+    string Nombre, string Email,
+    int Movimientos, int Categorias, int Aportes, int Deudas, int Tarjetas,
+    int CobrosFijos, int Presupuestos, int Notificaciones,
+    IReadOnlyList<string> GruposQueSeBorran,
+    IReadOnlyList<string> GruposDeLosQueSale,
+    string? Bloqueo);

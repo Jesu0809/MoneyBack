@@ -4,6 +4,8 @@ using MoneyBack.Api.Data;
 using MoneyBack.Api.Dtos;
 using MoneyBack.Api.Models.DiaADia;
 
+using MoneyBack.Api.Services;
+
 namespace MoneyBack.Api.Tests;
 
 /// <summary>
@@ -23,7 +25,14 @@ public class AlertasPresupuestoTests : IClassFixture<ApiFactory>
 
     public AlertasPresupuestoTests(ApiFactory factory) => _factory = factory;
 
-    private static readonly DateTime Hoy = DateTime.UtcNow;
+    /// <summary>
+    /// El calendario de acá, igual que el servicio. Con DateTime.UtcNow,
+    /// corriendo de noche el último día del mes la prueba guardaba el tope
+    /// en el mes siguiente y el servicio lo buscaba en el actual: no
+    /// coincidían y no se disparaba ningún aviso. La prueba tropezaba con
+    /// el mismo error que existe para detectar.
+    /// </summary>
+    private static readonly DateTime Hoy = HoraColombia.Hoy();
 
     private async Task<(HttpClient Cliente, int UsuarioId, CategoriaResponse Comida)> PrepararAsync(decimal tope)
     {

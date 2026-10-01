@@ -105,8 +105,10 @@
     private bool _guardando;
     private bool _mostrarForm;
     private string? _error;
-    private int _mes = DateTime.UtcNow.Month;
-    private int _anio = DateTime.UtcNow.Year;
+    // Con UtcNow, el 30 a las 7 p.m. la pantalla saltaba al mes siguiente y
+    // los topes del mes en curso desaparecían de golpe.
+    private int _mes = HoraLocal.Hoy().Month;
+    private int _anio = HoraLocal.Hoy().Year;
     private List<CategoriaResponse> _categoriasGasto = [];
     private List<PresupuestoResponse> _presupuestos = [];
     private readonly FormModel _form = new();

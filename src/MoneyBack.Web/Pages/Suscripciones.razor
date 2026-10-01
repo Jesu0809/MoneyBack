@@ -91,7 +91,7 @@
         {
             @foreach (var s in _suscripciones)
             {
-                var diasRestantes = (s.ProximoCobro.Date - DateTime.UtcNow.Date).Days;
+                var diasRestantes = (s.ProximoCobro.ToLocalTime().Date - HoraLocal.Hoy().Date).Days;
                 <div class="card">
                     <div class="row-between">
                         <div class="row">
@@ -148,7 +148,7 @@
         _form.Monto = null;
         _form.CategoriaId = _categoriasGasto.Count > 0 ? _categoriasGasto[0].Id : 0;
         _form.Frecuencia = FrecuenciaSuscripcion.Mensual;
-        _form.ProximoCobro = DateTime.UtcNow.Date.AddDays(30);
+        _form.ProximoCobro = HoraLocal.Hoy().Date.AddDays(30);
         _form.DiasAvisoPrevio = 3;
         _mostrarForm = true;
     }
@@ -209,7 +209,7 @@
         public decimal? Monto { get; set; }
         public int CategoriaId { get; set; }
         public FrecuenciaSuscripcion Frecuencia { get; set; } = FrecuenciaSuscripcion.Mensual;
-        public DateTime ProximoCobro { get; set; } = DateTime.UtcNow.Date.AddDays(30);
+        public DateTime ProximoCobro { get; set; } = HoraLocal.Hoy().Date.AddDays(30);
         public int DiasAvisoPrevio { get; set; } = 3;
     }
 }

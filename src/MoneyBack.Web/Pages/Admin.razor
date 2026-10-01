@@ -2,155 +2,450 @@
 @attribute [Authorize(Roles = "SuperAdmin")]
 @inject ApiClient Api
 @inject ConfirmacionService Confirmacion
-@inject AuthenticationStateProvider AuthProvider
 
 <PageTitle>Admin · MoneyBack</PageTitle>
+
+@*
+    Lo primero de un panel de administración no es la lista de cuentas: es
+    saber si algo se rompió. Por eso el resumen va arriba y lo que está mal
+    se pinta distinto — un panel donde todo se ve igual obliga a leerlo
+    entero para descubrir que no pasa nada.
+*@
 
 <div class="stack">
     <div>
         <h2>Administración</h2>
-        <p class="muted">Solo gestión de cuentas — nunca vemos las metas ni movimientos de ningún hogar desde aquí.</p>
+        <p class="muted">Cuentas y salud del sistema. Desde acá nunca se ven las metas ni los gastos de nadie.</p>
     </div>
 
-    <div class="card">
-        <div class="stack">
-            <div class="label">Rotar código de invitación</div>
-            <p class="muted">El código actual deja de servir apenas generes uno nuevo.</p>
-            <EditForm Model="_codigoForm" OnValidSubmit="RotarCodigo">
-                <div class="row">
-                    <InputText class="input" @bind-Value="_codigoForm.NuevoCodigo" placeholder="Nuevo código (mín. 8 caracteres)" />
-                    <button class="btn btn-primary" type="submit" disabled="@_rotando">
-                        @if (_rotando) { <span class="spinner"></span> } else { <span>Rotar</span> }
-                    </button>
+    @if (_cargando)
+    {
+        <Esqueleto Forma="resumen" />
+        <Esqueleto Filas="3" />
+    }
+    else
+    {
+        @* ---------- Salud ---------- *@
+        @if (_resumen is { } r)
+        {
+            <span class="label">Cómo va el sistema</span>
+
+            @* El atajo primero y ancho: es el corazón de la app y su falla
+               es silenciosa — nadie se entera hasta que cuadra cuentas. *@
+            <div class="tile-grid">
+                <button type="button" class="tile tile-ancha" style="--tono: @(AtajoSano(r) ? "var(--color-success)" : "var(--color-danger)")"
+                        @onclick="CargarAsync">
+                    <div class="tile-icono"><Icon Name="@(AtajoSano(r) ? "check" : "alert-triangle")" Size="19" /></div>
+                    <div class="tile-nombre">Gastos que entran solos</div>
+                    <div class="tile-dato @(AtajoSano(r) ? "" : "alerta")">@DescripcionDelAtajo(r)</div>
+                </button>
+
+                <div class="tile" style="--tono: var(--color-accent)">
+                    <div class="tile-icono"><Icon Name="user" Size="19" /></div>
+                    <div class="tile-nombre">@r.Cuentas @(r.Cuentas == 1 ? "cuenta" : "cuentas")</div>
+                    <div class="tile-dato">@r.Administradores con administración · @r.SesionesActivas @(r.SesionesActivas == 1 ? "sesión abierta" : "sesiones abiertas")</div>
                 </div>
-            </EditForm>
-            <AlertBox Mensaje="@_errorCodigo" />
-            @if (_codigoRotado)
-            {
-                <AlertBox Tipo="accent" Mensaje="@($"Código activo ahora: \"{_ultimoCodigoActivo}\" — compártelo tal cual, sin espacios ni mayúsculas de más.")" />
-            }
-        </div>
-    </div>
 
-    <div class="card">
-        <div class="stack">
-            <div class="label">Cuentas registradas</div>
-            @if (_cargando)
-            {
-                <Esqueleto Filas="2" />
-            }
-            else
-            {
-                @foreach (var usuario in _usuarios)
-                {
-                    <div class="list-item">
-                        <div>
-                            <div style="font-weight:600">
-                                @usuario.Nombre
-                                @if (usuario.Roles.Count > 0)
+                <div class="tile" style="--tono: @(r.MovimientosSinClasificar > 0 ? "var(--color-warning)" : "var(--color-accent)")">
+                    <div class="tile-icono"><Icon Name="wallet" Size="19" /></div>
+                    <div class="tile-nombre">@r.Movimientos movimientos</div>
+                    <div class="tile-dato @(r.MovimientosSinClasificar > 0 ? "alerta" : "")">
+                        @(r.MovimientosSinClasificar == 0
+                            ? "todos clasificados"
+                            : $"{r.MovimientosSinClasificar} sin clasificar")
+                    </div>
+                </div>
+
+                <div class="tile" style="--tono: #7a63c9">
+                    <div class="tile-icono"><Icon Name="home" Size="19" /></div>
+                    <div class="tile-nombre">@r.Grupos @(r.Grupos == 1 ? "grupo" : "grupos")</div>
+                    <div class="tile-dato">@r.MetasActivas @(r.MetasActivas == 1 ? "meta activa" : "metas activas")</div>
+                </div>
+
+                <div class="tile" style="--tono: #4f8fc0">
+                    <div class="tile-icono"><Icon Name="bell" Size="19" /></div>
+                    <div class="tile-nombre">Notificaciones</div>
+                    <div class="tile-dato">@r.NotificacionesSinLeer sin leer en todas las cuentas</div>
+                </div>
+            </div>
+        }
+
+        @* ---------- Cuentas ---------- *@
+        <span class="label">Cuentas</span>
+        <AlertBox Mensaje="@_error" />
+
+        @foreach (var cuenta in _cuentas)
+        {
+            <div class="card">
+                <div class="stack">
+                    <div class="row-between">
+                        <div style="min-width:0">
+                            <div class="row" style="gap:7px; flex-wrap:wrap">
+                                <span style="font-weight:650">@cuenta.Nombre</span>
+                                @if (cuenta.EsAdministrador)
                                 {
-                                    <span class="pill" style="margin-left:6px">@string.Join(", ", usuario.Roles)</span>
+                                    <span class="pill">administra</span>
                                 }
-                                @if (usuario.Id == _miUsuarioId)
+                                @if (cuenta.EsMiCuenta)
                                 {
-                                    <span class="pill" style="margin-left:6px">esta es la tuya</span>
+                                    <span class="pill">esta es la tuya</span>
                                 }
                             </div>
-                            <div class="muted">@usuario.Email · desde @Formato.FechaCorta(usuario.FechaCreacion)</div>
+                            <div class="muted" style="font-size:13px; overflow:hidden; text-overflow:ellipsis">@cuenta.Email</div>
                         </div>
-                        <div class="row" style="gap:6px">
-                            <button class="btn btn-secondary" @onclick="() => RevocarSesiones(usuario.Id)" disabled="@(_revocandoId == usuario.Id)">
-                                @if (_revocandoId == usuario.Id) { <span class="spinner"></span> } else { <span>Cerrar sesiones</span> }
-                            </button>
-                            <button class="btn btn-secondary" @onclick="() => CambiarClave(usuario)" disabled="@(_cambiandoClaveId == usuario.Id)">
-                                @if (_cambiandoClaveId == usuario.Id) { <span class="spinner"></span> } else { <span>Cambiar clave</span> }
-                            </button>
-                        </div>
+                        <button class="icon-btn" @onclick="() => Alternar(cuenta.Id)" title="Ver acciones">
+                            <Icon Name="@(_abierta == cuenta.Id ? "x" : "chevron-right")" Size="18" />
+                        </button>
                     </div>
 
-                    @if (_claveGenerada is not null && _claveGeneradaPara == usuario.Id)
+                    <div class="row" style="gap:14px; flex-wrap:wrap">
+                        <span class="muted" style="font-size:12.5px">@cuenta.Movimientos movimientos</span>
+                        <span class="muted" style="font-size:12.5px">@cuenta.Grupos @(cuenta.Grupos == 1 ? "grupo" : "grupos")</span>
+                        <span class="muted" style="font-size:12.5px">@cuenta.SesionesActivas @(cuenta.SesionesActivas == 1 ? "sesión" : "sesiones")</span>
+                        <span class="muted" style="font-size:12.5px">@UltimaVez(cuenta)</span>
+                    </div>
+
+                    @if (_abierta == cuenta.Id)
                     {
-                        @* Se muestra acá y una sola vez: al recargar la página
-                           se pierde, porque el servidor solo guarda el hash y
-                           no hay forma de volver a pedirla. *@
-                        <div class="card" style="border-left:3px solid var(--color-warning)">
-                            <div class="stack" style="gap:8px">
-                                <div class="row" style="gap:8px">
-                                    <Icon Name="alert-triangle" Size="17" />
-                                    <strong>Anótala ahora: no se puede volver a ver</strong>
+                        <div class="divider"></div>
+
+                        @if (_claveGenerada is not null && _claveGeneradaPara == cuenta.Id)
+                        {
+                            @* Se muestra acá y una sola vez: al recargar se
+                               pierde, porque el servidor solo guarda el hash. *@
+                            <div class="card" style="border-left:3px solid var(--color-warning)">
+                                <div class="stack" style="gap:8px">
+                                    <div class="row" style="gap:8px">
+                                        <Icon Name="alert-triangle" Size="17" />
+                                        <strong>Anótala ahora: no se puede volver a ver</strong>
+                                    </div>
+                                    <div class="money" style="font-size:24px; letter-spacing:0.04em; user-select:all">@_claveGenerada</div>
+                                    <p class="muted" style="margin:0; font-size:13px">
+                                        @if (cuenta.EsMiCuenta)
+                                        {
+                                            <text>Tu sesión ya se cerró. La vas a necesitar para volver a entrar.</text>
+                                        }
+                                        else
+                                        {
+                                            <text>Pásasela a @cuenta.Nombre para que entre y se ponga la suya desde Perfil.</text>
+                                        }
+                                    </p>
                                 </div>
-                                <div class="money" style="font-size:26px; letter-spacing:0.04em; user-select:all">
-                                    @_claveGenerada
-                                </div>
-                                <p class="muted" style="margin:0; font-size:13px">
-                                    @if (usuario.Id == _miUsuarioId)
-                                    {
-                                        <text>Anótala: tu sesión ya se cerró y la vas a necesitar para volver a entrar.</text>
-                                    }
-                                    else
-                                    {
-                                        <text>Pásasela a @usuario.Nombre para que entre y se ponga la suya desde Perfil.</text>
-                                    }
-                                    @if (_sesionesCerradas > 0)
-                                    {
-                                        <text>Se cerraron @_sesionesCerradas sesión(es) que tenía abiertas.</text>
-                                    }
-                                </p>
                             </div>
+                        }
+
+                        <div class="stack" style="gap:8px">
+                            <button class="btn btn-secondary btn-block" disabled="@(_ocupada == cuenta.Id)"
+                                    @onclick="() => CambiarClave(cuenta)">
+                                <Icon Name="shield" Size="16" /> Cambiar contraseña
+                            </button>
+
+                            <button class="btn btn-secondary btn-block" disabled="@(_ocupada == cuenta.Id || cuenta.SesionesActivas == 0)"
+                                    @onclick="() => RevocarSesiones(cuenta)">
+                                <Icon Name="logout" Size="16" />
+                                @(cuenta.SesionesActivas == 0 ? "No tiene sesiones abiertas" : $"Cerrar sus {cuenta.SesionesActivas} sesión(es)")
+                            </button>
+
+                            @if (cuenta.EsAdministrador)
+                            {
+                                <button class="btn btn-secondary btn-block"
+                                        disabled="@(_ocupada == cuenta.Id || cuenta.EsMiCuenta)"
+                                        @onclick="() => QuitarAdministracion(cuenta)">
+                                    <Icon Name="shield" Size="16" />
+                                    @(cuenta.EsMiCuenta ? "No puedes quitártela a ti mismo" : "Quitar administración")
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-secondary btn-block" disabled="@(_ocupada == cuenta.Id)"
+                                        @onclick="() => DarAdministracion(cuenta)">
+                                    <Icon Name="shield" Size="16" /> Dar administración
+                                </button>
+                            }
+
+                            <button class="btn btn-danger btn-block"
+                                    disabled="@(_ocupada == cuenta.Id || cuenta.EsMiCuenta)"
+                                    @onclick="() => BorrarCuenta(cuenta)">
+                                <Icon Name="trash" Size="16" />
+                                @(cuenta.EsMiCuenta ? "No puedes borrar tu cuenta" : "Borrar cuenta")
+                            </button>
                         </div>
                     }
-                }
-            }
-        </div>
-    </div>
+                </div>
+            </div>
+        }
 
-    @if (_mensajeRevocacion is not null)
-    {
-        <AlertBox Tipo="accent" Mensaje="@_mensajeRevocacion" />
+        @* ---------- Invitaciones ---------- *@
+        <span class="label">Quién puede registrarse</span>
+        <div class="card">
+            <div class="stack">
+                <p class="muted" style="margin:0">
+                    Sin este código nadie puede crear una cuenta. El actual deja de servir apenas generes uno nuevo.
+                </p>
+                <EditForm Model="_codigoForm" OnValidSubmit="RotarCodigo">
+                    <div class="row">
+                        <InputText class="input" @bind-Value="_codigoForm.NuevoCodigo" placeholder="Código nuevo (mín. 8 caracteres)" />
+                        <button class="btn btn-primary" type="submit" disabled="@_rotando">
+                            @if (_rotando) { <span class="spinner"></span> } else { <span>Cambiar</span> }
+                        </button>
+                    </div>
+                </EditForm>
+                <AlertBox Mensaje="@_errorCodigo" />
+                @if (_ultimoCodigoActivo is not null)
+                {
+                    <AlertBox Tipo="accent" Mensaje="@($"Código activo: \"{_ultimoCodigoActivo}\" — compártelo tal cual.")" />
+                }
+            </div>
+        </div>
     }
-    <AlertBox Mensaje="@_errorClave" />
 </div>
 
 @code {
     private bool _cargando = true;
     private bool _rotando;
-    private bool _codigoRotado;
-    private string? _ultimoCodigoActivo;
+    private string? _error;
     private string? _errorCodigo;
-    private string? _mensajeRevocacion;
-    private int? _revocandoId;
-    private int? _miUsuarioId;
-    private int? _cambiandoClaveId;
+    private string? _ultimoCodigoActivo;
+
+    private int? _abierta;
+    private int? _ocupada;
     private string? _claveGenerada;
     private int? _claveGeneradaPara;
-    private int _sesionesCerradas;
-    private string? _errorClave;
-    private List<UsuarioAdminResponse> _usuarios = [];
+
+    private ResumenAdminResponse? _resumen;
+    private List<CuentaAdminResponse> _cuentas = [];
     private readonly CodigoFormModel _codigoForm = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        var estado = await AuthProvider.GetAuthenticationStateAsync();
-        // El id viene en el claim "sub" del token, tal cual lo escribe el API.
-        _miUsuarioId = int.TryParse(estado.User.FindFirst("sub")?.Value, out var id) ? id : null;
+    protected override async Task OnInitializedAsync() => await CargarAsync();
 
-        _usuarios = await Api.ObtenerUsuariosAdminAsync();
+    private async Task CargarAsync()
+    {
+        var resumen = Api.ObtenerResumenAdminAsync();
+        var cuentas = Api.ObtenerCuentasAdminAsync();
+        await Task.WhenAll(resumen, cuentas);
+
+        _resumen = await resumen;
+        _cuentas = await cuentas;
         _cargando = false;
+    }
+
+    /// <summary>
+    /// El atajo se considera sano si llamó en las últimas 36 horas y la
+    /// última vez le fue bien. 36 y no 24 porque un día sin comprar nada es
+    /// perfectamente normal y no significa que algo esté roto.
+    /// </summary>
+    private static bool AtajoSano(ResumenAdminResponse r) =>
+        r.UltimaLlamadaAtajo is { } cuando
+        && r.UltimaLlamadaAtajoFueBien
+        && (DateTime.UtcNow - cuando).TotalHours < 36;
+
+    private static string DescripcionDelAtajo(ResumenAdminResponse r)
+    {
+        if (r.UltimaLlamadaAtajo is not { } cuando)
+        {
+            return "El atajo del teléfono nunca ha llamado. Los gastos del banco no están entrando solos.";
+        }
+
+        var horas = (DateTime.UtcNow - cuando).TotalHours;
+        var hace = horas switch
+        {
+            < 1 => "hace menos de una hora",
+            < 2 => "hace una hora",
+            < 48 => $"hace {(int)horas} horas",
+            _ => $"hace {(int)(horas / 24)} días"
+        };
+
+        var texto = r.UltimaLlamadaAtajoFueBien
+            ? $"Última vez {hace}, y entró bien."
+            : $"Última vez {hace}, y falló.";
+
+        if (r.LlamadasAtajoFallidas > 0)
+        {
+            texto += $" {r.LlamadasAtajoFallidas} intento(s) fallido(s) en el último día.";
+        }
+
+        return texto;
+    }
+
+    private static string UltimaVez(CuentaAdminResponse cuenta)
+    {
+        if (cuenta.UltimaActividad is not { } cuando) return "sin movimientos aún";
+
+        var dias = (DateTime.UtcNow - cuando).TotalDays;
+        return dias switch
+        {
+            < 1 => "activa hoy",
+            < 2 => "activa ayer",
+            < 30 => $"hace {(int)dias} días",
+            _ => $"inactiva desde {Formato.FechaCorta(cuando)}"
+        };
+    }
+
+    private void Alternar(int id)
+    {
+        _abierta = _abierta == id ? null : id;
+        _error = null;
+        if (_claveGeneradaPara != id) _claveGenerada = null;
+    }
+
+    private async Task CambiarClave(CuentaAdminResponse cuenta)
+    {
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            cuenta.EsMiCuenta ? "¿Cambiarte la contraseña a ti mismo?" : $"¿Cambiarle la contraseña a {cuenta.Nombre}?",
+            cuenta.EsMiCuenta
+                ? "Se cierra tu sesión y tendrás que volver a entrar con la clave nueva. Se muestra una sola vez: "
+                  + "anótala antes de cerrar la pantalla, porque si la pierdes nadie puede recuperarla por ti."
+                : $"Se le pone una clave temporal y se cierran sus sesiones. La que tenía deja de servir, "
+                  + $"y {cuenta.Nombre} no podrá entrar hasta que le pases la nueva. Sus códigos de recuperación también se borran.",
+            "Sí, cambiarla"));
+        if (!confirmado) return;
+
+        _ocupada = cuenta.Id;
+        _error = null;
+        _claveGenerada = null;
+
+        var resultado = await Api.GenerarClaveTemporalAsync(cuenta.Id);
+        if (resultado.Exito)
+        {
+            _claveGenerada = resultado.Valor!.Clave;
+            _claveGeneradaPara = cuenta.Id;
+            await CargarAsync();
+        }
+        else
+        {
+            _error = resultado.TodosLosErrores();
+        }
+
+        _ocupada = null;
+    }
+
+    private async Task RevocarSesiones(CuentaAdminResponse cuenta)
+    {
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Cerrarle las sesiones a {cuenta.Nombre}?",
+            "Tendrá que escribir su contraseña otra vez en todos sus dispositivos. La contraseña no cambia.",
+            "Sí, cerrarlas"));
+        if (!confirmado) return;
+
+        _ocupada = cuenta.Id;
+        await Api.RevocarSesionesAsync(cuenta.Id);
+        await CargarAsync();
+        _ocupada = null;
+    }
+
+    private async Task DarAdministracion(CuentaAdminResponse cuenta)
+    {
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Darle la administración a {cuenta.Nombre}?",
+            "Va a poder ver todas las cuentas, cambiar contraseñas y borrar cuentas. No verá las metas ni los gastos de nadie.",
+            "Sí, dársela", EsDestructiva: false));
+        if (!confirmado) return;
+
+        _ocupada = cuenta.Id;
+        var resultado = await Api.DarAdministracionAsync(cuenta.Id);
+        if (!resultado.Exito) _error = resultado.TodosLosErrores();
+        await CargarAsync();
+        _ocupada = null;
+    }
+
+    private async Task QuitarAdministracion(CuentaAdminResponse cuenta)
+    {
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Quitarle la administración a {cuenta.Nombre}?",
+            "Se le cierran las sesiones, porque el permiso viaja dentro de su sesión actual y si no seguiría administrando hasta que caduque.",
+            "Sí, quitársela"));
+        if (!confirmado) return;
+
+        _ocupada = cuenta.Id;
+        var resultado = await Api.QuitarAdministracionAsync(cuenta.Id);
+        if (!resultado.Exito) _error = resultado.TodosLosErrores();
+        await CargarAsync();
+        _ocupada = null;
+    }
+
+    /// <summary>
+    /// Se consulta primero qué se va a perder y se le muestra a quien
+    /// decide. Un "eliminar cuenta" sin números no dice si son cuatro
+    /// movimientos de prueba o el historial de dos años de alguien.
+    /// </summary>
+    private async Task BorrarCuenta(CuentaAdminResponse cuenta)
+    {
+        _ocupada = cuenta.Id;
+        _error = null;
+        var previa = await Api.ConsultarQueSeBorrariaAsync(cuenta.Id);
+        _ocupada = null;
+
+        if (previa is null)
+        {
+            _error = "No pudimos revisar qué contiene esa cuenta. Intenta de nuevo.";
+            return;
+        }
+
+        if (previa.Bloqueo is not null)
+        {
+            _error = previa.Bloqueo;
+            return;
+        }
+
+        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
+            $"¿Borrar la cuenta de {previa.Nombre}?",
+            ResumenDeLoQueSePierde(previa),
+            "Sí, borrarla para siempre"));
+        if (!confirmado) return;
+
+        _ocupada = cuenta.Id;
+        var resultado = await Api.BorrarCuentaAsync(cuenta.Id);
+        if (!resultado.Exito) _error = resultado.TodosLosErrores();
+        _abierta = null;
+        await CargarAsync();
+        _ocupada = null;
+    }
+
+    private static string ResumenDeLoQueSePierde(QueSeBorrariaResponse p)
+    {
+        var partes = new List<string>();
+        void Sumar(int cuantos, string singular, string plural)
+        {
+            if (cuantos > 0) partes.Add($"{cuantos} {(cuantos == 1 ? singular : plural)}");
+        }
+
+        Sumar(p.Movimientos, "movimiento", "movimientos");
+        Sumar(p.Aportes, "aporte a metas", "aportes a metas");
+        Sumar(p.Categorias, "categoría", "categorías");
+        Sumar(p.Deudas, "deuda", "deudas");
+        Sumar(p.Tarjetas, "tarjeta", "tarjetas");
+        Sumar(p.CobrosFijos, "cobro fijo", "cobros fijos");
+        Sumar(p.Presupuestos, "tope", "topes");
+
+        var texto = partes.Count == 0
+            ? "Esa cuenta no tiene nada guardado."
+            : "Se pierden " + string.Join(", ", partes) + ".";
+
+        if (p.GruposQueSeBorran.Count > 0)
+        {
+            texto += $" También se borra {string.Join(" y ", p.GruposQueSeBorran)}, "
+                     + "porque era la única persona en ese grupo.";
+        }
+
+        if (p.GruposDeLosQueSale.Count > 0)
+        {
+            texto += $" Sale de {string.Join(" y ", p.GruposDeLosQueSale)}, que siguen existiendo.";
+        }
+
+        return texto + " No se puede deshacer.";
     }
 
     private async Task RotarCodigo()
     {
         _errorCodigo = null;
-        _codigoRotado = false;
         _rotando = true;
 
-        var codigoIngresado = _codigoForm.NuevoCodigo.Trim();
-        var resultado = await Api.RotarCodigoInvitacionAsync(new RotarCodigoInvitacionRequest(codigoIngresado));
+        var codigo = _codigoForm.NuevoCodigo.Trim();
+        var resultado = await Api.RotarCodigoInvitacionAsync(new RotarCodigoInvitacionRequest(codigo));
 
         if (resultado.Exito)
         {
-            _codigoRotado = true;
-            _ultimoCodigoActivo = codigoIngresado;
+            _ultimoCodigoActivo = codigo;
             _codigoForm.NuevoCodigo = "";
         }
         else
@@ -159,61 +454,6 @@
         }
 
         _rotando = false;
-    }
-
-    /// <summary>
-    /// La contraseña anterior no se puede "ver": el servidor solo guarda su
-    /// hash, así que lo único posible es reemplazarla. Se genera una
-    /// temporal, se muestra una sola vez y la persona se pone la suya
-    /// después.
-    /// </summary>
-    private async Task CambiarClave(UsuarioAdminResponse usuario)
-    {
-        // Cambiarse la clave a uno mismo cierra la propia sesión: si nadie
-        // avisa, uno confirma, se sale la app y la clave nueva quedó en una
-        // pantalla que ya no existe. En la única cuenta con Admin eso es
-        // quedarse afuera sin nadie que abra.
-        var esMiCuenta = usuario.Id == _miUsuarioId;
-
-        var confirmado = await Confirmacion.PreguntarAsync(new Confirmacion(
-            esMiCuenta ? "¿Cambiarte la contraseña a ti mismo?" : $"¿Cambiarle la contraseña a {usuario.Nombre}?",
-            esMiCuenta
-                ? "Se cierra tu sesión y tendrás que volver a entrar con la clave nueva. Se muestra una sola vez: "
-                  + "anótala antes de cerrar la pantalla, porque si la pierdes nadie puede recuperarla por ti."
-                : $"Se le pone una clave temporal y se cierran sus sesiones. La que tenía deja de servir, "
-                  + $"y {usuario.Nombre} no podrá entrar hasta que le pases la nueva. Sus códigos de recuperación también se borran.",
-            "Sí, cambiarla"));
-        if (!confirmado) return;
-
-        _cambiandoClaveId = usuario.Id;
-        _claveGenerada = null;
-        _errorClave = null;
-
-        var resultado = await Api.GenerarClaveTemporalAsync(usuario.Id);
-
-        if (resultado.Exito)
-        {
-            _claveGenerada = resultado.Valor!.Clave;
-            _claveGeneradaPara = usuario.Id;
-            _sesionesCerradas = resultado.Valor.SesionesCerradas;
-        }
-        else
-        {
-            _errorClave = resultado.TodosLosErrores();
-        }
-
-        _cambiandoClaveId = null;
-    }
-
-    private async Task RevocarSesiones(int usuarioId)
-    {
-        _revocandoId = usuarioId;
-        _mensajeRevocacion = null;
-        var cantidad = await Api.RevocarSesionesAsync(usuarioId);
-        _mensajeRevocacion = cantidad > 0
-            ? $"Se cerraron {cantidad} sesión(es) activa(s)."
-            : "Esa cuenta no tenía sesiones activas.";
-        _revocandoId = null;
     }
 
     private class CodigoFormModel
