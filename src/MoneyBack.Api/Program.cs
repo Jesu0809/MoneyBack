@@ -156,7 +156,22 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapHealthChecks("/health");
+// /health es una prueba de VIDA, no de disponibilidad: responde si el
+// proceso está en pie, sin tocar la base.
+//
+// Antes consultaba la base, y eso convertía cualquier tropiezo de Neon en
+// una caída total y permanente: el chequeo fallaba, Fly mataba la máquina,
+// la máquina arrancaba, el chequeo volvía a fallar. Un ciclo del que la app
+// no sale sola ni cuando la base ya volvió.
+//
+// Con esto, si la base se cae, los endpoints que la necesitan devuelven
+// error —correcto— pero la app sigue viva y se recupera sola en cuanto la
+// base responde.
+app.MapGet("/health", () => Results.Ok("Healthy")).ExcludeFromDescription();
+
+// La de verdad, para diagnosticar: esta sí toca la base. Fly NO la usa para
+// decidir si reinicia.
+app.MapHealthChecks("/health/base");
 
 app.MapAuthEndpoints();
 app.MapAdminEndpoints();
@@ -179,11 +194,30 @@ app.MapTokensAtajoEndpoints();
 app.MapAtajosEndpoints();
 app.MapTarjetasCreditoEndpoints();
 
-await app.SembrarCodigoInvitacionAsync();
-await app.PromoverSuperAdminSiSePidioAsync();
-await app.CrearAdminInicialAsync();
+// Estas tres tocan la base y corrían ANTES de empezar a atender: si la base
+// no respondía al arrancar, la app nunca llegaba a app.Run() y no contestaba
+// ni /health. Ahora cada una se protege por su cuenta, porque ninguna es
+// indispensable para atender una petición: siembran configuración inicial.
+await EjecutarSinTumbarLaAppAsync(app, "sembrar el código de invitación", app.SembrarCodigoInvitacionAsync);
+await EjecutarSinTumbarLaAppAsync(app, "promover a SuperAdmin", app.PromoverSuperAdminSiSePidioAsync);
+await EjecutarSinTumbarLaAppAsync(app, "crear la cuenta de administración", app.CrearAdminInicialAsync);
 
 app.Run();
+
+static async Task EjecutarSinTumbarLaAppAsync(WebApplication app, string que, Func<Task> tarea)
+{
+    try
+    {
+        await tarea();
+    }
+    catch (Exception ex)
+    {
+        // Se registra fuerte y se sigue. Que no se pueda sembrar la
+        // configuración inicial es un problema; que la app no arranque por
+        // eso es un problema mucho más grande.
+        app.Logger.LogError(ex, "No se pudo {Que} al arrancar. La app sigue; revisar la base de datos.", que);
+    }
+}
 
 /// <summary>Marcador requerido por WebApplicationFactory&lt;Program&gt; en MoneyBack.Api.Tests — Program.cs usa top-level statements, sin esto el tipo no es accesible desde otro ensamblado.</summary>
 public partial class Program;
